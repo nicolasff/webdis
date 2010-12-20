@@ -91,6 +91,9 @@ run_async_command(redisAsyncContext *c, struct evhttp_request *rq, const char *u
 
 	if(!slash) {
 		redisAsyncCommandArgv(c, cmdCallback, rq, 1, arguments, argument_sizes);
+		free(arguments);
+		free(argument_sizes);
+		return;
 	}
 	p = slash + 1;
 	while(p < uri + uri_len) {
