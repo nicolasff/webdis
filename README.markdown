@@ -9,7 +9,7 @@ curl http://127.0.0.1:7379/SET/hello/world
 curl http://127.0.0.1:7379/GET/hello
 → “world”
 
-curl -v "GET/hello" http://127.0.0.1:7379/
+curl -d "GET/hello" http://127.0.0.1:7379/
 → “world”
 
 </pre>
