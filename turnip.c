@@ -38,7 +38,6 @@ cmdCallback(redisAsyncContext *c, void *r, void *privdata) {
 			break;
 
 		default:
-			printf("type=%d\n", reply->type);
 			evhttp_send_reply(rq, 500, "Unknown redis format", NULL);
 	}
 
