@@ -2,7 +2,6 @@ OUT=turnip
 OBJS=turnip.o hiredis/hiredis.o hiredis/sds.o hiredis/net.o hiredis/async.o
 CFLAGS=-O0 -ggdb -Wall -Wextra -I.
 LDFLAGS=-levent
-prefix=/usr
 
 all: $(OUT) Makefile
 

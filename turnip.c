@@ -40,7 +40,6 @@ cmdCallback(redisAsyncContext *c, void *r, void *privdata) {
 		default:
 			evhttp_send_reply(rq, 500, "Unknown redis format", NULL);
 	}
-
 }
 
 static void
@@ -58,11 +57,9 @@ disconnectCallback(const redisAsyncContext *c, int status) {
 }
 
 void
-run_async_command(redisAsyncContext *c, struct evhttp_request *rq, const char *uri) {
+run_async_command(redisAsyncContext *c, struct evhttp_request *rq, const char *uri, size_t uri_len) {
 
-	int uri_len = strlen(uri);
-
-	char *slash = strchr(uri + 1, '/');
+	char *slash = strchr(uri, '/');
 	int cmd_len;
 	int param_count = 0, cur_param = 1;
 
@@ -80,13 +77,13 @@ run_async_command(redisAsyncContext *c, struct evhttp_request *rq, const char *u
 	argument_sizes = calloc(param_count, sizeof(size_t));
 
 	if(slash) {
-		cmd_len = slash - uri - 1;
+		cmd_len = slash - uri;
 	} else {
-		cmd_len = uri_len - 1;
+		cmd_len = uri_len;
 	}
 
 	/* there is always a first parameter, it's the command name */
-	arguments[0] = uri + 1;
+	arguments[0] = uri;
 	argument_sizes[0] = cmd_len;
 
 	if(!slash) {
@@ -126,17 +123,24 @@ run_async_command(redisAsyncContext *c, struct evhttp_request *rq, const char *u
 void
 on_request(struct evhttp_request *rq, void *ctx) {
 
-	struct evkeyvalq headers;
 	const char *uri = evhttp_request_uri(rq);
 
 	/* get context */
 	redisAsyncContext *c = ctx;
 
-	/* parse URI */
-	evhttp_parse_query(uri, &headers);
+	switch(rq->type) {
+		case EVHTTP_REQ_GET:
+			run_async_command(c, rq, 1+uri, strlen(uri)-1);
+			break;
+		case EVHTTP_REQ_POST:
+			run_async_command(c, rq,
+				(const char*)EVBUFFER_DATA(rq->input_buffer),
+				EVBUFFER_LENGTH(rq->input_buffer));
+			break;
 
-	if(rq->type == EVHTTP_REQ_GET) {
-		run_async_command(c, rq, uri);
+		default:
+			evhttp_send_reply(rq, 500, "Unknown redis format", NULL);
+			return;
 	}
 }
 
@@ -154,7 +158,6 @@ main(int argc, char *argv[]) {
 		printf("Error: %s\n", c->errstr);
 		return 1;
 	}
-
 
 	/* start http server */
 	evhttp_bind_socket(http, "0.0.0.0", 7379);
