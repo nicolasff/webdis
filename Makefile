@@ -1,6 +1,6 @@
 OUT=radish
 OBJS=radish.o hiredis/hiredis.o hiredis/sds.o hiredis/net.o hiredis/async.o
-CFLAGS=-O3 -Wall -Wextra -I.
+CFLAGS=-O0 -ggdb -Wall -Wextra -I.
 LDFLAGS=-levent
 prefix=/usr
 
