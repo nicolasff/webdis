@@ -58,7 +58,6 @@ run_async_command(redisAsyncContext *c, struct evhttp_request *rq, const char *u
 	int uri_len = strlen(uri);
 
 	char *slash = strchr(uri + 1, '/');
-	char *cmd;
 	int cmd_len;
 	int param_count = 0, cur_param = 1;
 
@@ -80,11 +79,9 @@ run_async_command(redisAsyncContext *c, struct evhttp_request *rq, const char *u
 	} else {
 		cmd_len = uri_len - 1;
 	}
-	cmd = calloc(1 + cmd_len, 1);
-	memcpy(cmd, uri + 1, cmd_len);
 
 	/* there is always a first parameter, it's the command name */
-	arguments[0] = cmd;
+	arguments[0] = uri + 1;
 	argument_sizes[0] = cmd_len;
 
 	if(!slash) {
@@ -114,6 +111,8 @@ run_async_command(redisAsyncContext *c, struct evhttp_request *rq, const char *u
 
 	redisAsyncCommandArgv(c, cmdCallback, rq, param_count, arguments, argument_sizes);
 
+	free(arguments);
+	free(argument_sizes);
 }
 
 
