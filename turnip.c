@@ -32,8 +32,14 @@ cmdCallback(redisAsyncContext *c, void *r, void *privdata) {
 			evhttp_send_reply(rq, 200, "OK", body);
 			evbuffer_free(body);
 			break;
+
+		case REDIS_REPLY_NIL:
+			evhttp_send_reply(rq, 404, "Not Found", NULL);
+			break;
+
 		default:
-		evhttp_send_reply(rq, 500, "Unknown redis format", NULL);
+			printf("type=%d\n", reply->type);
+			evhttp_send_reply(rq, 500, "Unknown redis format", NULL);
 	}
 
 }
@@ -71,8 +77,8 @@ run_async_command(redisAsyncContext *c, struct evhttp_request *rq, const char *u
 		p = strchr(p+1, '/');
 	}
 
-	arguments = malloc(param_count * sizeof(char*));
-	argument_sizes = malloc(param_count * sizeof(size_t));
+	arguments = calloc(param_count, sizeof(char*));
+	argument_sizes = calloc(param_count, sizeof(size_t));
 
 	if(slash) {
 		cmd_len = slash - uri - 1;
@@ -93,11 +99,10 @@ run_async_command(redisAsyncContext *c, struct evhttp_request *rq, const char *u
 		const char *arg = p;
 		int arg_len;
 		char *next = strchr(arg, '/');
-		if(next) {
+		if(next) { /* found a slash */
 			arg_len = next - arg;
-
 			p = next + 1;
-		} else {
+		} else { /* last argument */
 			arg_len = uri + uri_len - arg;
 			p = uri + uri_len;
 		}
@@ -129,7 +134,6 @@ on_request(struct evhttp_request *rq, void *ctx) {
 	evhttp_parse_query(uri, &headers);
 
 	if(rq->type == EVHTTP_REQ_GET) {
-		/* run async command */
 		run_async_command(c, rq, uri);
 	}
 }
