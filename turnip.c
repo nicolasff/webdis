@@ -10,6 +10,8 @@
 #include <hiredis/async.h>
 #include <hiredis/adapters/libevent.h>
 
+#include "conf.h"
+
 static void
 cmdCallback(redisAsyncContext *c, void *r, void *privdata) {
 	(void)c;
@@ -152,7 +154,9 @@ main(int argc, char *argv[]) {
 	struct event_base *base = event_base_new();
 	struct evhttp *http = evhttp_new(base);
 	
-	redisAsyncContext *c = redisAsyncConnect("127.0.0.1", 6379);
+	struct conf *cfg = conf_read("turnip.conf");
+
+	redisAsyncContext *c = redisAsyncConnect(cfg->redis_host, cfg->redis_port);
 	if(c->err) {
 		/* Let *c leak for now... */
 		printf("Error: %s\n", c->errstr);
@@ -160,7 +164,7 @@ main(int argc, char *argv[]) {
 	}
 
 	/* start http server */
-	evhttp_bind_socket(http, "0.0.0.0", 7379);
+	evhttp_bind_socket(http, cfg->http_host, cfg->http_port);
 	evhttp_set_gencb(http, on_request, c);
 
 	/* attach hiredis to libevent base */

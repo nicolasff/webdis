@@ -7,8 +7,11 @@ make clean all
 ./turnip &
 curl http://127.0.0.1:7379/SET/hello/world
 curl http://127.0.0.1:7379/GET/hello
-
 → “world”
+
+curl -v "GET/hello" http://127.0.0.1:7379/
+→ “world”
+
 </pre>
 
 # Ideas
@@ -18,6 +21,6 @@ curl http://127.0.0.1:7379/GET/hello
 * Support PUT, DELETE, HEAD?
 * Add JSON output
 * Add JSONP callbacks
-* Add a config file
-	* Provide host, port, timeout
+* Enrich config file
+	* Provide timeout
 	* Restrict commands by IP range
