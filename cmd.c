@@ -1,11 +1,9 @@
 #include "cmd.h"
+#include "json.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <hiredis/hiredis.h>
-
-extern void
-cmdCallback(redisAsyncContext *c, void *r, void *privdata);
 
 struct cmd *
 cmd_new(struct evhttp_request *rq, int count) {
@@ -60,7 +58,7 @@ cmd_run(redisAsyncContext *c, struct evhttp_request *rq, const char *uri, size_t
 	cmd->argv_len[0] = cmd_len;
 
 	if(!slash) {
-		redisAsyncCommandArgv(c, cmdCallback, cmd, 1, cmd->argv, cmd->argv_len);
+		redisAsyncCommandArgv(c, json_reply, cmd, 1, cmd->argv, cmd->argv_len);
 		return;
 	}
 	p = slash + 1;
@@ -84,6 +82,6 @@ cmd_run(redisAsyncContext *c, struct evhttp_request *rq, const char *uri, size_t
 		cur_param++;
 	}
 
-	redisAsyncCommandArgv(c, cmdCallback, cmd, param_count, cmd->argv, cmd->argv_len);
+	redisAsyncCommandArgv(c, json_reply, cmd, param_count, cmd->argv, cmd->argv_len);
 }
 

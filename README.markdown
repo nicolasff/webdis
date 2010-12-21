@@ -26,7 +26,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 	* Restrict commands by IP range
 * Send your ideas using the github tracker or on twitter [@yowgi](http://twitter.com/yowgi).
 
-# HTTP error codes
+# HTTP error codes that could be used (although that's not the case at the moment)
 * Missing key: 404 Not Found
 * Timeout on the redis side: 503 Service Unavailable
 * Unknown verb: 405 Method Not Allowed

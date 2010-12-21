@@ -12,34 +12,7 @@
 #include <jansson.h>
 
 #include "conf.h"
-#include "json.h"
 #include "cmd.h"
-
-void
-cmdCallback(redisAsyncContext *c, void *r, void *privdata) {
-	json_reply(c,r,privdata);
-}
-
-#if 0
-	switch(reply->type) {
-		case REDIS_REPLY_STRING:
-		case REDIS_REPLY_STATUS:
-
-			/* send reply */
-			body = evbuffer_new();
-			evbuffer_add(body, reply->str, strlen(reply->str));
-			evhttp_send_reply(cmd->rq, 200, "OK", body);
-			evbuffer_free(body);
-			break;
-
-		case REDIS_REPLY_NIL:
-			evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
-			break;
-
-		default:
-			evhttp_send_reply(cmd->rq, 500, "Unknown redis format", NULL);
-	}
-#endif
 
 static void
 connectCallback(const redisAsyncContext *c) {
