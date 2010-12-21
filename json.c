@@ -61,20 +61,19 @@ json_encode(const struct cmd *cmd, const redisReply *r) {
 	switch(r->type) {
 		case REDIS_REPLY_STATUS:
 		case REDIS_REPLY_ERROR:
-
 			jlist = json_array();
 			json_array_append_new(jlist,
 				r->type == REDIS_REPLY_ERROR ? json_false() : json_true());
 			json_array_append_new(jlist, json_string(r->str));
-			json_object_set(jroot, verb, jlist);
+			json_object_set_new(jroot, verb, jlist);
 			break;
 
 		case REDIS_REPLY_STRING:
-			json_object_set(jroot, verb, json_string(r->str));
+			json_object_set_new(jroot, verb, json_string(r->str));
 			break;
 
 		case REDIS_REPLY_INTEGER:
-			json_object_set(jroot, verb, json_integer(r->integer));
+			json_object_set_new(jroot, verb, json_integer(r->integer));
 			break;
 
 		case REDIS_REPLY_ARRAY:
@@ -93,11 +92,11 @@ json_encode(const struct cmd *cmd, const redisReply *r) {
 						break;
 				}
 			}
-			json_object_set(jroot, verb, jlist);
+			json_object_set_new(jroot, verb, jlist);
 			break;
 
 		default:
-			json_object_set(jroot, verb, json_null());
+			json_object_set_new(jroot, verb, json_null());
 			break;
 	}
 
