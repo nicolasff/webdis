@@ -24,7 +24,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Enrich config file
 	* Provide timeout
 	* Restrict commands by IP range
-* Add your own here or send your suggestions on twitter [@yowgi](http://twitter.com/yowgi).
+* Send your ideas using the github tracker or on twitter [@yowgi](http://twitter.com/yowgi).
 
 # HTTP error codes
 * Missing key: 404 Not Found
@@ -40,7 +40,7 @@ The URI `/COMMAND/arg0/arg1/.../argN` returns a JSON object with the command as 
 <pre>
 // string
 $ curl  http://127.0.0.1:7379/GET/y
-{"GET":"42"}
+{"GET":"41"}
 
 // number
 $ curl  http://127.0.0.1:7379/INCR/y
