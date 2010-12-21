@@ -1,9 +1,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "conf.h"
 
+static char *
+skipspaces(char *p) {
+
+	while(isspace(*p)) p++;
+
+	return p;
+}
 
 struct conf *
 conf_read(const char *filename) {
@@ -35,13 +43,13 @@ conf_read(const char *filename) {
 		}
 
 		if(strncmp(ret, "redis_host", 10) == 0) {
-			conf->redis_host = strdup(ret + 11);
+			conf->redis_host = strdup(skipspaces(ret + 11));
 		} else if(strncmp(ret, "redis_port", 10) == 0) {
-			conf->redis_port = (short)atoi(ret + 10);
+			conf->redis_port = (short)atoi(skipspaces(ret + 10));
 		} else if(strncmp(ret, "http_host", 10) == 0) {
-			conf->http_host = strdup(ret + 11);
+			conf->http_host = strdup(skipspaces(ret + 11));
 		} else if(strncmp(ret, "http_port", 9) == 0) {
-			conf->http_port = (short)atoi(ret + 10);
+			conf->http_port = (short)atoi(skipspaces(ret + 10));
 		}
 	}
 	fclose(f);
