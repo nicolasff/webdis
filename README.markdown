@@ -21,6 +21,23 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Support PUT, DELETE, HEAD?
 * Add JSON output
 * Add JSONP callbacks
+* Add support for Redis UNIX socket
 * Enrich config file
 	* Provide timeout
 	* Restrict commands by IP range
+
+# HTTP error codes
+* Missing key: 404 Not Found
+* Timeout on the redis side: 503 Service Unavailable
+* Unknown verb: 405 Method Not Allowed
+
+
+# JSON output
+
+## /GET/x
+`{"GET": "value here"}`
+
+## /INCR/y
+`{"INCR": 42}`
+
+## 
