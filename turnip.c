@@ -38,7 +38,17 @@ disconnectCallback(const redisAsyncContext *c, int status) {
 
 static void
 reconnect() {
-	__redis_context = redisAsyncConnect(cfg->redis_host, cfg->redis_port);
+
+	if(cfg->redis_host[0] == '/') { /* unix socket */
+		__redis_context = redisAsyncConnectUnix(cfg->redis_host);
+	} else {
+		__redis_context = redisAsyncConnect(cfg->redis_host, cfg->redis_port);
+	}
+	if(__redis_context->err) {
+		/* Let *c leak for now... */
+		printf("Error: %s\n", __redis_context->errstr);
+	}
+
 
 	redisLibeventAttach(__redis_context, __base);
 	redisAsyncSetConnectCallback(__redis_context, connectCallback);
@@ -60,6 +70,7 @@ on_request(struct evhttp_request *rq, void *ctx) {
 		case EVHTTP_REQ_GET:
 			cmd_run(__redis_context, rq, 1+uri, strlen(uri)-1);
 			break;
+
 		case EVHTTP_REQ_POST:
 			cmd_run(__redis_context, rq,
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
@@ -67,7 +78,7 @@ on_request(struct evhttp_request *rq, void *ctx) {
 			break;
 
 		default:
-			evhttp_send_reply(rq, 500, "Unknown redis format", NULL);
+			evhttp_send_reply(rq, 405, "Method Not Allowed", NULL);
 			return;
 	}
 }
@@ -81,6 +92,11 @@ main(int argc, char *argv[]) {
 	struct evhttp *http = evhttp_new(__base);
 	
 	cfg = conf_read("turnip.conf");
+
+	/* ignore sigpipe */
+#ifdef SIGPIPE
+	signal(SIGPIPE, SIG_IGN);
+#endif
 
 	/* start http server */
 	evhttp_bind_socket(http, cfg->http_host, cfg->http_port);

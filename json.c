@@ -28,8 +28,9 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	/* encode redis reply as JSON */
 	j = json_wrap_redis_reply(cmd, r);
 
-	/* get JSON as string */
-	json_reply = json_dumps(j, JSON_COMPACT);
+	/* get JSON as string, possibly with JSONP wrapper */
+	json_reply = json_string_output(j, cmd);
+
 
 	/* send reply */
 	body = evbuffer_new();
@@ -101,5 +102,34 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 
 	free(verb);
 	return jroot;
+}
+
+
+char *
+json_string_output(json_t *j, struct cmd *cmd) {
+	struct evkeyval *kv;
+
+	char *json_reply = json_dumps(j, JSON_COMPACT);
+
+	/* check for JSONP */
+	TAILQ_FOREACH(kv, &cmd->uri_params, next) {
+		if(strcmp(kv->key, "jsonp") == 0) {
+			size_t json_len = strlen(json_reply);
+			size_t val_len = strlen(kv->value);
+			size_t ret_len = val_len + 1 + json_len + 1;
+			char *ret = calloc(1 + ret_len, 1);
+
+			memcpy(ret, kv->value, val_len);
+			ret[val_len]='(';
+			memcpy(ret + val_len + 1, json_reply, json_len);
+			ret[val_len + 1 + json_len] = ')';
+			free(json_reply);
+
+			return ret;
+		}
+	}
+
+
+	return json_reply;
 }
 
