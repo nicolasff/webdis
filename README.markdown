@@ -6,21 +6,29 @@ A very simple prototype providing an HTTP interface to Redis. It uses [hiredis](
 make clean all
 ./turnip &
 curl http://127.0.0.1:7379/SET/hello/world
+→ {"SET":[true,"OK"]}
 curl http://127.0.0.1:7379/GET/hello
-→ “world”
+→ {"GET":"world"}
 
 curl -d "GET/hello" http://127.0.0.1:7379/
-→ “world”
+→ {"GET":"world"}
 
 </pre>
+
+# Features
+* GET and POST are supported.
+* JSON output, optional JSONP parameter.
+* HTTP 1.1 pipelining (45 kqps on a desktop Linux machine.)
+* Connects to Redis using a TCP or UNIX socket.
 
 # Ideas
 
 * Add meta-data info per key (MIME type in a second key, for instance).
-* Find a way to format multi-bulk data without JSON.
+* Add a “raw” output format, and find a way to format multi-bulk data in that format.
 * Support PUT, DELETE, HEAD?
+* Support pub/sub.
+* Disable MULTI/EXEC/DISCARD/WATCH.
 * Add logging.
-* Add support for Redis UNIX socket.
 * Enrich config file:
 	* Provide timeout (this needs to be added to hiredis first.)
 	* Restrict commands by IP range
