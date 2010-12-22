@@ -16,13 +16,14 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 
 # Ideas
 
-* Add meta-data info per key (MIME type in a second key, for instance)
-* Find a way to format multi-bulk data
+* Add meta-data info per key (MIME type in a second key, for instance).
+* Find a way to format multi-bulk data without JSON.
 * Support PUT, DELETE, HEAD?
-* Add JSONP callbacks
-* Add support for Redis UNIX socket
-* Enrich config file
-	* Provide timeout
+* Add JSONP callbacks.
+* Add logging.
+* Add support for Redis UNIX socket.
+* Enrich config file:
+	* Provide timeout (this needs to be added to hiredis first.)
 	* Restrict commands by IP range
 * Send your ideas using the github tracker or on twitter [@yowgi](http://twitter.com/yowgi).
 
