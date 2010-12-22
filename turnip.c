@@ -14,6 +14,12 @@
 #include "conf.h"
 #include "cmd.h"
 
+static struct conf *cfg;
+redisAsyncContext *__redis_context = NULL;
+struct event_base *__base;
+
+static void reconnect();
+
 static void
 connectCallback(const redisAsyncContext *c) {
 	((void)c);
@@ -26,23 +32,36 @@ disconnectCallback(const redisAsyncContext *c, int status) {
 		printf("Error: %s\n", c->errstr);
 	}
 	printf("disconnected...\n");
+	__redis_context = NULL;
+	reconnect();
 }
 
+static void
+reconnect() {
+	__redis_context = redisAsyncConnect(cfg->redis_host, cfg->redis_port);
+
+	redisLibeventAttach(__redis_context, __base);
+	redisAsyncSetConnectCallback(__redis_context, connectCallback);
+	redisAsyncSetDisconnectCallback(__redis_context, disconnectCallback);
+}
 
 void
 on_request(struct evhttp_request *rq, void *ctx) {
 
 	const char *uri = evhttp_request_uri(rq);
+	(void)ctx;
 
-	/* get context */
-	redisAsyncContext *c = ctx;
+	if(!__redis_context) { /* redis is unavailable */
+		evhttp_send_reply(rq, 503, "Service Unavailable", NULL);
+		return;
+	}
 
 	switch(rq->type) {
 		case EVHTTP_REQ_GET:
-			cmd_run(c, rq, 1+uri, strlen(uri)-1);
+			cmd_run(__redis_context, rq, 1+uri, strlen(uri)-1);
 			break;
 		case EVHTTP_REQ_POST:
-			cmd_run(c, rq,
+			cmd_run(__redis_context, rq,
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
 				EVBUFFER_LENGTH(rq->input_buffer));
 			break;
@@ -58,29 +77,20 @@ main(int argc, char *argv[]) {
 	(void)argc;
 	(void)argv;
 
-	struct event_base *base = event_base_new();
-	struct evhttp *http = evhttp_new(base);
+	__base = event_base_new();
+	struct evhttp *http = evhttp_new(__base);
 	
-	struct conf *cfg = conf_read("turnip.conf");
-
-	redisAsyncContext *c = redisAsyncConnect(cfg->redis_host, cfg->redis_port);
-	if(c->err) {
-		/* Let *c leak for now... */
-		printf("Error: %s\n", c->errstr);
-		return 1;
-	}
+	cfg = conf_read("turnip.conf");
 
 	/* start http server */
 	evhttp_bind_socket(http, cfg->http_host, cfg->http_port);
-	evhttp_set_gencb(http, on_request, c);
+	evhttp_set_gencb(http, on_request, NULL);
 
 	/* attach hiredis to libevent base */
-	redisLibeventAttach(c, base);
-	redisAsyncSetConnectCallback(c, connectCallback);
-	redisAsyncSetDisconnectCallback(c, disconnectCallback);
+	reconnect();
 
 	/* loop */
-	event_base_dispatch(base);
+	event_base_dispatch(__base);
 
 	return EXIT_SUCCESS;
 }
