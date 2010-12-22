@@ -64,6 +64,11 @@ main(int argc, char *argv[]) {
 	
 	struct conf *cfg = conf_read("turnip.conf");
 
+	/* ignore sigpipe */
+#ifdef SIGPIPE
+	signal(SIGPIPE, SIG_IGN);
+#endif
+
 	redisAsyncContext *c = redisAsyncConnect(cfg->redis_host, cfg->redis_port);
 	if(c->err) {
 		/* Let *c leak for now... */
