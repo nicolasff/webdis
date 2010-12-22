@@ -8,7 +8,7 @@
 #include <evhttp.h>
 
 static json_t *
-json_encode(const struct cmd *cmd, const redisReply *r);
+json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r);
 
 void
 json_reply(redisAsyncContext *c, void *r, void *privdata) {
@@ -25,35 +25,34 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 		return;
 	}
 
-	j = json_encode(cmd, r);
+	/* encode redis reply as JSON */
+	j = json_wrap_redis_reply(cmd, r);
 
 	/* get JSON as string */
 	json_reply = json_dumps(j, JSON_COMPACT);
 
-	/* reply */
+	/* send reply */
 	body = evbuffer_new();
 	evbuffer_add(body, json_reply, strlen(json_reply));
 	evhttp_add_header(cmd->rq->output_headers, "Content-Type", "application/json");
 	evhttp_send_reply(cmd->rq, 200, "OK", body);
-	evbuffer_free(body);
 
 	/* cleanup */
+	evbuffer_free(body);
 	json_decref(j);
 	freeReplyObject(r);
 	cmd_free(cmd);
 	free(json_reply);
-
-
 }
 
-json_t *
-json_encode(const struct cmd *cmd, const redisReply *r) {
+static json_t *
+json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 
 	unsigned int i;
 	json_t *jlist, *jroot = json_object(); /* that's what we return */
 
 
-	/* copy verb */
+	/* copy verb, as jansson only takes a char* but not its length. */
 	char *verb;
 	verb = calloc(cmd->argv_len[0]+1, 1);
 	memcpy(verb, cmd->argv[0], cmd->argv_len[0]);
