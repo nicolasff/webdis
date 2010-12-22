@@ -3,6 +3,9 @@
 
 #include <stdlib.h>
 #include <hiredis/async.h>
+#include <sys/queue.h>
+#include <evhttp.h>
+#include <event.h>
 
 struct evhttp_request;
 
@@ -12,6 +15,8 @@ struct cmd {
 	const char **argv;
 	size_t *argv_len;
 	struct evhttp_request *rq;
+
+	struct evkeyvalq uri_params;
 };
 
 struct cmd *
@@ -21,6 +26,7 @@ void
 cmd_free(struct cmd *c);
 
 void
-cmd_run(redisAsyncContext *c, struct evhttp_request *rq, const char *uri, size_t uri_len);
+cmd_run(redisAsyncContext *c, struct evhttp_request *rq,
+		const char *uri, size_t uri_len);
 
 #endif

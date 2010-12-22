@@ -19,7 +19,6 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Add meta-data info per key (MIME type in a second key, for instance).
 * Find a way to format multi-bulk data without JSON.
 * Support PUT, DELETE, HEAD?
-* Add JSONP callbacks.
 * Add logging.
 * Add support for Redis UNIX socket.
 * Enrich config file:
@@ -58,4 +57,9 @@ $ curl  http://127.0.0.1:7379/TYPE/y
 // error, which is basically a status
 $ curl  http://127.0.0.1:7379/MAKE-ME-COFFEE
 {"MAKE-ME-COFFEE":[false,"ERR unknown command 'MAKE-ME-COFFEE'"]}
+
+
+// JSONP callback:
+$ curl  "http://127.0.0.1:7379/TYPE/y?jsonp=myCustomFunction"
+myCustomFunction({"TYPE":[true,"string"]})
 </pre>

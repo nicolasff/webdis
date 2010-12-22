@@ -30,8 +30,10 @@ cmd_free(struct cmd *c) {
 }
 
 void
-cmd_run(redisAsyncContext *c, struct evhttp_request *rq, const char *uri, size_t uri_len) {
+cmd_run(redisAsyncContext *c, struct evhttp_request *rq,
+		const char *uri, size_t uri_len) {
 
+	char *qmark = strchr(uri, '?');
 	char *slash = strchr(uri, '/');
 	int cmd_len;
 	int param_count = 0, cur_param = 1;
@@ -41,6 +43,9 @@ cmd_run(redisAsyncContext *c, struct evhttp_request *rq, const char *uri, size_t
 	const char *p;
 
 	/* count arguments */
+	if(qmark) {
+		uri_len = qmark - uri;
+	}
 	for(p = uri; p && p < uri + uri_len; param_count++) {
 		p = strchr(p+1, '/');
 	}
@@ -52,6 +57,9 @@ cmd_run(redisAsyncContext *c, struct evhttp_request *rq, const char *uri, size_t
 	} else {
 		cmd_len = uri_len;
 	}
+
+	/* parse URI parameters */
+	evhttp_parse_query(uri, &cmd->uri_params);
 
 	/* there is always a first parameter, it's the command name */
 	cmd->argv[0] = uri;
