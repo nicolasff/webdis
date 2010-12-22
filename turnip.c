@@ -69,7 +69,12 @@ main(int argc, char *argv[]) {
 	signal(SIGPIPE, SIG_IGN);
 #endif
 
-	redisAsyncContext *c = redisAsyncConnect(cfg->redis_host, cfg->redis_port);
+	redisAsyncContext *c = NULL;
+	if(cfg->redis_host[0] == '/') { /* unix socket */
+		c = redisAsyncConnectUnix(cfg->redis_host);
+	} else {
+		c = redisAsyncConnect(cfg->redis_host, cfg->redis_port);
+	}
 	if(c->err) {
 		/* Let *c leak for now... */
 		printf("Error: %s\n", c->errstr);
