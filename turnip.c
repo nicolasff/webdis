@@ -41,6 +41,7 @@ on_request(struct evhttp_request *rq, void *ctx) {
 		case EVHTTP_REQ_GET:
 			cmd_run(c, rq, 1+uri, strlen(uri)-1);
 			break;
+
 		case EVHTTP_REQ_POST:
 			cmd_run(c, rq,
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
@@ -48,7 +49,7 @@ on_request(struct evhttp_request *rq, void *ctx) {
 			break;
 
 		default:
-			evhttp_send_reply(rq, 500, "Unknown redis format", NULL);
+			evhttp_send_reply(rq, 405, "Method Not Allowed", NULL);
 			return;
 	}
 }
