@@ -33,11 +33,17 @@ disconnectCallback(const redisAsyncContext *c, int status) {
 	}
 	printf("disconnected...\n");
 	__redis_context = NULL;
+
+	/* TODO: schedule reconnect instead to avoid opening too many sockets */
 	reconnect();
 }
 
 static void
 reconnect() {
+
+	if(__redis_context) {
+		redisLibeventCleanup(__redis_context->_adapter_data);
+	}
 
 	if(cfg->redis_host[0] == '/') { /* unix socket */
 		__redis_context = redisAsyncConnectUnix(cfg->redis_host);
