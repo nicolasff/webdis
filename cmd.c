@@ -71,6 +71,11 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	cmd->argv[0] = uri;
 	cmd->argv_len[0] = cmd_len;
 
+	/* check if we have to split the connection */
+	if(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0) {
+		s = server_copy(s);
+	}
+
 	if(!slash) {
 		redisAsyncCommandArgv(s->ac, fun, cmd, 1, cmd->argv, cmd->argv_len);
 		return;

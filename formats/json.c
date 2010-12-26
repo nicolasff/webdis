@@ -31,12 +31,17 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	/* get JSON as string, possibly with JSONP wrapper */
 	json_reply = json_string_output(j, cmd);
 
-
 	/* send reply */
 	body = evbuffer_new();
 	evbuffer_add(body, json_reply, strlen(json_reply));
 	evhttp_add_header(cmd->rq->output_headers, "Content-Type", "application/json");
-	evhttp_send_reply(cmd->rq, 200, "OK", body);
+
+	if(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0) {
+		evhttp_send_reply_start(cmd->rq, 200, "OK");
+		evhttp_send_reply_chunk(cmd->rq, body);
+	} else {
+		evhttp_send_reply(cmd->rq, 200, "OK", body);
+	}
 
 	/* cleanup */
 	evbuffer_free(body);

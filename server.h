@@ -19,5 +19,8 @@ struct server {
 void
 turnip_connect(struct server *s);
 
+struct server *
+server_copy(const struct server *s);
+
 #endif
 

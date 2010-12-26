@@ -66,3 +66,21 @@ turnip_connect(struct server *s) {
 	evtimer_add(&s->ev_reconnect, &s->tv_reconnect);
 }
 
+static void
+turnip_connect_now(struct server *s) {
+	on_timer_reconnect(0, 0, s);
+}
+
+struct server *
+server_copy(const struct server *s) {
+	struct server *ret = calloc(1, sizeof(struct server));
+
+	*ret = *s;
+
+	/* create a new connection */
+	ret->ac = NULL;
+	turnip_connect_now(ret);
+
+	return ret;
+}
+
