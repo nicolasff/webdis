@@ -31,6 +31,8 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Enrich config file:
 	* Provide timeout (this needs to be added to hiredis first.)
 	* Restrict commands by IP range
+* Get config file path from command line.
+* Change config file to JSON format? That would be convenient.
 * Send your ideas using the github tracker or on twitter [@yowgi](http://twitter.com/yowgi).
 
 # HTTP error codes
