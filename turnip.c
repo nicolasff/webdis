@@ -26,11 +26,11 @@ on_request(struct evhttp_request *rq, void *ctx) {
 
 	switch(rq->type) {
 		case EVHTTP_REQ_GET:
-			cmd_run(s->ac, rq, 1+uri, strlen(uri)-1);
+			cmd_run(s, rq, 1+uri, strlen(uri)-1);
 			break;
 
 		case EVHTTP_REQ_POST:
-			cmd_run(s->ac, rq,
+			cmd_run(s, rq,
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
 				EVBUFFER_LENGTH(rq->input_buffer));
 			break;

@@ -8,6 +8,9 @@
 #include <event.h>
 
 struct evhttp_request;
+struct server;
+
+typedef void (*formatting_fun)(redisAsyncContext *, void *, void *);
 
 struct cmd {
 
@@ -26,7 +29,10 @@ void
 cmd_free(struct cmd *c);
 
 void
-cmd_run(redisAsyncContext *c, struct evhttp_request *rq,
+cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len);
+
+formatting_fun
+get_formatting_funtion(struct evkeyvalq *params);
 
 #endif

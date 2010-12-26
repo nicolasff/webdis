@@ -1,5 +1,8 @@
 #include "cmd.h"
-#include "json.h"
+#include "server.h"
+
+#include "formats/json.h"
+#include "formats/raw.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -30,17 +33,17 @@ cmd_free(struct cmd *c) {
 }
 
 void
-cmd_run(redisAsyncContext *c, struct evhttp_request *rq,
+cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len) {
 
 	char *qmark = strchr(uri, '?');
 	char *slash = strchr(uri, '/');
+	const char *p;
 	int cmd_len;
 	int param_count = 0, cur_param = 1;
 
 	struct cmd *cmd;
-
-	const char *p;
+	formatting_fun fun;
 
 	/* count arguments */
 	if(qmark) {
@@ -61,12 +64,15 @@ cmd_run(redisAsyncContext *c, struct evhttp_request *rq,
 	/* parse URI parameters */
 	evhttp_parse_query(uri, &cmd->uri_params);
 
+	/* get output formatting function */
+	fun = get_formatting_funtion(&cmd->uri_params);
+
 	/* there is always a first parameter, it's the command name */
 	cmd->argv[0] = uri;
 	cmd->argv_len[0] = cmd_len;
 
 	if(!slash) {
-		redisAsyncCommandArgv(c, json_reply, cmd, 1, cmd->argv, cmd->argv_len);
+		redisAsyncCommandArgv(s->ac, fun, cmd, 1, cmd->argv, cmd->argv_len);
 		return;
 	}
 	p = slash + 1;
@@ -90,6 +96,27 @@ cmd_run(redisAsyncContext *c, struct evhttp_request *rq,
 		cur_param++;
 	}
 
-	redisAsyncCommandArgv(c, json_reply, cmd, param_count, cmd->argv, cmd->argv_len);
+	redisAsyncCommandArgv(s->ac, fun, cmd, param_count, cmd->argv, cmd->argv_len);
 }
 
+
+
+formatting_fun
+get_formatting_funtion(struct evkeyvalq *params) {
+
+	struct evkeyval *kv;
+
+	/* check for JSONP */
+	TAILQ_FOREACH(kv, params, next) {
+		if(strcmp(kv->key, "format") == 0) {
+			if(strcmp(kv->value, "raw") == 0) {
+				return raw_reply;
+			} else if(strcmp(kv->value, "json") == 0) {
+				return json_reply;
+			}
+			break;
+		}
+	}
+
+	return json_reply;
+}
