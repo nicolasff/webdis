@@ -30,7 +30,7 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 	/* send reply */
 	body = evbuffer_new();
 	evbuffer_add(body, raw_out, sz);
-	evhttp_add_header(cmd->rq->output_headers, "Content-Type", "text/plain");
+	evhttp_add_header(cmd->rq->output_headers, "Content-Type", "binary/octet-stream");
 	evhttp_send_reply(cmd->rq, 200, "OK", body);
 
 	/* cleanup */
