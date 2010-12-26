@@ -17,13 +17,12 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 
 # Features
 * GET and POST are supported.
-* JSON output, optional JSONP parameter.
+* JSON output by default, optional JSONP parameter.
 * Raw Redis 2.0 protocol output with `?format=raw`
 * HTTP 1.1 pipelining (45 kqps on a desktop Linux machine.)
 * Connects to Redis using a TCP or UNIX socket.
 
-# Ideas
-
+# Ideas, TODO...
 * Add meta-data info per key (MIME type in a second key, for instance).
 * Support PUT, DELETE, HEAD?
 * Support pub/sub.
@@ -36,16 +35,18 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed
-* Disconnected from redis: 503 Service Unavailable
+* Redis is unreachable: 503 Service Unavailable
 * Could also be used:
 	* Timeout on the redis side: 503 Service Unavailable
 	* Missing key: 404 Not Found
 
+# Command format
+The URI `/COMMAND/arg0/arg1/.../argN` executes the command on Redis and returns the response to the client. GET and POST are supported:
+* `GET /COMMAND/arg0/.../argN`
+* `POST /` with "COMMAND/arg0/.../argN` in the HTTP body.
 
 # JSON output
-
-The URI `/COMMAND/arg0/arg1/.../argN` returns a JSON object with the command as a key and the result as a value.
-JSON is the default output format.
+JSON is the default output format. Each command returns a JSON object with the command as a key and the result as a value.
 
 **Examples:**
 <pre>
@@ -76,7 +77,7 @@ myCustomFunction({"TYPE":[true,"string"]})
 </pre>
 
 # RAW output
-This is the raw Redis output.
+This is the raw output of Redis; enable it with `?format=raw`.
 <pre>
 
 // string
