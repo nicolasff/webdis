@@ -20,6 +20,8 @@ struct cmd {
 	struct evhttp_request *rq;
 
 	struct evkeyvalq uri_params;
+
+	int replied;
 };
 
 struct cmd *

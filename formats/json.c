@@ -7,6 +7,8 @@
 #include <event.h>
 #include <evhttp.h>
 
+extern int __redisPushCallback(redisCallbackList *list, redisCallback *source);
+
 static json_t *
 json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r);
 
@@ -18,7 +20,8 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	redisReply *reply = r;
 	struct cmd *cmd = privdata;
 	json_t *j;
-	char *json_reply;
+	char *jstr;
+	int free_reply = 1;
 
 	if (reply == NULL) {
 		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
@@ -29,16 +32,30 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	j = json_wrap_redis_reply(cmd, r);
 
 	/* get JSON as string, possibly with JSONP wrapper */
-	json_reply = json_string_output(j, cmd);
+	jstr = json_string_output(j, cmd);
 
 	/* send reply */
 	body = evbuffer_new();
-	evbuffer_add(body, json_reply, strlen(json_reply));
+	evbuffer_add(body, jstr, strlen(jstr));
 	evhttp_add_header(cmd->rq->output_headers, "Content-Type", "application/json");
 
 	if(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0) {
-		evhttp_send_reply_start(cmd->rq, 200, "OK");
+		redisCallback *cb;
+		free_reply = 0;
+
+		/* reinstall callback */
+		cb = calloc(1, sizeof(redisCallback));
+		cb->fn = json_reply;
+		cb->privdata = privdata;
+		__redisPushCallback(&c->replies, cb);
+
+		/* start streaming */
+		if(cmd->replied == 0) {
+			cmd->replied = 1;
+			evhttp_send_reply_start(cmd->rq, 200, "OK");
+		}
 		evhttp_send_reply_chunk(cmd->rq, body);
+
 	} else {
 		evhttp_send_reply(cmd->rq, 200, "OK", body);
 	}
@@ -46,9 +63,11 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	/* cleanup */
 	evbuffer_free(body);
 	json_decref(j);
-	freeReplyObject(r);
-	cmd_free(cmd);
-	free(json_reply);
+	if(free_reply) {
+		freeReplyObject(r);
+		cmd_free(cmd);
+	}
+	free(jstr);
 }
 
 static json_t *

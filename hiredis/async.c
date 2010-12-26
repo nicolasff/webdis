@@ -110,7 +110,7 @@ int redisAsyncSetDisconnectCallback(redisAsyncContext *ac, redisDisconnectCallba
 }
 
 /* Helper functions to push/shift callbacks */
-static int __redisPushCallback(redisCallbackList *list, redisCallback *source) {
+int __redisPushCallback(redisCallbackList *list, redisCallback *source) {
     redisCallback *cb;
 
     /* Copy callback from stack to heap */
