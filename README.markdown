@@ -103,6 +103,6 @@ $ curl http://127.0.0.1:7379/TYPE/y?format=raw
 
 // error, which is basically a status
 $ curl http://127.0.0.1:7379/MAKE-ME-COFFEE?format=raw
--ERR unknown command 'ABC'
+-ERR unknown command 'MAKE-ME-COFFEE'
 
 </pre>
