@@ -83,6 +83,7 @@ This is the raw output of Redis; enable it with `?format=raw`.
 
 // string
 $ curl http://127.0.0.1:7379/GET/z?format=raw
+$5
 hello
 
 // number
