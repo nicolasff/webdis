@@ -43,7 +43,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 # Command format
 The URI `/COMMAND/arg0/arg1/.../argN` executes the command on Redis and returns the response to the client. GET and POST are supported:
 * `GET /COMMAND/arg0/.../argN`
-* `POST /` with "COMMAND/arg0/.../argN` in the HTTP body.
+* `POST /` with `COMMAND/arg0/.../argN` in the HTTP body.
 
 # JSON output
 JSON is the default output format. Each command returns a JSON object with the command as a key and the result as a value.
