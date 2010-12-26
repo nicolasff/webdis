@@ -159,7 +159,7 @@ void redisAsyncDisconnect(redisAsyncContext *ac) {
 }
 
 /* Helper function to make the disconnect happen and clean up. */
-static void __redisAsyncDisconnect(redisAsyncContext *ac) {
+void __redisAsyncDisconnect(redisAsyncContext *ac) {
     redisContext *c = &(ac->c);
     redisCallback cb;
     int status;

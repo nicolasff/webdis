@@ -32,6 +32,13 @@ cmd_free(struct cmd *c) {
 	free(c);
 }
 
+void __redisAsyncDisconnect(redisAsyncContext *ac);
+void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
+	struct server *s = ctx;
+	printf("SUBSCRIBE DISCONNECT (ac=%p)\n", (void*)s->ac);
+	redisAsyncDisconnect(s->ac);
+}
+
 void
 cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len) {
@@ -74,6 +81,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	/* check if we have to split the connection */
 	if(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0) {
 		s = server_copy(s);
+		evhttp_connection_set_closecb(rq->evcon, on_http_disconnect, s);
 	}
 
 	if(!slash) {

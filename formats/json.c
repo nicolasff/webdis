@@ -24,6 +24,7 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	int free_reply = 1;
 
 	if (reply == NULL) {
+		printf("reply = NULL, BYE.\n");
 		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
 		return;
 	}
