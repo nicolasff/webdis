@@ -38,12 +38,22 @@ cmd_free(struct cmd *c) {
 int
 cmd_authorized(struct conf *cfg, struct evhttp_request *rq, const char *verb, size_t verb_len) {
 
+	char *always_off[] = {"MULTI", "EXEC", "WATCH", "DISCARD", "SUBSCRIBE", "PSUBSCRIBE"};
+
 	struct disabled_command *dc;
 	unsigned int i;
 
 	char *client_ip;
 	u_short client_port;
 	in_addr_t client_addr;
+
+	/* some commands are always disabled, regardless of the config file. */
+	for(i = 0; i < sizeof(always_off) / sizeof(always_off[0]); ++i) {
+		if(strncasecmp(always_off[i], verb, verb_len) == 0) {
+			return 0;
+		}
+	}
+
 
 	/* find client's address */
 	evhttp_connection_get_peer(rq->evcon, &client_ip, &client_port);

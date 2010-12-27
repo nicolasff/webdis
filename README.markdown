@@ -25,9 +25,9 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 
 # Ideas, TODO...
 * Add meta-data info per key (MIME type in a second key, for instance).
-* Support PUT, DELETE, HEAD?
-* Support pub/sub.
-* Disable MULTI/EXEC/DISCARD/WATCH.
+* Support PUT, DELETE, HEAD? How? For which commands?
+* Support pub/sub (waiting for HiRedis ticket \#17 in order to add this.)
+* MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Add logging.
 * Enrich config file:
 	* Provide timeout (this needs to be added to hiredis first.)
