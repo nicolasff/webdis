@@ -38,12 +38,12 @@ conf_read(const char *filename) {
 			free(conf->redis_host);
 			conf->redis_host = strdup(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "redis_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
-			conf->redis_port = json_integer_value(jtmp);
+			conf->redis_port = (short)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "http_host") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			free(conf->http_host);
 			conf->http_host = strdup(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "http_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
-			conf->http_port = json_integer_value(jtmp);
+			conf->http_port = (short)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "disable") == 0 && json_typeof(jtmp) == JSON_OBJECT) {
 			conf->disabled = conf_disable_commands(jtmp);
 		}
@@ -67,7 +67,7 @@ conf_disable_commands(json_t *jtab) {
 		char *p, *ip;
 		const char *s;
 		in_addr_t mask, subnet;
-		short mask_bits = 0;
+		unsigned short mask_bits = 0;
 
 		struct disabled_command *dc;
 		json_t *val = json_object_iter_value(kv);
@@ -82,9 +82,9 @@ conf_disable_commands(json_t *jtab) {
 		if(!p) {
 			ip = strdup(s);
 		} else {
-			ip = calloc(p - s + 1, 1);
-			memcpy(ip, s, p - s);
-			mask_bits = atoi(p+1);
+			ip = calloc((size_t)(p - s + 1), 1);
+			memcpy(ip, s, (size_t)(p - s));
+			mask_bits = (unsigned short)atoi(p+1);
 		}
 		mask = (mask_bits == 0 ? 0 : (0xffffffff << (32 - mask_bits)));
 		subnet = ntohl(inet_addr(ip)) & mask;
@@ -92,7 +92,7 @@ conf_disable_commands(json_t *jtab) {
 		/* count strings in the array */
 		n = 0;
 		for(i = 0; i < json_array_size(val); ++i) {
-			json_t *jelem = json_array_get(val, i);
+			json_t *jelem = json_array_get(val, (size_t)i);
 			if(json_typeof(jelem) == JSON_STRING) {
 				n++;
 			}
@@ -100,7 +100,7 @@ conf_disable_commands(json_t *jtab) {
 
 		/* allocate block */
 		dc = calloc(1, sizeof(struct disabled_command));
-		dc->commands = calloc(n, sizeof(char*));
+		dc->commands = calloc((size_t)n, sizeof(char*));
 		dc->subnet = subnet;
 		dc->mask = mask;
 		dc->count = n;
@@ -111,8 +111,9 @@ conf_disable_commands(json_t *jtab) {
 		for(i = 0, cur = 0; i < json_array_size(val); ++i) {
 			json_t *jelem = json_array_get(val, i);
 			if(json_typeof(jelem) == JSON_STRING) {
+				size_t sz;
 				s = json_string_value(jelem);
-				size_t sz = strlen(s);
+				sz = strlen(s);
 
 				dc->commands[cur] = calloc(1 + sz, 1);
 				memcpy(dc->commands[cur], s, sz);

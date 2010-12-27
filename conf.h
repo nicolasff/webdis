@@ -1,7 +1,6 @@
 #ifndef CONF_H
 #define CONF_H
 
-#include <stdint.h>
 #include <netinet/in.h>
 
 struct disabled_command {
