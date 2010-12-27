@@ -12,6 +12,7 @@ conf_read(const char *filename) {
 	json_t *j, *jtmp;
 	json_error_t error;
 	struct conf *conf;
+	void *kv;
 
 	/* defaults */
 	conf = calloc(1, sizeof(struct conf));
@@ -26,26 +27,21 @@ conf_read(const char *filename) {
 		return conf;
 	}
 
-	jtmp = json_object_get(j, "redis_host");
-	if(jtmp && json_typeof(jtmp) == JSON_STRING) {
-		free(conf->redis_host);
-		conf->redis_host = strdup(json_string_value(jtmp));
-	}
-
-	jtmp = json_object_get(j, "redis_port");
-	if(jtmp && json_typeof(jtmp) == JSON_INTEGER) {
-		conf->redis_port = json_integer_value(jtmp);
-	}
-
-	jtmp = json_object_get(j, "http_host");
-	if(jtmp && json_typeof(jtmp) == JSON_STRING) {
-		free(conf->http_host);
-		conf->http_host = strdup(json_string_value(jtmp));
-	}
-
-	jtmp = json_object_get(j, "http_port");
-	if(jtmp && json_typeof(jtmp) == JSON_INTEGER) {
-		conf->http_port = json_integer_value(jtmp);
+	for(kv = json_object_iter(j); kv; kv = json_object_iter_next(j, kv)) {
+		jtmp = json_object_iter_value(kv);
+		if(strcmp(json_object_iter_key(kv), "redis_host") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			free(conf->redis_host);
+			conf->redis_host = strdup(json_string_value(jtmp));
+		} else if(strcmp(json_object_iter_key(kv), "redis_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
+			conf->redis_port = json_integer_value(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "http_host") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			free(conf->http_host);
+			conf->http_host = strdup(json_string_value(jtmp));
+		} else if(strcmp(json_object_iter_key(kv), "http_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
+			conf->http_port = json_integer_value(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "disable") == 0 && json_typeof(jtmp) == JSON_OBJECT) {
+			/* TODO */
+		}
 	}
 
 	json_decref(j);
