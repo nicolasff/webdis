@@ -50,10 +50,13 @@ on_timer_reconnect(int fd, short event, void *ctx) {
 		printf("Error: %s\n", s->ac->errstr);
 	}
 
-
 	redisLibeventAttach(s->ac, s->base);
 	redisAsyncSetConnectCallback(s->ac, connectCallback);
 	redisAsyncSetDisconnectCallback(s->ac, disconnectCallback);
+
+	if (s->cfg->redis_auth) { /* authenticate. */
+		redisAsyncCommand(s->ac, NULL, NULL, "AUTH %s", s->cfg->redis_auth);
+	}
 }
 
 void

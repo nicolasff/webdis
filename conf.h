@@ -18,6 +18,7 @@ struct conf {
 
 	char *redis_host;
 	short redis_port;
+	char *redis_auth;
 
 	char *http_host;
 	short http_port;

@@ -13,12 +13,12 @@ raw_wrap(const redisReply *r, size_t *sz);
 void
 raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 
-	(void)c;
 	struct evbuffer *body;
 	redisReply *reply = r;
 	struct cmd *cmd = privdata;
 	char *raw_out;
 	size_t sz;
+	(void)c;
 
 	evhttp_clear_headers(&cmd->uri_params);
 
