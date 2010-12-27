@@ -20,6 +20,8 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 	char *raw_out;
 	size_t sz;
 
+	evhttp_clear_headers(&cmd->uri_params);
+
 	if (reply == NULL) {
 		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
 		return;
@@ -124,7 +126,7 @@ raw_wrap(const redisReply *r, size_t *sz) {
 			*sz = 1 + integer_length(r->len) + 1 + r->len + 1;
 			p = ret = malloc(*sz);
 			p += sprintf(p, "$%d\n", r->len);
-			memcpy(p, r->str, *sz - 1);
+			memcpy(p, r->str, *sz - 1 - (p-ret));
 			memcpy(ret + *sz - 1, "\n", 1);
 			return ret;
 
