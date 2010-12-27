@@ -1,0 +1,11 @@
+{
+	"redis_host":	"127.0.0.1",
+	"redis_port":	6379,
+
+	"http_host":	"0.0.0.0",
+	"http_port":	7379,
+
+	"disable": {
+		"255.255.255.255/32":	["DEBUG", "FLUSHDB", "FLUSHALL"]
+	}
+}

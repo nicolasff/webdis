@@ -50,7 +50,7 @@ main(int argc, char *argv[]) {
 	s->base = event_base_new();
 	struct evhttp *http = evhttp_new(s->base);
 	
-	s->cfg = conf_read("turnip.conf");
+	s->cfg = conf_read("turnip.json");
 
 	/* ignore sigpipe */
 #ifdef SIGPIPE
