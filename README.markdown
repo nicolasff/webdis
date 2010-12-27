@@ -25,13 +25,13 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 
 # Ideas, TODO...
 * Add meta-data info per key (MIME type in a second key, for instance).
-* Support PUT, DELETE, HEAD? How? For which commands?
+* Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
 * Support pub/sub (waiting for HiRedis ticket \#17 in order to add this.)
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Add logging.
 * Enrich config file:
 	* Provide timeout (this needs to be added to hiredis first.)
-* Get config file path from command line.
+* Multi-server support, using consistent hashing.
 * Send your ideas using the github tracker or on twitter [@yowgi](http://twitter.com/yowgi).
 
 # HTTP error codes

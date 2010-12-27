@@ -50,14 +50,16 @@ on_request(struct evhttp_request *rq, void *ctx) {
 
 int
 main(int argc, char *argv[]) {
-	(void)argc;
-	(void)argv;
 
 	struct server *s = calloc(1, sizeof(struct server));
 	s->base = event_base_new();
 	struct evhttp *http = evhttp_new(s->base);
-	
-	s->cfg = conf_read("turnip.json");
+
+	if(argc > 1) {
+		s->cfg = conf_read(argv[1]);
+	} else {
+		s->cfg = conf_read("turnip.json");
+	}
 
 	/* ignore sigpipe */
 #ifdef SIGPIPE
