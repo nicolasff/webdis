@@ -6,9 +6,10 @@
 
 struct disabled_command {
 
-	in_addr_t mask_ip;
-	short mask_bits;
+	in_addr_t subnet;
+	in_addr_t mask;
 
+	unsigned int count;
 	char **commands;
 
 	struct disabled_command *next;

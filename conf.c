@@ -66,7 +66,7 @@ conf_disable_commands(json_t *jtab) {
 		unsigned int i, cur, n;
 		char *p, *ip;
 		const char *s;
-		in_addr_t mask_ip;
+		in_addr_t mask, subnet;
 		short mask_bits = 0;
 
 		struct disabled_command *dc;
@@ -78,7 +78,7 @@ conf_disable_commands(json_t *jtab) {
 
 		/* parse key in format "ip/mask" */
 		s = json_object_iter_key(kv);
-		p = strchr(s, ':');
+		p = strchr(s, '/');
 		if(!p) {
 			ip = strdup(s);
 		} else {
@@ -86,8 +86,8 @@ conf_disable_commands(json_t *jtab) {
 			memcpy(ip, s, p - s);
 			mask_bits = atoi(p+1);
 		}
-		mask_ip = inet_addr(ip);
-
+		mask = (mask_bits == 0 ? 0 : (0xffffffff << (32 - mask_bits)));
+		subnet = ntohl(inet_addr(ip)) & mask;
 
 		/* count strings in the array */
 		n = 0;
@@ -101,8 +101,9 @@ conf_disable_commands(json_t *jtab) {
 		/* allocate block */
 		dc = calloc(1, sizeof(struct disabled_command));
 		dc->commands = calloc(n, sizeof(char*));
-		dc->mask_ip = mask_ip;
-		dc->mask_bits = mask_bits;
+		dc->subnet = subnet;
+		dc->mask = mask;
+		dc->count = n;
 		dc->next = root;
 		root = dc;
 

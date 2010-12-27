@@ -18,19 +18,22 @@ on_request(struct evhttp_request *rq, void *ctx) {
 
 	const char *uri = evhttp_request_uri(rq);
 	struct server *s = ctx;
+	int ret;
 
 	if(!s->ac) { /* redis is unavailable */
 		evhttp_send_reply(rq, 503, "Service Unavailable", NULL);
 		return;
 	}
 
+	/* check that the command can be executed */
+
 	switch(rq->type) {
 		case EVHTTP_REQ_GET:
-			cmd_run(s, rq, 1+uri, strlen(uri)-1);
+			ret = cmd_run(s, rq, 1+uri, strlen(uri)-1);
 			break;
 
 		case EVHTTP_REQ_POST:
-			cmd_run(s, rq,
+			ret = cmd_run(s, rq,
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
 				EVBUFFER_LENGTH(rq->input_buffer));
 			break;
@@ -38,6 +41,10 @@ on_request(struct evhttp_request *rq, void *ctx) {
 		default:
 			evhttp_send_reply(rq, 405, "Method Not Allowed", NULL);
 			return;
+	}
+
+	if(ret < 0) {
+		evhttp_send_reply(rq, 403, "Forbidden", NULL);
 	}
 }
 

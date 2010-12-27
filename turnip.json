@@ -6,6 +6,6 @@
 	"http_port":	7379,
 
 	"disable": {
-		"255.255.255.255/32":	["DEBUG", "FLUSHDB", "FLUSHALL"]
+		"0.0.0.0/0":	["DEBUG", "FLUSHDB", "FLUSHALL"]
 	}
 }

@@ -1,5 +1,6 @@
 #include "cmd.h"
 #include "server.h"
+#include "conf.h"
 
 #include "formats/json.h"
 #include "formats/raw.h"
@@ -7,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <hiredis/hiredis.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 struct cmd *
 cmd_new(struct evhttp_request *rq, int count) {
@@ -32,7 +35,39 @@ cmd_free(struct cmd *c) {
 	free(c);
 }
 
-void
+int
+cmd_authorized(struct conf *cfg, struct evhttp_request *rq, const char *verb, size_t verb_len) {
+
+	struct disabled_command *dc;
+	unsigned int i;
+
+	char *client_ip;
+	u_short client_port;
+	in_addr_t client_addr;
+
+	/* find client's address */
+	evhttp_connection_get_peer(rq->evcon, &client_ip, &client_port);
+	client_addr = ntohl(inet_addr(client_ip));
+
+	for(dc = cfg->disabled; dc; dc = dc->next) {
+		/* CIDR test */
+
+		if((client_addr & dc->mask) != (dc->subnet & dc->mask)) {
+			continue;
+		}
+
+		/* matched an ip */
+		for(i = 0; i < dc->count; ++i) {
+			if(strncasecmp(dc->commands[i], verb, verb_len) == 0) {
+				return 0;
+			}
+		}
+	}
+
+	return 1;
+}
+
+int
 cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len) {
 
@@ -71,9 +106,14 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	cmd->argv[0] = uri;
 	cmd->argv_len[0] = cmd_len;
 
+	/* check that the client is able to run this command */
+	if(!cmd_authorized(s->cfg, rq, cmd->argv[0], cmd->argv_len[0])) {
+		return -1;
+	}
+
 	if(!slash) {
 		redisAsyncCommandArgv(s->ac, fun, cmd, 1, cmd->argv, cmd->argv_len);
-		return;
+		return 0;
 	}
 	p = slash + 1;
 	while(p < uri + uri_len) {
@@ -97,6 +137,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	}
 
 	redisAsyncCommandArgv(s->ac, fun, cmd, param_count, cmd->argv, cmd->argv_len);
+	return 0;
 }
 
 
