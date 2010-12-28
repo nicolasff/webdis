@@ -29,6 +29,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
 * Support pub/sub (waiting for HiRedis ticket \#17 in order to add this.)
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
+* Drop privileges.
 * Add logging.
 * Enrich config file:
 	* Provide timeout (this needs to be added to hiredis first.)
