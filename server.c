@@ -9,16 +9,14 @@
 static void
 connectCallback(const redisAsyncContext *c) {
 	((void)c);
-	printf("connected...\n");
 }
 
 static void
 disconnectCallback(const redisAsyncContext *c, int status) {
 	struct server *s = c->data;
 	if (status != REDIS_OK) {
-		printf("Error: %s\n", c->errstr);
+		fprintf(stderr, "Error: %s\n", c->errstr);
 	}
-	printf("disconnected, schedule reconnect.\n");
 	s->ac = NULL;
 
 	/* wait 10 msec and reconnect */
@@ -36,9 +34,8 @@ on_timer_reconnect(int fd, short event, void *ctx) {
 
 	if(s->ac) {
 		redisLibeventCleanup(s->ac->_adapter_data);
+		redisFree((redisContext*)s->ac);
 	}
-
-	/* TODO: free AC. */
 
 	if(s->cfg->redis_host[0] == '/') { /* unix socket */
 		s->ac = redisAsyncConnectUnix(s->cfg->redis_host);
@@ -49,8 +46,7 @@ on_timer_reconnect(int fd, short event, void *ctx) {
 	s->ac->data = s;
 
 	if(s->ac->err) {
-		/* Let *c leak for now... */
-		printf("Error: %s\n", s->ac->errstr);
+		fprintf(stderr, "Error: %s\n", s->ac->errstr);
 	}
 
 	redisLibeventAttach(s->ac, s->base);
