@@ -22,7 +22,7 @@ disconnectCallback(const redisAsyncContext *c, int status) {
 	/* wait 10 msec and reconnect */
 	s->tv_reconnect.tv_sec = 0;
 	s->tv_reconnect.tv_usec = 100000;
-	dishy_connect(s);
+	webdis_connect(s);
 }
 
 static void
@@ -59,7 +59,7 @@ on_timer_reconnect(int fd, short event, void *ctx) {
 }
 
 void
-dishy_connect(struct server *s) {
+webdis_connect(struct server *s) {
 	/* schedule reconnect */
 	evtimer_set(&s->ev_reconnect, on_timer_reconnect, s);
 	event_base_set(s->base, &s->ev_reconnect);

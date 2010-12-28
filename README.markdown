@@ -4,7 +4,7 @@ A very simple prototype providing an HTTP interface to Redis. It uses [hiredis](
 
 <pre>
 make clean all
-./dishy &
+./webdis &
 curl http://127.0.0.1:7379/SET/hello/world
 → {"SET":[true,"OK"]}
 curl http://127.0.0.1:7379/GET/hello

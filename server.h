@@ -1,5 +1,5 @@
-#ifndef DISHY_H
-#define DISHY_H
+#ifndef SERVER_H
+#define SERVER_H
 
 #include <hiredis/async.h>
 #include <time.h>
@@ -17,7 +17,7 @@ struct server {
 };
 
 void
-dishy_connect(struct server *s);
+webdis_connect(struct server *s);
 
 #endif
 

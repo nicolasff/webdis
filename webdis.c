@@ -58,7 +58,7 @@ main(int argc, char *argv[]) {
 	if(argc > 1) {
 		s->cfg = conf_read(argv[1]);
 	} else {
-		s->cfg = conf_read("dishy.json");
+		s->cfg = conf_read("webdis.json");
 	}
 
 	/* ignore sigpipe */
@@ -71,7 +71,7 @@ main(int argc, char *argv[]) {
 	evhttp_set_gencb(http, on_request, s);
 
 	/* attach hiredis to libevent base */
-	dishy_connect(s);
+	webdis_connect(s);
 
 	/* loop */
 	event_base_dispatch(s->base);
