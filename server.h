@@ -1,5 +1,5 @@
-#ifndef TURNIP_H
-#define TURNIP_H
+#ifndef DISHY_H
+#define DISHY_H
 
 #include <hiredis/async.h>
 #include <time.h>
@@ -17,7 +17,7 @@ struct server {
 };
 
 void
-turnip_connect(struct server *s);
+dishy_connect(struct server *s);
 
 #endif
 

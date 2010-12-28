@@ -21,7 +21,7 @@ disconnectCallback(const redisAsyncContext *c, int status) {
 	printf("disconnected, schedule reconnect.\n");
 	s->ac = NULL;
 
-	turnip_connect(s);
+	dishy_connect(s);
 }
 
 static void
@@ -60,7 +60,7 @@ on_timer_reconnect(int fd, short event, void *ctx) {
 }
 
 void
-turnip_connect(struct server *s) {
+dishy_connect(struct server *s) {
 	/* schedule reconnect */
 	evtimer_set(&s->ev_reconnect, on_timer_reconnect, s);
 	event_base_set(s->base, &s->ev_reconnect);
