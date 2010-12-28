@@ -1,6 +1,6 @@
 # About
 
-A very simple prototype providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis) and [jansson](https://github.com/akheron/jansson).
+A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson) and libevent.
 
 <pre>
 make clean all
@@ -29,18 +29,18 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
 * Support pub/sub (waiting for HiRedis ticket \#17 in order to add this.)
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
-* Drop privileges.
-* Add logging.
+* Drop privileges on startup.
+* Add logs.
 * Enrich config file:
 	* Provide timeout (this needs to be added to hiredis first.)
 * Multi-server support, using consistent hashing.
-* Send your ideas using the github tracker or on twitter [@yowgi](http://twitter.com/yowgi).
+* Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed
 * Redis is unreachable: 503 Service Unavailable
 * Could also be used:
-	* Timeout on the redis side: 503 Service Unavailable
+	* Timeout on the redis side: 503 Service Unavailable (this isn't supported by HiRedis yet).
 	* Missing key: 404 Not Found
 	* Unauthorized command (disabled in config file): 403 Forbidden
 
