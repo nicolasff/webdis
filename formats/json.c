@@ -20,8 +20,7 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	struct cmd *cmd = privdata;
 	json_t *j;
 	char *jstr;
-	int free_reply = 1;
-	redisCallback *cb;
+	int free_cmd = 1;
 
 	if(cmd == NULL) {
 		/* broken connection */
@@ -29,7 +28,6 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 
 	if (reply == NULL) {
-		printf("reply = NULL, BYE.\n");
 		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
 		return;
 	}
@@ -46,13 +44,13 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	evhttp_add_header(cmd->rq->output_headers, "Content-Type", "application/json");
 
 	if(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0) {
-		free_reply = 0;
+		redisCallback cb;
+		free_cmd = 0;
 
 		/* reinstall callback */
-		cb = calloc(1, sizeof(redisCallback));
-		cb->fn = json_reply;
-		cb->privdata = privdata;
-		__redisPushCallback(&c->replies, cb);
+		cb.fn = json_reply;
+		cb.privdata = privdata;
+		__redisPushCallback(&c->replies, &cb);
 
 		/* start streaming */
 		if(cmd->replied == 0) {
@@ -69,11 +67,11 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	evbuffer_free(body);
 	json_decref(j);
 	free(jstr);
-	if(free_reply) {
-		freeReplyObject(r);
+	evhttp_clear_headers(&cmd->uri_params);
+	if(free_cmd) {
 		cmd_free(cmd);
 	}
-	evhttp_clear_headers(&cmd->uri_params);
+	freeReplyObject(r);
 }
 
 static json_t *

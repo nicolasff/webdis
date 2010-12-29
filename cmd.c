@@ -46,9 +46,10 @@ void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
 
 	(void)evcon;
 
-	printf("SUBSCRIBE DISCONNECT (ac=%p)\n", (void*)ps->s->ac);
 	if(ps->s->ac->replies.head) { /* TODO: proper free. */
-		printf("NULLIFY closure\n");
+		if(ps->s->ac->replies.head->privdata) {
+			cmd_free(ps->s->ac->replies.head->privdata);
+		}
 		ps->s->ac->replies.head->privdata = NULL;
 	}
 	redisAsyncFree(ps->s->ac);
