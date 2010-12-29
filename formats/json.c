@@ -67,8 +67,8 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	evbuffer_free(body);
 	json_decref(j);
 	free(jstr);
-	evhttp_clear_headers(&cmd->uri_params);
 	if(free_cmd) {
+		evhttp_clear_headers(&cmd->uri_params);
 		cmd_free(cmd);
 	}
 	freeReplyObject(r);
