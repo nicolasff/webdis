@@ -35,11 +35,24 @@ cmd_free(struct cmd *c) {
 	free(c);
 }
 
+struct pubsub_client {
+	struct server *s;
+	struct evhttp_request *rq;
+};
+
 void __redisAsyncDisconnect(redisAsyncContext *ac);
 void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
-	struct server *s = ctx;
-	printf("SUBSCRIBE DISCONNECT (ac=%p)\n", (void*)s->ac);
-	redisAsyncDisconnect(s->ac);
+	struct pubsub_client *ps = ctx;
+
+	(void)evcon;
+
+	printf("SUBSCRIBE DISCONNECT (ac=%p)\n", (void*)ps->s->ac);
+	if(ps->s->ac->replies.head) { /* TODO: proper free. */
+		printf("NULLIFY closure\n");
+		ps->s->ac->replies.head->privdata = NULL;
+	}
+	redisAsyncDisconnect(ps->s->ac);
+	free(ps);
 }
 
 int
@@ -131,8 +144,13 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 
 	/* check if we have to split the connection */
 	if(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0) {
-		s = server_copy(s);
-		evhttp_connection_set_closecb(rq->evcon, on_http_disconnect, s);
+		struct pubsub_client *ps;
+		ps = calloc(1, sizeof(struct pubsub_client));
+		ps->s = s = server_copy(s);
+
+		ps->rq = rq;
+
+		evhttp_connection_set_closecb(rq->evcon, on_http_disconnect, ps);
 	}
 
 	if(!slash) {
