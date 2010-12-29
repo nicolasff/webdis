@@ -43,7 +43,7 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	evbuffer_add(body, jstr, strlen(jstr));
 	evhttp_add_header(cmd->rq->output_headers, "Content-Type", "application/json");
 
-	if(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0) {
+	if(cmd_is_subscribe(cmd)) {
 		redisCallback cb;
 		free_cmd = 0;
 
@@ -53,8 +53,8 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 		__redisPushCallback(&c->replies, &cb);
 
 		/* start streaming */
-		if(cmd->replied == 0) {
-			cmd->replied = 1;
+		if(cmd->started_responding == 0) {
+			cmd->started_responding = 1;
 			evhttp_send_reply_start(cmd->rq, 200, "OK");
 		}
 		evhttp_send_reply_chunk(cmd->rq, body);

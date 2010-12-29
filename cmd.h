@@ -21,7 +21,7 @@ struct cmd {
 
 	struct evkeyvalq uri_params;
 
-	int replied;
+	int started_responding;
 };
 
 struct cmd *
@@ -36,5 +36,8 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 
 formatting_fun
 get_formatting_funtion(struct evkeyvalq *params);
+
+int
+cmd_is_subscribe(struct cmd *cmd);
 
 #endif
