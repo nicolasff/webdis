@@ -23,20 +23,14 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	int free_reply = 1;
 	redisCallback *cb;
 
+	if(cmd == NULL) {
+		/* broken connection */
+		return;
+	}
+
 	if (reply == NULL) {
 		printf("reply = NULL, BYE.\n");
 		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
-		return;
-	}
-	if(cmd == NULL) {
-		/* broken connection */
-
-		/* reinstall callback just in case. */
-		cb = calloc(1, sizeof(redisCallback));
-		cb->fn = json_reply;
-		cb->privdata = privdata;
-		__redisPushCallback(&c->replies, cb);
-
 		return;
 	}
 

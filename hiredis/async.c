@@ -96,6 +96,11 @@ int redisAsyncSetReplyObjectFunctions(redisAsyncContext *ac, redisReplyObjectFun
 int redisAsyncSetConnectCallback(redisAsyncContext *ac, redisConnectCallback *fn) {
     if (ac->onConnect == NULL) {
         ac->onConnect = fn;
+
+        /* The common way to detect an established connection is to wait for
+         * the first write event to be fired. This assumes the related event
+         * library functions are already set. */
+        if (ac->evAddWrite) ac->evAddWrite(ac->_adapter_data);
         return REDIS_OK;
     }
     return REDIS_ERR;
@@ -146,51 +151,80 @@ static int __redisShiftCallback(redisCallbackList *list, redisCallback *target) 
     return REDIS_ERR;
 }
 
-/* Tries to do a clean disconnect from Redis, meaning it stops new commands
- * from being issued, but tries to flush the output buffer and execute
- * callbacks for all remaining replies.
- *
- * This functions is generally called from within a callback, so the
- * processCallbacks function will pick up the flag when there are no
- * more replies. */
-void redisAsyncDisconnect(redisAsyncContext *ac) {
-    redisContext *c = &(ac->c);
-    c->flags |= REDIS_DISCONNECTING;
-}
-
-/* Helper function to make the disconnect happen and clean up. */
-void __redisAsyncDisconnect(redisAsyncContext *ac) {
+/* Helper function to free the context. */
+static void __redisAsyncFree(redisAsyncContext *ac) {
     redisContext *c = &(ac->c);
     redisCallback cb;
-    int status;
 
-    /* Make sure error is accessible if there is any */
-    __redisAsyncCopyError(ac);
-    status = (ac->err == 0) ? REDIS_OK : REDIS_ERR;
-
-    if (status == REDIS_OK) {
-        /* When the connection is cleanly disconnected, there should not
-         * be pending callbacks. */
-        assert(__redisShiftCallback(&ac->replies,NULL) == REDIS_ERR);
-    } else {
-        /* Callbacks should not be able to issue new commands. */
-        c->flags |= REDIS_DISCONNECTING;
-
-        /* Execute pending callbacks with NULL reply. */
-        while (__redisShiftCallback(&ac->replies,&cb) == REDIS_OK) {
-            if (cb.fn != NULL)
-                cb.fn(ac,NULL,cb.privdata);
+    /* Execute pending callbacks with NULL reply. */
+    while (__redisShiftCallback(&ac->replies,&cb) == REDIS_OK) {
+        if (cb.fn != NULL) {
+            c->flags |= REDIS_IN_CALLBACK;
+            cb.fn(ac,NULL,cb.privdata);
+            c->flags &= ~REDIS_IN_CALLBACK;
         }
     }
 
     /* Signal event lib to clean up */
     if (ac->evCleanup) ac->evCleanup(ac->_adapter_data);
 
-    /* Execute callback with proper status */
-    if (ac->onDisconnect) ac->onDisconnect(ac,status);
+    /* Execute disconnect callback. When redisAsyncFree() initiated destroying
+     * this context, the status will always be REDIS_OK. */
+    if (ac->onDisconnect && (c->flags & REDIS_CONNECTED)) {
+        if (c->flags & REDIS_FREEING) {
+            ac->onDisconnect(ac,REDIS_OK);
+        } else {
+            ac->onDisconnect(ac,(ac->err == 0) ? REDIS_OK : REDIS_ERR);
+        }
+    }
 
     /* Cleanup self */
     redisFree(c);
+}
+
+/* Free the async context. When this function is called from a callback,
+ * control needs to be returned to redisProcessCallbacks() before actual
+ * free'ing. To do so, a flag is set on the context which is picked up by
+ * redisProcessCallbacks(). Otherwise, the context is immediately free'd. */
+void redisAsyncFree(redisAsyncContext *ac) {
+    redisContext *c = &(ac->c);
+    c->flags |= REDIS_FREEING;
+    if (!(c->flags & REDIS_IN_CALLBACK))
+        __redisAsyncFree(ac);
+}
+
+/* Helper function to make the disconnect happen and clean up. */
+static void __redisAsyncDisconnect(redisAsyncContext *ac) {
+    redisContext *c = &(ac->c);
+
+    /* Make sure error is accessible if there is any */
+    __redisAsyncCopyError(ac);
+
+    if (ac->err == 0) {
+        /* For clean disconnects, there should be no pending callbacks. */
+        assert(__redisShiftCallback(&ac->replies,NULL) == REDIS_ERR);
+    } else {
+        /* Disconnection is caused by an error, make sure that pending
+         * callbacks cannot call new commands. */
+        c->flags |= REDIS_DISCONNECTING;
+    }
+
+    /* For non-clean disconnects, __redisAsyncFree() will execute pending
+     * callbacks with a NULL-reply. */
+    __redisAsyncFree(ac);
+}
+
+/* Tries to do a clean disconnect from Redis, meaning it stops new commands
+ * from being issued, but tries to flush the output buffer and execute
+ * callbacks for all remaining replies. When this function is called from a
+ * callback, there might be more replies and we can safely defer disconnecting
+ * to redisProcessCallbacks(). Otherwise, we can only disconnect immediately
+ * when there are no pending callbacks. */
+void redisAsyncDisconnect(redisAsyncContext *ac) {
+    redisContext *c = &(ac->c);
+    c->flags |= REDIS_DISCONNECTING;
+    if (!(c->flags & REDIS_IN_CALLBACK) && ac->replies.head == NULL)
+        __redisAsyncDisconnect(ac);
 }
 
 void redisProcessCallbacks(redisAsyncContext *ac) {
@@ -216,7 +250,15 @@ void redisProcessCallbacks(redisAsyncContext *ac) {
         /* Shift callback and execute it */
         assert(__redisShiftCallback(&ac->replies,&cb) == REDIS_OK);
         if (cb.fn != NULL) {
+            c->flags |= REDIS_IN_CALLBACK;
             cb.fn(ac,reply,cb.privdata);
+            c->flags &= ~REDIS_IN_CALLBACK;
+
+            /* Proceed with free'ing when redisAsyncFree() was called. */
+            if (c->flags & REDIS_FREEING) {
+                __redisAsyncFree(ac);
+                return;
+            }
         } else {
             c->fn->freeObject(reply);
         }
@@ -276,8 +318,8 @@ static int __redisAsyncCommand(redisAsyncContext *ac, redisCallbackFn *fn, void 
     redisContext *c = &(ac->c);
     redisCallback cb;
 
-    /* Don't accept new commands when the connection is lazily closed. */
-    if (c->flags & REDIS_DISCONNECTING) return REDIS_ERR;
+    /* Don't accept new commands when the connection is about to be closed. */
+    if (c->flags & (REDIS_DISCONNECTING | REDIS_FREEING)) return REDIS_ERR;
     __redisAppendCommand(c,cmd,len);
 
     /* Store callback */

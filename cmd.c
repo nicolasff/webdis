@@ -51,7 +51,7 @@ void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
 		printf("NULLIFY closure\n");
 		ps->s->ac->replies.head->privdata = NULL;
 	}
-	redisAsyncDisconnect(ps->s->ac);
+	redisAsyncFree(ps->s->ac);
 	free(ps);
 }
 
