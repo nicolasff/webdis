@@ -1,10 +1,10 @@
 # About
 
-A very simple prototype providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis) and [jansson](https://github.com/akheron/jansson).
+A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson) and libevent.
 
 <pre>
 make clean all
-./turnip &
+./webdis &
 curl http://127.0.0.1:7379/SET/hello/world
 → {"SET":[true,"OK"]}
 curl http://127.0.0.1:7379/GET/hello
@@ -19,28 +19,31 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * GET and POST are supported.
 * JSON output by default, optional JSONP parameter.
 * Raw Redis 2.0 protocol output with `?format=raw`
-* HTTP 1.1 pipelining (45 kqps on a desktop Linux machine.)
+* HTTP 1.1 pipelining (50,000 http requests per second on a desktop Linux machine.)
 * Connects to Redis using a TCP or UNIX socket.
+* Restricted commands by IP range (CIDR subnet + mask), returning 403 errors.
+* Possible Redis authentication in the config file.
 
 # Ideas, TODO...
 * Add meta-data info per key (MIME type in a second key, for instance).
-* Support PUT, DELETE, HEAD?
-* Support pub/sub.
-* Disable MULTI/EXEC/DISCARD/WATCH.
-* Add logging.
+* Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
+* Support pub/sub (waiting for HiRedis ticket \#17 in order to add this.)
+* MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
+* Drop privileges on startup.
+* Add logs.
+* Support POST of raw Redis protocol data, and execute the whole thing. This could be useful for MULTI/EXEC transactions.
 * Enrich config file:
 	* Provide timeout (this needs to be added to hiredis first.)
-	* Restrict commands by IP range
-* Get config file path from command line.
-* Change config file to JSON format? That would be convenient.
-* Send your ideas using the github tracker or on twitter [@yowgi](http://twitter.com/yowgi).
+* Multi-server support, using consistent hashing.
+* Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed
 * Redis is unreachable: 503 Service Unavailable
 * Could also be used:
-	* Timeout on the redis side: 503 Service Unavailable
+	* Timeout on the redis side: 503 Service Unavailable (this isn't supported by HiRedis yet).
 	* Missing key: 404 Not Found
+	* Unauthorized command (disabled in config file): 403 Forbidden
 
 # Command format
 The URI `/COMMAND/arg0/arg1/.../argN` executes the command on Redis and returns the response to the client. GET and POST are supported:

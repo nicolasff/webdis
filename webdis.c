@@ -19,6 +19,7 @@ on_request(struct evhttp_request *rq, void *ctx) {
 
 	const char *uri = evhttp_request_uri(rq);
 	struct server *s = ctx;
+	int ret;
 
 	if(!s->ac) { /* redis is unavailable */
 		printf("503\n");
@@ -26,15 +27,14 @@ on_request(struct evhttp_request *rq, void *ctx) {
 		return;
 	}
 
-
-
+	/* check that the command can be executed */
 	switch(rq->type) {
 		case EVHTTP_REQ_GET:
-			cmd_run(s, rq, 1+uri, strlen(uri)-1);
+			ret = cmd_run(s, rq, 1+uri, strlen(uri)-1);
 			break;
 
 		case EVHTTP_REQ_POST:
-			cmd_run(s, rq,
+			ret = cmd_run(s, rq,
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
 				EVBUFFER_LENGTH(rq->input_buffer));
 			break;
@@ -44,18 +44,24 @@ on_request(struct evhttp_request *rq, void *ctx) {
 			evhttp_send_reply(rq, 405, "Method Not Allowed", NULL);
 			return;
 	}
+
+	if(ret < 0) {
+		evhttp_send_reply(rq, 403, "Forbidden", NULL);
+	}
 }
 
 int
 main(int argc, char *argv[]) {
-	(void)argc;
-	(void)argv;
 
 	struct server *s = calloc(1, sizeof(struct server));
 	s->base = event_base_new();
 	struct evhttp *http = evhttp_new(s->base);
-	
-	s->cfg = conf_read("turnip.conf");
+
+	if(argc > 1) {
+		s->cfg = conf_read(argv[1]);
+	} else {
+		s->cfg = conf_read("webdis.json");
+	}
 
 	/* ignore sigpipe */
 #ifdef SIGPIPE
@@ -67,7 +73,7 @@ main(int argc, char *argv[]) {
 	evhttp_set_gencb(http, on_request, s);
 
 	/* attach hiredis to libevent base */
-	turnip_connect(s);
+	webdis_connect(s);
 
 	/* loop */
 	event_base_dispatch(s->base);

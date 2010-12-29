@@ -1,5 +1,5 @@
-#ifndef TURNIP_H
-#define TURNIP_H
+#ifndef SERVER_H
+#define SERVER_H
 
 #include <hiredis/async.h>
 #include <time.h>
@@ -17,7 +17,7 @@ struct server {
 };
 
 void
-turnip_connect(struct server *s);
+webdis_connect(struct server *s);
 
 struct server *
 server_copy(const struct server *s);

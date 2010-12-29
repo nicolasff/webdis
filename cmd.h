@@ -30,7 +30,7 @@ cmd_new(struct evhttp_request *rq, int count);
 void
 cmd_free(struct cmd *c);
 
-void
+int
 cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len);
 
