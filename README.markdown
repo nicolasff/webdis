@@ -31,6 +31,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Drop privileges on startup.
 * Add logs.
+* Support POST of raw Redis protocol data, and execute the whole thing. This could be useful for MULTI/EXEC transactions.
 * Enrich config file:
 	* Provide timeout (this needs to be added to hiredis first.)
 * Multi-server support, using consistent hashing.
