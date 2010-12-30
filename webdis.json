@@ -1,5 +1,6 @@
 {
 	"redis_host":	"127.0.0.1",
+
 	"redis_port":	6379,
 	"redis_auth":	null,
 
@@ -9,4 +10,26 @@
 	"disable": {
 		"0.0.0.0/0":	["DEBUG", "FLUSHDB", "FLUSHALL"]
 	}
+
+	"acl": [
+
+		{
+			"basic_auth": 	"user:password",
+			"disable":	["DEBUG", "FLUSHDB", "FLUSHALL"],
+			"enable":	["SET"]
+		},
+
+		{
+			"ip": 		"192.168.10.0/24",
+			"disable":	["SET", "FLUSHDB", "FLUSHALL"],
+			"enable":	["*"]
+		},
+
+		{
+			"basic_auth": 	"user:password",
+			"ip": 		"192.168.10.0/24",
+			"disable":	["FLUSHDB", "FLUSHALL"],
+			"enable":	["SET", "*"]
+		}
+	]
 }
