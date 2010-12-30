@@ -36,7 +36,7 @@ cmd_free(struct cmd *c) {
 }
 
 int
-cmd_authorized(struct conf *cfg, struct evhttp_request *rq, const char *verb, size_t verb_len) {
+cmd_authorized(struct cmd *cmd, struct conf *cfg, struct evhttp_request *rq) {
 
 	char *always_off[] = {"MULTI", "EXEC", "WATCH", "DISCARD", "SUBSCRIBE", "PSUBSCRIBE"};
 
@@ -48,9 +48,12 @@ cmd_authorized(struct conf *cfg, struct evhttp_request *rq, const char *verb, si
 	u_short client_port;
 	in_addr_t client_addr;
 
+	const char *cmd_name = cmd->argv[0];
+	size_t cmd_len = cmd->argv_len[0];
+
 	/* some commands are always disabled, regardless of the config file. */
 	for(i = 0; i < sizeof(always_off) / sizeof(always_off[0]); ++i) {
-		if(strncasecmp(always_off[i], verb, verb_len) == 0) {
+		if(strncasecmp(always_off[i], cmd_name, cmd_len) == 0) {
 			return 0;
 		}
 	}
@@ -66,14 +69,14 @@ cmd_authorized(struct conf *cfg, struct evhttp_request *rq, const char *verb, si
 
 		/* go through authorized commands */
 		for(i = 0; i < a->enabled.count; ++i) {
-			if(strncasecmp(a->enabled.commands[i], verb, verb_len) == 0) {
+			if(strncasecmp(a->enabled.commands[i], cmd_name, cmd_len) == 0) {
 				authorized = 1;
 			}
 		}
 
 		/* go through unauthorized commands */
 		for(i = 0; i < a->disabled.count; ++i) {
-			if(strncasecmp(a->disabled.commands[i], verb, verb_len) == 0) {
+			if(strncasecmp(a->disabled.commands[i], cmd_name, cmd_len) == 0) {
 				authorized = 0;
 			}
 		}
@@ -122,7 +125,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	cmd->argv_len[0] = cmd_len;
 
 	/* check that the client is able to run this command */
-	if(!cmd_authorized(s->cfg, rq, cmd->argv[0], cmd->argv_len[0])) {
+	if(!cmd_authorized(cmd, s->cfg, rq)) {
 		return -1;
 	}
 

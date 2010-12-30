@@ -133,6 +133,7 @@ conf_parse_acl(json_t *j) {
 		pos = base64_encode_block(plain, (int)plain_len, a->http_basic_auth, &b64); /* FIXME: check return value */
 		base64_encode_blockend(a->http_basic_auth + pos, &b64);
 
+		/* end string with \0 rather than \n */
 		if((p = strchr(a->http_basic_auth + pos, '\n'))) {
 			*p = 0;
 		}
