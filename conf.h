@@ -3,6 +3,8 @@
 
 #include <netinet/in.h>
 
+struct evhttp_request;
+
 struct acl_commands {
 	unsigned int count;
 	char **commands;
@@ -45,6 +47,6 @@ void
 conf_free(struct conf *conf);
 
 int
-acl_match(struct acl *a, in_addr_t *ip);
+acl_match(struct acl *a, struct evhttp_request *rq, in_addr_t *ip);
 
 #endif /* CONF_H */

@@ -65,7 +65,7 @@ cmd_authorized(struct cmd *cmd, struct conf *cfg, struct evhttp_request *rq) {
 	/* go through permissions */
 	for(a = cfg->perms; a; a = a->next) {
 
-		if(!acl_match(a, &client_addr)) continue; /* match client */
+		if(!acl_match(a, rq, &client_addr)) continue; /* match client */
 
 		/* go through authorized commands */
 		for(i = 0; i < a->enabled.count; ++i) {
