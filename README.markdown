@@ -21,7 +21,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Raw Redis 2.0 protocol output with `?format=raw`
 * HTTP 1.1 pipelining (50,000 http requests per second on a desktop Linux machine.)
 * Connects to Redis using a TCP or UNIX socket.
-* Restricted commands by IP range (CIDR subnet + mask), returning 403 errors.
+* Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Possible Redis authentication in the config file.
 
 # Ideas, TODO...
