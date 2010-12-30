@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 
 #include <jansson.h>
+#include <libb64/cencode.h>
 #include "conf.h"
 
 static struct acl *
@@ -118,8 +119,23 @@ conf_parse_acl(json_t *j) {
 
 	/* parse basic_auth */
 	if((jbasic = json_object_get(j, "http_basic_auth")) && json_typeof(jbasic) == JSON_STRING) {
-		a->http_basic_auth = strdup(json_string_value(jbasic));
-		/* TODO: base64 encode */
+
+		/* base64 encode */
+		base64_encodestate b64;
+		int pos;
+		char *p;
+		const char *plain = json_string_value(jbasic);
+		size_t len, plain_len = strlen(plain) + 0;
+		len = (plain_len + 8) * 8 / 6;
+		a->http_basic_auth = calloc(len, 1);
+		
+		base64_init_encodestate(&b64);
+		pos = base64_encode_block(plain, (int)plain_len, a->http_basic_auth, &b64); /* FIXME: check return value */
+		base64_encode_blockend(a->http_basic_auth + pos, &b64);
+
+		if((p = strchr(a->http_basic_auth + pos, '\n'))) {
+			*p = 0;
+		}
 	}
 
 	/* parse enabled commands */

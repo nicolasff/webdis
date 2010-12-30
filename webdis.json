@@ -10,7 +10,7 @@
 	"acl": [
 
 		{
-			"basic_auth": 	"user:password",
+			"http_basic_auth": "user:password",
 			"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
 			"enabled":	["SET"]
 		},
@@ -22,7 +22,7 @@
 		},
 
 		{
-			"basic_auth": 	"user:password",
+			"http_basic_auth": "user:password",
 			"ip": 		"192.168.10.0/24",
 			"disabled":	["FLUSHDB", "FLUSHALL"],
 			"enabled":	["SET", "*"]
