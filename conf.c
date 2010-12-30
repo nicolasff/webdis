@@ -7,8 +7,8 @@
 #include <jansson.h>
 #include "conf.h"
 
-static struct disabled_command *
-conf_disable_commands(json_t *jtab);
+static struct acl *
+conf_parse_acls(json_t *jtab);
 
 struct conf *
 conf_read(const char *filename) {
@@ -46,8 +46,8 @@ conf_read(const char *filename) {
 			conf->http_host = strdup(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "http_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->http_port = (short)json_integer_value(jtmp);
-		} else if(strcmp(json_object_iter_key(kv), "disable") == 0 && json_typeof(jtmp) == JSON_OBJECT) {
-			conf->disabled = conf_disable_commands(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "acl") == 0 && json_typeof(jtmp) == JSON_OBJECT) {
+			conf->perms = conf_parse_acls(jtmp);
 		}
 	}
 
@@ -56,30 +56,53 @@ conf_read(const char *filename) {
 	return conf;
 }
 
+void
+acl_read_commands(json_t *jlist, struct acl_commands *ac) {
 
-struct disabled_command *
-conf_disable_commands(json_t *jtab) {
+	unsigned int i, n, cur;
 
-	struct disabled_command *root = NULL;
-
-	void *kv;
-	for(kv = json_object_iter(jtab); kv; kv = json_object_iter_next(jtab, kv)) {
-
-		unsigned int i, cur, n;
-		char *p, *ip;
-		const char *s;
-		in_addr_t mask, subnet;
-		unsigned short mask_bits = 0;
-
-		struct disabled_command *dc;
-		json_t *val = json_object_iter_value(kv);
-
-		if(json_typeof(val) != JSON_ARRAY) {
-			continue; /* TODO: report error? */
+	/* count strings in the array */
+	for(i = 0, n = 0; i < json_array_size(jlist); ++i) {
+		json_t *jelem = json_array_get(jlist, (size_t)i);
+		if(json_typeof(jelem) == JSON_STRING) {
+			n++;
 		}
+	}
 
-		/* parse key in format "ip/mask" */
-		s = json_object_iter_key(kv);
+	/* allocate block */
+	ac->commands = calloc((size_t)n, sizeof(char*));
+	ac->count = n;
+
+	/* add all disabled commands */
+	for(i = 0, cur = 0; i < json_array_size(jlist); ++i) {
+		json_t *jelem = json_array_get(jlist, i);
+		if(json_typeof(jelem) == JSON_STRING) {
+			size_t sz;
+			const char *s = json_string_value(jelem);
+			sz = strlen(s);
+
+			ac->commands[cur] = calloc(1 + sz, 1);
+			memcpy(ac->commands[cur], s, sz);
+			cur++;
+		}
+	}
+}
+
+struct acl *
+conf_parse_acl(json_t *j) {
+
+	json_t *jcidr, *jbasic, *jlist;
+	unsigned short mask_bits = 0;
+
+	struct acl *a = calloc(1, sizeof(struct acl));
+
+	/* parse CIDR */
+	if((jcidr = json_object_get(j, "ip")) && json_typeof(jcidr) == JSON_STRING) {
+		const char *s;
+		char *p, *ip;
+		a->cidr.enabled = 1;
+
+		s = json_string_value(jcidr);
 		p = strchr(s, '/');
 		if(!p) {
 			ip = strdup(s);
@@ -88,44 +111,47 @@ conf_disable_commands(json_t *jtab) {
 			memcpy(ip, s, (size_t)(p - s));
 			mask_bits = (unsigned short)atoi(p+1);
 		}
-		mask = (mask_bits == 0 ? 0 : (0xffffffff << (32 - mask_bits)));
-		subnet = ntohl(inet_addr(ip)) & mask;
+		a->cidr.mask = (mask_bits == 0 ? 0 : (0xffffffff << (32 - mask_bits)));
+		a->cidr.subnet = ntohl(inet_addr(ip)) & a->cidr.mask;
+		free(ip);
+	}
 
-		/* count strings in the array */
-		n = 0;
-		for(i = 0; i < json_array_size(val); ++i) {
-			json_t *jelem = json_array_get(val, (size_t)i);
-			if(json_typeof(jelem) == JSON_STRING) {
-				n++;
-			}
-		}
+	/* parse basic_auth */
+	if((jbasic = json_object_get(j, "http_basic_auth")) && json_typeof(jbasic) == JSON_STRING) {
+		a->http_basic_auth = strdup(json_string_value(jbasic));
+		/* TODO: base64 encode */
+	}
 
-		/* allocate block */
-		dc = calloc(1, sizeof(struct disabled_command));
-		dc->commands = calloc((size_t)n, sizeof(char*));
-		dc->subnet = subnet;
-		dc->mask = mask;
-		dc->count = n;
-		dc->next = root;
-		root = dc;
+	/* parse enabled commands */
+	if((jlist = json_object_get(j, "enable")) && json_typeof(jlist) == JSON_ARRAY) {
+		acl_read_commands(jlist, &a->enable);
+	}
 
-		/* add all disabled commands */
-		for(i = 0, cur = 0; i < json_array_size(val); ++i) {
-			json_t *jelem = json_array_get(val, i);
-			if(json_typeof(jelem) == JSON_STRING) {
-				size_t sz;
-				s = json_string_value(jelem);
-				sz = strlen(s);
+	/* parse disabled commands */
+	if((jlist = json_object_get(j, "disable")) && json_typeof(jlist) == JSON_ARRAY) {
+		acl_read_commands(jlist, &a->disable);
+	}
 
-				dc->commands[cur] = calloc(1 + sz, 1);
-				memcpy(dc->commands[cur], s, sz);
-				cur++;
-			}
-		}
+	return a;
+}
+
+struct acl *
+conf_parse_acls(json_t *jtab) {
+
+	struct acl *root = NULL, *tmp = NULL;
+
+	void *kv;
+	for(kv = json_object_iter(jtab); kv; kv = json_object_iter_next(jtab, kv)) {
+		json_t *val = json_object_iter_value(kv);
+
+		tmp = conf_parse_acl(val);
+		if(root) root->next = tmp;
+		root = tmp;
 	}
 
 	return root;
 }
+
 
 void
 conf_free(struct conf *conf) {

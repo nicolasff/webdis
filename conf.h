@@ -3,15 +3,27 @@
 
 #include <netinet/in.h>
 
-struct disabled_command {
-
-	in_addr_t subnet;
-	in_addr_t mask;
-
+struct acl_commands {
 	unsigned int count;
 	char **commands;
+};
 
-	struct disabled_command *next;
+struct acl {
+
+	/* CIDR subnet + mask */
+	struct {
+		int enabled;
+		in_addr_t subnet;
+		in_addr_t mask;
+	} cidr;
+
+	char *http_basic_auth;
+
+	/* commands that have been enabled or disabled */
+	struct acl_commands enable;
+	struct acl_commands disable;
+
+	struct acl *next;
 };
 
 struct conf {
@@ -23,7 +35,7 @@ struct conf {
 	char *http_host;
 	short http_port;
 
-	struct disabled_command *disabled;
+	struct acl *perms;
 };
 
 struct conf *
