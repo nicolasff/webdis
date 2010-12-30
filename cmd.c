@@ -41,6 +41,8 @@ cmd_authorized(struct conf *cfg, struct evhttp_request *rq, const char *verb, si
 	char *always_off[] = {"MULTI", "EXEC", "WATCH", "DISCARD", "SUBSCRIBE", "PSUBSCRIBE"};
 
 	unsigned int i;
+	int authorized = 1;
+	struct acl *a;
 
 	char *client_ip;
 	u_short client_port;
@@ -53,30 +55,31 @@ cmd_authorized(struct conf *cfg, struct evhttp_request *rq, const char *verb, si
 		}
 	}
 
-
 	/* find client's address */
 	evhttp_connection_get_peer(rq->evcon, &client_ip, &client_port);
 	client_addr = ntohl(inet_addr(client_ip));
 
-	return 1;
-#if 0
-	for(dc = cfg->disabled; dc; dc = dc->next) {
-		/* CIDR test */
+	/* go through permissions */
+	for(a = cfg->perms; a; a = a->next) {
 
-		if((client_addr & dc->mask) != (dc->subnet & dc->mask)) {
-			continue;
+		if(!acl_match(a, &client_addr)) continue; /* match client */
+
+		/* go through authorized commands */
+		for(i = 0; i < a->enabled.count; ++i) {
+			if(strncasecmp(a->enabled.commands[i], verb, verb_len) == 0) {
+				authorized = 1;
+			}
 		}
 
-		/* matched an ip */
-		for(i = 0; i < dc->count; ++i) {
-			if(strncasecmp(dc->commands[i], verb, verb_len) == 0) {
-				return 0;
+		/* go through unauthorized commands */
+		for(i = 0; i < a->disabled.count; ++i) {
+			if(strncasecmp(a->disabled.commands[i], verb, verb_len) == 0) {
+				authorized = 0;
 			}
 		}
 	}
-#endif
 
-	return 1;
+	return authorized;
 }
 
 int

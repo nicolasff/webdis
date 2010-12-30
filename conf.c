@@ -46,7 +46,7 @@ conf_read(const char *filename) {
 			conf->http_host = strdup(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "http_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->http_port = (short)json_integer_value(jtmp);
-		} else if(strcmp(json_object_iter_key(kv), "acl") == 0 && json_typeof(jtmp) == JSON_OBJECT) {
+		} else if(strcmp(json_object_iter_key(kv), "acl") == 0 && json_typeof(jtmp) == JSON_ARRAY) {
 			conf->perms = conf_parse_acls(jtmp);
 		}
 	}
@@ -100,7 +100,6 @@ conf_parse_acl(json_t *j) {
 	if((jcidr = json_object_get(j, "ip")) && json_typeof(jcidr) == JSON_STRING) {
 		const char *s;
 		char *p, *ip;
-		a->cidr.enabled = 1;
 
 		s = json_string_value(jcidr);
 		p = strchr(s, '/');
@@ -111,6 +110,7 @@ conf_parse_acl(json_t *j) {
 			memcpy(ip, s, (size_t)(p - s));
 			mask_bits = (unsigned short)atoi(p+1);
 		}
+		a->cidr.enabled = 1;
 		a->cidr.mask = (mask_bits == 0 ? 0 : (0xffffffff << (32 - mask_bits)));
 		a->cidr.subnet = ntohl(inet_addr(ip)) & a->cidr.mask;
 		free(ip);
@@ -123,13 +123,13 @@ conf_parse_acl(json_t *j) {
 	}
 
 	/* parse enabled commands */
-	if((jlist = json_object_get(j, "enable")) && json_typeof(jlist) == JSON_ARRAY) {
-		acl_read_commands(jlist, &a->enable);
+	if((jlist = json_object_get(j, "enabled")) && json_typeof(jlist) == JSON_ARRAY) {
+		acl_read_commands(jlist, &a->enabled);
 	}
 
 	/* parse disabled commands */
-	if((jlist = json_object_get(j, "disable")) && json_typeof(jlist) == JSON_ARRAY) {
-		acl_read_commands(jlist, &a->disable);
+	if((jlist = json_object_get(j, "disabled")) && json_typeof(jlist) == JSON_ARRAY) {
+		acl_read_commands(jlist, &a->disabled);
 	}
 
 	return a;
@@ -138,18 +138,39 @@ conf_parse_acl(json_t *j) {
 struct acl *
 conf_parse_acls(json_t *jtab) {
 
-	struct acl *root = NULL, *tmp = NULL;
+	struct acl *head = NULL, *tail = NULL, *tmp;
 
-	void *kv;
-	for(kv = json_object_iter(jtab); kv; kv = json_object_iter_next(jtab, kv)) {
-		json_t *val = json_object_iter_value(kv);
+	unsigned int i;
+	for(i = 0; i < json_array_size(jtab); ++i) {
+		json_t *val = json_array_get(jtab, i);
 
 		tmp = conf_parse_acl(val);
-		if(root) root->next = tmp;
-		root = tmp;
+		if(head == NULL && tail == NULL) {
+			head = tail = tmp;
+		} else {
+			tail->next = tmp;
+			tail = tmp;
+		}
 	}
 
-	return root;
+	return head;
+}
+
+int
+acl_match(struct acl *a, in_addr_t *ip) {
+
+	/* TODO: add HTTP Basic Auth */
+
+	if(a->cidr.enabled == 0) { /* none given, all match */
+		return 1;
+	}
+
+	/* CIDR check. */
+	if(((*ip) & a->cidr.mask) == (a->cidr.subnet & a->cidr.mask)) {
+		return 1;
+	}
+
+	return 0;
 }
 
 

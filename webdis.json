@@ -7,29 +7,31 @@
 	"http_host":	"0.0.0.0",
 	"http_port":	7379,
 
-	"disable": {
-		"0.0.0.0/0":	["DEBUG", "FLUSHDB", "FLUSHALL"]
-	},
-
 	"acl": [
 
 		{
 			"basic_auth": 	"user:password",
-			"disable":	["DEBUG", "FLUSHDB", "FLUSHALL"],
-			"enable":	["SET"]
+			"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
+			"enabled":	["SET"]
 		},
 
 		{
 			"ip": 		"192.168.10.0/24",
-			"disable":	["SET", "FLUSHDB", "FLUSHALL"],
-			"enable":	["*"]
+			"disabled":	["SET", "FLUSHDB", "FLUSHALL"],
+			"enabled":	["*"]
 		},
 
 		{
 			"basic_auth": 	"user:password",
 			"ip": 		"192.168.10.0/24",
-			"disable":	["FLUSHDB", "FLUSHALL"],
-			"enable":	["SET", "*"]
+			"disabled":	["FLUSHDB", "FLUSHALL"],
+			"enabled":	["SET", "*"]
+		},
+
+		{
+			"ip": 		"0.0.0.0/0",
+			"disabled":	["SET"],
+			"enabled":	["SET"]
 		}
 	]
 }

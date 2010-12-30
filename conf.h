@@ -20,8 +20,8 @@ struct acl {
 	char *http_basic_auth;
 
 	/* commands that have been enabled or disabled */
-	struct acl_commands enable;
-	struct acl_commands disable;
+	struct acl_commands enabled;
+	struct acl_commands disabled;
 
 	struct acl *next;
 };
@@ -43,5 +43,8 @@ conf_read(const char *filename);
 
 void
 conf_free(struct conf *conf);
+
+int
+acl_match(struct acl *a, in_addr_t *ip);
 
 #endif /* CONF_H */
