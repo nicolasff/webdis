@@ -8,30 +8,13 @@
 	"http_port":	7379,
 
 	"acl": [
-
 		{
-			"http_basic_auth": "user:password",
-			"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
-			"enabled":	["SET"]
+			"disabled":	["DEBUG"]
 		},
 
 		{
-			"ip": 		"192.168.10.0/24",
-			"disabled":	["SET", "FLUSHDB", "FLUSHALL"],
-			"enabled":	["*"]
-		},
-
-		{
-			"http_basic_auth": "user:password",
-			"ip": 		"192.168.10.0/24",
-			"disabled":	["FLUSHDB", "FLUSHALL"],
-			"enabled":	["SET", "*"]
-		},
-
-		{
-			"ip": 		"0.0.0.0/0",
-			"disabled":	["SET"],
-			"enabled":	["SET"]
+			"http_basic_auth":	"user:password",
+			"enabled":		["DEBUG"]
 		}
 	]
 }

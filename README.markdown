@@ -51,6 +51,37 @@ The URI `/COMMAND/arg0/arg1/.../argN` executes the command on Redis and returns 
 * `GET /COMMAND/arg0/.../argN`
 * `POST /` with `COMMAND/arg0/.../argN` in the HTTP body.
 
+# ACL
+Access control is configured in `webdis.json`. Each configuration tries to match a client profile according to two criterias:
+
+* [CIDR](http://en.wikipedia.org/wiki/CIDR) subnet + mask
+* [HTTP Basic Auth](http://en.wikipedia.org/wiki/Basic_access_authentication) in the format of "user:password".
+
+Each ACL contains two lists of commands, `enabled` and `disabled`. All commands being enabled by default, it is up to the administrator to disable or re-enable them on a per-profile basis.
+Examples:
+<pre>
+{
+	"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
+},
+{
+	"http_basic_auth": "user:password",
+	"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
+	"enabled":	["SET"]
+},
+
+{
+	"ip": 		"192.168.10.0/24",
+	"enabled":	["SET"]
+},
+
+{
+	"http_basic_auth": "user:password",
+	"ip": 		"192.168.10.0/24",
+	"enabled":	["SET", "DEL"]
+}
+</pre>
+ACLs are interpreted in order, later authorizations superseding earlier ones if a client matches several.
+
 # JSON output
 JSON is the default output format. Each command returns a JSON object with the command as a key and the result as a value.
 
