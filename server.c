@@ -33,7 +33,7 @@ on_timer_reconnect(int fd, short event, void *ctx) {
 	struct server *s = ctx;
 
 	if(s->ac) {
-		redisLibeventCleanup(s->ac->_adapter_data);
+		redisLibeventCleanup(s->ac->data);
 		redisFree((redisContext*)s->ac);
 	}
 

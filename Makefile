@@ -1,5 +1,5 @@
 OUT=webdis
-HIREDIS_OBJ=hiredis/hiredis.o hiredis/sds.o hiredis/net.o hiredis/async.o
+HIREDIS_OBJ=hiredis/hiredis.o hiredis/sds.o hiredis/net.o hiredis/async.o hiredis/dict.o
 JANSSON_OBJ=jansson/src/dump.o jansson/src/error.o jansson/src/hashtable.o jansson/src/load.o jansson/src/strbuffer.o jansson/src/utf.o jansson/src/value.o jansson/src/variadic.o 
 FORMAT_OBJS=formats/json.o formats/raw.o
 OBJS=webdis.o conf.o $(FORMAT_OBJS) cmd.o server.o $(HIREDIS_OBJ) $(JANSSON_OBJ) libb64/cencode.o 
