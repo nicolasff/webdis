@@ -5,8 +5,6 @@
 #include <string.h>
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
-#include <event.h>
-#include <evhttp.h>
 
 extern int __redisPushCallback(redisCallbackList *list, redisCallback *source);
 

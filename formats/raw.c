@@ -5,8 +5,6 @@
 #include <string.h>
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
-#include <event.h>
-#include <evhttp.h>
 
 static char *
 raw_wrap(const redisReply *r, size_t *sz);
