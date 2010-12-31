@@ -40,7 +40,6 @@ struct pubsub_client {
 	struct evhttp_request *rq;
 };
 
-void __redisAsyncDisconnect(redisAsyncContext *ac);
 void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
 	struct pubsub_client *ps = ctx;
 

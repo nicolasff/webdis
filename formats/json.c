@@ -44,13 +44,7 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	evhttp_add_header(cmd->rq->output_headers, "Content-Type", "application/json");
 
 	if(cmd_is_subscribe(cmd)) {
-		redisCallback cb;
 		free_cmd = 0;
-
-		/* reinstall callback */
-		cb.fn = json_reply;
-		cb.privdata = privdata;
-		__redisPushCallback(&c->replies, &cb);
 
 		/* start streaming */
 		if(cmd->started_responding == 0) {
