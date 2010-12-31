@@ -21,7 +21,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Raw Redis 2.0 protocol output with `?format=raw`
 * HTTP 1.1 pipelining (50,000 http requests per second on a desktop Linux machine.)
 * Connects to Redis using a TCP or UNIX socket.
-* Restricted commands by IP range (CIDR subnet + mask), returning 403 errors.
+* Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Possible Redis authentication in the config file.
 
 # Ideas, TODO...
@@ -50,6 +50,37 @@ The URI `/COMMAND/arg0/arg1/.../argN` executes the command on Redis and returns 
 
 * `GET /COMMAND/arg0/.../argN`
 * `POST /` with `COMMAND/arg0/.../argN` in the HTTP body.
+
+# ACL
+Access control is configured in `webdis.json`. Each configuration tries to match a client profile according to two criterias:
+
+* [CIDR](http://en.wikipedia.org/wiki/CIDR) subnet + mask
+* [HTTP Basic Auth](http://en.wikipedia.org/wiki/Basic_access_authentication) in the format of "user:password".
+
+Each ACL contains two lists of commands, `enabled` and `disabled`. All commands being enabled by default, it is up to the administrator to disable or re-enable them on a per-profile basis.
+Examples:
+<pre>
+{
+	"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
+},
+{
+	"http_basic_auth": "user:password",
+	"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
+	"enabled":	["SET"]
+},
+
+{
+	"ip": 		"192.168.10.0/24",
+	"enabled":	["SET"]
+},
+
+{
+	"http_basic_auth": "user:password",
+	"ip": 		"192.168.10.0/24",
+	"enabled":	["SET", "DEL"]
+}
+</pre>
+ACLs are interpreted in order, later authorizations superseding earlier ones if a client matches several.
 
 # JSON output
 JSON is the default output format. Each command returns a JSON object with the command as a key and the result as a value.

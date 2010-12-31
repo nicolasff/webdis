@@ -56,45 +56,53 @@ void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
 }
 
 int
-cmd_authorized(struct conf *cfg, struct evhttp_request *rq, const char *verb, size_t verb_len) {
+cmd_authorized(struct cmd *cmd, struct conf *cfg, struct evhttp_request *rq) {
 
 	char *always_off[] = {"MULTI", "EXEC", "WATCH", "DISCARD"};
 
-	struct disabled_command *dc;
 	unsigned int i;
+	int authorized = 1;
+	struct acl *a;
 
 	char *client_ip;
 	u_short client_port;
 	in_addr_t client_addr;
 
+	const char *cmd_name = cmd->argv[0];
+	size_t cmd_len = cmd->argv_len[0];
+
 	/* some commands are always disabled, regardless of the config file. */
 	for(i = 0; i < sizeof(always_off) / sizeof(always_off[0]); ++i) {
-		if(strncasecmp(always_off[i], verb, verb_len) == 0) {
+		if(strncasecmp(always_off[i], cmd_name, cmd_len) == 0) {
 			return 0;
 		}
 	}
-
 
 	/* find client's address */
 	evhttp_connection_get_peer(rq->evcon, &client_ip, &client_port);
 	client_addr = ntohl(inet_addr(client_ip));
 
-	for(dc = cfg->disabled; dc; dc = dc->next) {
-		/* CIDR test */
+	/* go through permissions */
+	for(a = cfg->perms; a; a = a->next) {
 
-		if((client_addr & dc->mask) != (dc->subnet & dc->mask)) {
-			continue;
+		if(!acl_match(a, rq, &client_addr)) continue; /* match client */
+
+		/* go through authorized commands */
+		for(i = 0; i < a->enabled.count; ++i) {
+			if(strncasecmp(a->enabled.commands[i], cmd_name, cmd_len) == 0) {
+				authorized = 1;
+			}
 		}
 
-		/* matched an ip */
-		for(i = 0; i < dc->count; ++i) {
-			if(strncasecmp(dc->commands[i], verb, verb_len) == 0) {
-				return 0;
+		/* go through unauthorized commands */
+		for(i = 0; i < a->disabled.count; ++i) {
+			if(strncasecmp(a->disabled.commands[i], cmd_name, cmd_len) == 0) {
+				authorized = 0;
 			}
 		}
 	}
 
-	return 1;
+	return authorized;
 }
 
 int
@@ -138,7 +146,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 
 
 	/* check that the client is able to run this command */
-	if(!cmd_authorized(s->cfg, rq, cmd->argv[0], cmd->argv_len[0])) {
+	if(!cmd_authorized(cmd, s->cfg, rq)) {
 		return -1;
 	}
 
