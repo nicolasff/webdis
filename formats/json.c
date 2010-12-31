@@ -21,6 +21,7 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	json_t *j;
 	char *jstr;
 	int free_cmd = 1;
+	(void)c;
 
 	if(cmd == NULL) {
 		/* broken connection */
@@ -65,7 +66,6 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 		evhttp_clear_headers(&cmd->uri_params);
 		cmd_free(cmd);
 	}
-	freeReplyObject(r);
 }
 
 static json_t *
@@ -138,13 +138,13 @@ json_string_output(json_t *j, struct cmd *cmd) {
 		if(strcmp(kv->key, "jsonp") == 0) {
 			size_t json_len = strlen(json_reply);
 			size_t val_len = strlen(kv->value);
-			size_t ret_len = val_len + 1 + json_len + 1;
+			size_t ret_len = val_len + 1 + json_len + 3;
 			char *ret = calloc(1 + ret_len, 1);
 
 			memcpy(ret, kv->value, val_len);
 			ret[val_len]='(';
 			memcpy(ret + val_len + 1, json_reply, json_len);
-			ret[val_len + 1 + json_len] = ')';
+			memcpy(ret + val_len + 1 + json_len, ");\n", 3);
 			free(json_reply);
 
 			return ret;

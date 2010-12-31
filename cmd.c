@@ -45,9 +45,10 @@ void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
 
 	(void)evcon;
 
-	if(ps->s->ac->replies.head) { /* TODO: proper free. */
-		if(ps->s->ac->replies.head->privdata) {
-			cmd_free(ps->s->ac->replies.head->privdata);
+	if(ps->s->ac->replies.head) {
+		struct cmd *cmd = ps->s->ac->replies.head->privdata;
+		if(cmd) {
+			cmd_free(cmd);
 		}
 		ps->s->ac->replies.head->privdata = NULL;
 	}

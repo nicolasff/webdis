@@ -37,7 +37,6 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 
 	/* cleanup */
 	evbuffer_free(body);
-	freeReplyObject(r);
 	cmd_free(cmd);
 	free(raw_out);
 }
