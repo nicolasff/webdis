@@ -35,11 +35,9 @@ cmd_free(struct cmd *c) {
 	free(c);
 }
 
-struct pubsub_client {
-	struct server *s;
-	struct evhttp_request *rq;
-};
-
+/**
+ * Detect disconnection of a pub/sub client. We need to clean up the command.
+ */
 void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
 	struct pubsub_client *ps = ctx;
 
@@ -139,7 +137,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	evhttp_parse_query(uri, &cmd->uri_params);
 
 	/* get output formatting function */
-	fun = get_formatting_funtion(&cmd->uri_params);
+	fun = get_formatting_function(&cmd->uri_params);
 
 	/* there is always a first parameter, it's the command name */
 	cmd->argv[0] = uri;
@@ -194,7 +192,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 
 
 formatting_fun
-get_formatting_funtion(struct evkeyvalq *params) {
+get_formatting_function(struct evkeyvalq *params) {
 
 	struct evkeyval *kv;
 

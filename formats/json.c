@@ -6,8 +6,6 @@
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 
-extern int __redisPushCallback(redisCallbackList *list, redisCallback *source);
-
 static json_t *
 json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r);
 

@@ -24,6 +24,11 @@ struct cmd {
 	int started_responding;
 };
 
+struct pubsub_client {
+	struct server *s;
+	struct evhttp_request *rq;
+};
+
 struct cmd *
 cmd_new(struct evhttp_request *rq, int count);
 
@@ -35,7 +40,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len);
 
 formatting_fun
-get_formatting_funtion(struct evkeyvalq *params);
+get_formatting_function(struct evkeyvalq *params);
 
 int
 cmd_is_subscribe(struct cmd *cmd);
