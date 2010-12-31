@@ -23,11 +23,11 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Connects to Redis using a TCP or UNIX socket.
 * Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Possible Redis authentication in the config file.
+* Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
 
 # Ideas, TODO...
 * Add meta-data info per key (MIME type in a second key, for instance).
 * Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
-* Support pub/sub (waiting for HiRedis ticket \#17 in order to add this.)
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Drop privileges on startup.
 * Add logs.
