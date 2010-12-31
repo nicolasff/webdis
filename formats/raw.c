@@ -1,5 +1,6 @@
 #include "raw.h"
 #include "cmd.h"
+#include "common.h"
 
 #include <string.h>
 #include <hiredis/hiredis.h>
@@ -13,7 +14,6 @@ raw_wrap(const redisReply *r, size_t *sz);
 void
 raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 
-	struct evbuffer *body;
 	redisReply *reply = r;
 	struct cmd *cmd = privdata;
 	char *raw_out;
@@ -30,14 +30,9 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 	raw_out = raw_wrap(r, &sz);
 
 	/* send reply */
-	body = evbuffer_new();
-	evbuffer_add(body, raw_out, sz);
-	evhttp_add_header(cmd->rq->output_headers, "Content-Type", "binary/octet-stream");
-	evhttp_send_reply(cmd->rq, 200, "OK", body);
+	format_send_reply(cmd, raw_out, sz, "binary/octet-stream");
 
 	/* cleanup */
-	evbuffer_free(body);
-	cmd_free(cmd);
 	free(raw_out);
 }
 

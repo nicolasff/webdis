@@ -1,4 +1,5 @@
 #include "json.h"
+#include "common.h"
 #include "cmd.h"
 
 #include <string.h>
@@ -15,12 +16,10 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r);
 void
 json_reply(redisAsyncContext *c, void *r, void *privdata) {
 
-	struct evbuffer *body;
 	redisReply *reply = r;
 	struct cmd *cmd = privdata;
 	json_t *j;
 	char *jstr;
-	int free_cmd = 1;
 	(void)c;
 
 	if(cmd == NULL) {
@@ -40,32 +39,11 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	jstr = json_string_output(j, cmd);
 
 	/* send reply */
-	body = evbuffer_new();
-	evbuffer_add(body, jstr, strlen(jstr));
-	evhttp_add_header(cmd->rq->output_headers, "Content-Type", "application/json");
-
-	if(cmd_is_subscribe(cmd)) {
-		free_cmd = 0;
-
-		/* start streaming */
-		if(cmd->started_responding == 0) {
-			cmd->started_responding = 1;
-			evhttp_send_reply_start(cmd->rq, 200, "OK");
-		}
-		evhttp_send_reply_chunk(cmd->rq, body);
-
-	} else {
-		evhttp_send_reply(cmd->rq, 200, "OK", body);
-	}
+	format_send_reply(cmd, jstr, strlen(jstr), "application/json");
 
 	/* cleanup */
-	evbuffer_free(body);
 	json_decref(j);
 	free(jstr);
-	if(free_cmd) {
-		evhttp_clear_headers(&cmd->uri_params);
-		cmd_free(cmd);
-	}
 }
 
 static json_t *
