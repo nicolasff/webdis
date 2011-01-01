@@ -32,6 +32,7 @@ conf_read(const char *filename) {
 	conf->http_port = 7379;
 	conf->user = getuid();
 	conf->group = getgid();
+        conf->logfile = "webdis.log";
 
 	j = json_load_file(filename, 0, &error);
 	if(!j) {
@@ -66,7 +67,9 @@ conf_read(const char *filename) {
 			if((g = getgrnam(json_string_value(jtmp)))) {
 				conf->group = g->gr_gid;
 			}
-		}
+		} else if(strcmp(json_object_iter_key(kv),"logfile") == 0 && json_typeof(jtmp) == JSON_STRING){
+                        conf->logfile = strdup(json_string_value(jtmp));
+                }
 	}
 
 	json_decref(j);

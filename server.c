@@ -1,6 +1,7 @@
 #include "server.h"
 #include "conf.h"
 #include "cmd.h"
+#include "slog.h"
 
 #include <hiredis/hiredis.h>
 #include <hiredis/adapters/libevent.h>
@@ -96,24 +97,26 @@ server_copy(const struct server *s) {
 
 void
 on_request(struct evhttp_request *rq, void *ctx) {
-
 	const char *uri = evhttp_request_uri(rq);
 	struct server *s = ctx;
 	int ret;
-
+             
 	if(!s->ac) { /* redis is unavailable */
 		printf("503\n");
 		evhttp_send_reply(rq, 503, "Service Unavailable", NULL);
 		return;
 	}
-
-	/* check that the command can be executed */
+        
+        
+       	/* check that the command can be executed */
 	switch(rq->type) {
 		case EVHTTP_REQ_GET:
-			ret = cmd_run(s, rq, 1+uri, strlen(uri)-1);
+                        slog(s->cfg->logfile,1, uri);
+                        ret = cmd_run(s, rq, 1+uri, strlen(uri)-1);
 			break;
 
 		case EVHTTP_REQ_POST:
+                        slog(s->cfg->logfile,1, uri);
 			ret = cmd_run(s, rq,
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
 				EVBUFFER_LENGTH(rq->input_buffer));
@@ -121,11 +124,13 @@ on_request(struct evhttp_request *rq, void *ctx) {
 
 		default:
 			printf("405\n");
+                        slog(s->cfg->logfile,2, uri);
 			evhttp_send_reply(rq, 405, "Method Not Allowed", NULL);
 			return;
 	}
 
 	if(ret < 0) {
+                slog(s->cfg->logfile,2, uri);
 		evhttp_send_reply(rq, 403, "Forbidden", NULL);
 	}
 }
@@ -139,10 +144,12 @@ server_start(struct server *s) {
 #endif
 
 	/* start http server */
+        slog(s->cfg->logfile,1,"Starting HTTP Server");
 	evhttp_bind_socket(s->http, s->cfg->http_host, s->cfg->http_port);
 	evhttp_set_gencb(s->http, on_request, s);
 
 	/* drop privileges */
+        slog(s->cfg->logfile,1,"Dropping Privileges");
 	setuid(s->cfg->user);
 	setgid(s->cfg->group);
 

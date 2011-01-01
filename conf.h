@@ -20,6 +20,9 @@ struct conf {
 	/* user/group */
 	uid_t user;
 	gid_t group;
+
+        /* Logfile */
+        char *logfile;
 };
 
 struct conf *
