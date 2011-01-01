@@ -8,6 +8,7 @@
 #include <evhttp.h>
 #include <libb64/cencode.h>
 #include "conf.h"
+#include "acl.h"
 
 static struct acl *
 conf_parse_acls(json_t *jtab);
@@ -173,30 +174,6 @@ conf_parse_acls(json_t *jtab) {
 
 	return head;
 }
-
-int
-acl_match(struct acl *a, struct evhttp_request *rq, in_addr_t *ip) {
-
-	/* check HTTP Basic Auth */
-	const char *auth;
-	auth = evhttp_find_header(rq->input_headers, "Authorization");
-	if(auth && a->http_basic_auth && strncasecmp(auth, "Basic ", 6) == 0) { /* sent auth */
-		if(strcmp(auth + 6, a->http_basic_auth) != 0) { /* wrong */
-			return 0;
-		}
-	}
-
-	/* CIDR check. */
-	if(a->cidr.enabled == 0) { /* none given, all match */
-		return 1;
-	}
-	if(((*ip) & a->cidr.mask) == (a->cidr.subnet & a->cidr.mask)) {
-		return 1;
-	}
-
-	return 0;
-}
-
 
 void
 conf_free(struct conf *conf) {
