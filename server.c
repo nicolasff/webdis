@@ -6,6 +6,7 @@
 #include <hiredis/adapters/libevent.h>
 #include <jansson.h>
 
+#include <unistd.h>
 #include <signal.h>
 #include <string.h>
 
@@ -140,6 +141,10 @@ server_start(struct server *s) {
 	/* start http server */
 	evhttp_bind_socket(s->http, s->cfg->http_host, s->cfg->http_port);
 	evhttp_set_gencb(s->http, on_request, s);
+
+	/* drop privileges */
+	setuid(s->cfg->user);
+	setgid(s->cfg->group);
 
 	/* attach hiredis to libevent base */
 	webdis_connect(s);

@@ -3,6 +3,9 @@
 #include <string.h>
 #include <ctype.h>
 #include <arpa/inet.h>
+#include <unistd.h>
+#include <pwd.h>
+#include <grp.h>
 
 #include <jansson.h>
 #include <evhttp.h>
@@ -27,6 +30,8 @@ conf_read(const char *filename) {
 	conf->redis_port = 6379;
 	conf->http_host = strdup("0.0.0.0");
 	conf->http_port = 7379;
+	conf->user = getuid();
+	conf->group = getgid();
 
 	j = json_load_file(filename, 0, &error);
 	if(!j) {
@@ -51,6 +56,16 @@ conf_read(const char *filename) {
 			conf->http_port = (short)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "acl") == 0 && json_typeof(jtmp) == JSON_ARRAY) {
 			conf->perms = conf_parse_acls(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "user") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			struct passwd *u;
+			if((u = getpwnam(json_string_value(jtmp)))) {
+				conf->user = u->pw_uid;
+			}
+		} else if(strcmp(json_object_iter_key(kv), "group") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			struct group *g;
+			if((g = getgrnam(json_string_value(jtmp)))) {
+				conf->group = g->gr_gid;
+			}
 		}
 	}
 

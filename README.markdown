@@ -24,12 +24,12 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Possible Redis authentication in the config file.
 * Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
+* Drop privileges on startup.
 
 # Ideas, TODO...
 * Add meta-data info per key (MIME type in a second key, for instance).
 * Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
-* Drop privileges on startup.
 * Add logs.
 * Support POST of raw Redis protocol data, and execute the whole thing. This could be useful for MULTI/EXEC transactions.
 * Enrich config file:
