@@ -36,6 +36,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 	* Provide timeout (this needs to be added to hiredis first.)
 * Multi-server support, using consistent hashing.
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
+* Add WebSocket support, allow cross-origin XHR.
 
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed

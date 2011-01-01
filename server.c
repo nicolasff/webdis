@@ -94,6 +94,26 @@ server_copy(const struct server *s) {
 	return ret;
 }
 
+/* Adobe flash cross-domain request */
+void
+on_flash_request(struct evhttp_request *rq, void *ctx) {
+
+	(void)ctx;
+
+	char out[] = "<?xml version=\"1.0\"?>\n"
+"<!DOCTYPE cross-domain-policy SYSTEM \"http://www.macromedia.com/xml/dtds/cross-domain-policy.dtd\">\n"
+"<cross-domain-policy>\n"
+  "<allow-access-from domain=\"*\" />\n"
+"</cross-domain-policy>\n";
+
+	struct evbuffer *body = evbuffer_new();
+	evbuffer_add(body, out, sizeof(out) - 1);
+
+	evhttp_add_header(rq->output_headers, "Content-Type", "application/xml");
+	evhttp_send_reply(rq, 200, "OK", body);
+	evbuffer_free(body);
+}
+
 void
 on_request(struct evhttp_request *rq, void *ctx) {
 
@@ -140,6 +160,7 @@ server_start(struct server *s) {
 
 	/* start http server */
 	evhttp_bind_socket(s->http, s->cfg->http_host, s->cfg->http_port);
+	evhttp_set_cb(s->http, "/crossdomain.xml", on_flash_request, s);
 	evhttp_set_gencb(s->http, on_request, s);
 
 	/* drop privileges */
