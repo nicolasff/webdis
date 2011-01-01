@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <hiredis/async.h>
 #include <sys/queue.h>
-#include <evhttp.h>
 #include <event.h>
+#include <evhttp.h>
 
 struct evhttp_request;
 struct server;
