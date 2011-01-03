@@ -25,9 +25,12 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Possible Redis authentication in the config file.
 * Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
 * Drop privileges on startup.
+* For `GET` commands:
+	* MIME type in a second key with `/GET/k?typeKey=type-k`. This will transform the `GET` request into `MGET` and fetch both `k` and `type-k`. If `type-k` is a string, it will be used as Content-Type in the response. If the key doesn't exist or isn't a string, `binary/octet-stream` is used instead.
+	* Custom MIME type  with `?type=text/plain` (or any other MIME type).
+* URL-encoded parameters for binary data or slashes. For instance, `%2f` is decoded as `/` but not used as a command separator.
 
 # Ideas, TODO...
-* Add meta-data info per key (MIME type in a second key, for instance).
 * Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Add logs.
@@ -36,6 +39,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 	* Provide timeout (this needs to be added to hiredis first.)
 * Multi-server support, using consistent hashing.
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
+* Add WebSocket support, allow cross-origin XHR.
 
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed
@@ -142,4 +146,45 @@ $ curl http://127.0.0.1:7379/TYPE/y?format=raw
 $ curl http://127.0.0.1:7379/MAKE-ME-COFFEE?format=raw
 -ERR unknown command 'MAKE-ME-COFFEE'
 
+</pre>
+
+# Custom content-type
+Webdis can serve `GET` requests with a custom content-type. There are two ways of doing this; the content-type can be in a key that is fetched with the content, or given as a query string parameter.
+
+**Content-Type in parameter:**
+
+<pre>
+curl -v "http://127.0.0.1:7379/GET/hello.html?type=text/html"
+[...]
+&lt; HTTP/1.1 200 OK
+&lt; Content-Type: text/html
+&lt; Date: Mon, 03 Jan 2011 20:43:36 GMT
+&lt; Content-Length: 137
+&lt;
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+...
+&lt;/html&gt;
+</pre>
+
+**Content-Type in a separate key:**
+
+<pre>
+curl "http://127.0.0.1:7379/SET/hello.type/text%2fhtml"
+{"SET":[true,"OK"]}
+
+curl "http://127.0.0.1:7379/GET/hello.type"
+{"GET":"text/html"}
+
+curl -v "http://127.0.0.1:7379/GET/hello.html?typeKey=hello.type"
+[...]
+&lt; HTTP/1.1 200 OK
+&lt; Content-Type: text/html
+&lt; Date: Mon, 03 Jan 2011 20:56:43 GMT
+&lt; Content-Length: 137
+&lt;
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+...
+&lt;/html&gt;
 </pre>

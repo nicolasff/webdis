@@ -12,7 +12,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 	/* send reply */
 	body = evbuffer_new();
 	evbuffer_add(body, p, sz);
-	evhttp_add_header(cmd->rq->output_headers, "Content-Type", content_type);
+	evhttp_add_header(cmd->rq->output_headers, "Content-Type", cmd->mime?cmd->mime:content_type);
 
 	if(cmd_is_subscribe(cmd)) {
 		free_cmd = 0;
