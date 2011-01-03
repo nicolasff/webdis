@@ -21,15 +21,25 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 		return;
 	}
 
-	/* we expect array(string, string) */
-	if(reply->type != REDIS_REPLY_ARRAY || reply->elements != 2) {
-		evhttp_send_reply(cmd->rq, 400, "Bad request", NULL);
+	if(cmd->mime) { /* use the given content-type */
+		if(reply->type != REDIS_REPLY_STRING) {
+			goto fail;
+		}
+		format_send_reply(cmd, reply->str, reply->len, cmd->mime);
 		return;
 	}
 
+	if(!cmd->mimeKey) { /* how did we get here? */
+		goto fail;
+	}
+
+	/* we expect array(string, string) */
+	if(reply->type != REDIS_REPLY_ARRAY || reply->elements != 2) {
+		goto fail;
+	}
+
 	if(reply->element[0]->type != REDIS_REPLY_STRING) {
-		evhttp_send_reply(cmd->rq, 400, "Bad request", NULL);
-		return;
+		goto fail;
 	}
 
 	if(reply->element[1]->type == REDIS_REPLY_STRING) {
@@ -40,8 +50,16 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 
 	/* send reply */
 	format_send_reply(cmd, reply->element[0]->str, reply->element[0]->len, ct);
+
+	cmd_free(cmd);
+	return;
+
+fail:
+	evhttp_send_reply(cmd->rq, 400, "Bad request", NULL);
+	cmd_free(cmd);
 }
 
+/* This will change a GET command into MGET if a key is provided to get the response MIME-type from. */
 void
 custom_type_process_cmd(struct cmd *cmd) {
 	/* MGET if mode is “custom” */

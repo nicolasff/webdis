@@ -155,12 +155,12 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *arg = p;
 		int arg_len;
 		char *next = strchr(arg, '/');
-		if(next) { /* found a slash */
+		if(!next || next > uri + uri_len) { /* last argument */
+			p = uri + uri_len;
+			arg_len = p - arg;
+		} else { /* found a slash */
 			arg_len = next - arg;
 			p = next + 1;
-		} else { /* last argument */
-			arg_len = uri + uri_len - arg;
-			p = uri + uri_len;
 		}
 
 		/* record argument */
@@ -204,6 +204,7 @@ get_functions(struct cmd *cmd, formatting_fun *f_format, transform_fun *f_transf
 			*f_format = custom_type_reply;
 		} else if(strcmp(kv->key, "type") == 0) { /* MIME type in parameter */
 			cmd->mime = strdup(kv->value);
+			*f_format = custom_type_reply;
 		}
 	}
 }
