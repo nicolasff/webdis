@@ -165,7 +165,6 @@ curl -v "http://127.0.0.1:7379/GET/hello.html?type=text/html"
 &lt;html&gt;
 ...
 &lt;/html&gt;
-
 </pre>
 
 **Content-Type in a separate key:**
@@ -178,6 +177,7 @@ curl "http://127.0.0.1:7379/GET/hello.type"
 {"GET":"text/html"}
 
 curl -v "http://127.0.0.1:7379/GET/hello.html?typeKey=hello.type"
+[...]
 &lt; HTTP/1.1 200 OK
 &lt; Content-Type: text/html
 &lt; Date: Mon, 03 Jan 2011 20:56:43 GMT
