@@ -6,6 +6,12 @@
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 
+static void
+custom_400(struct cmd *cmd) {
+	evhttp_send_reply(cmd->rq, 400, "Bad request", NULL);
+	cmd_free(cmd);
+}
+
 void
 custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 
@@ -23,25 +29,20 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 
 	if(cmd->mime) { /* use the given content-type */
 		if(reply->type != REDIS_REPLY_STRING) {
-			goto fail;
+			custom_400(cmd);
+			return;
 		}
 		format_send_reply(cmd, reply->str, reply->len, cmd->mime);
 		return;
 	}
 
-	if(!cmd->mimeKey) { /* how did we get here? */
-		goto fail;
-	}
-
 	/* we expect array(string, string) */
-	if(reply->type != REDIS_REPLY_ARRAY || reply->elements != 2) {
-		goto fail;
+	if(!cmd->mimeKey || reply->type != REDIS_REPLY_ARRAY || reply->elements != 2 || reply->element[0]->type != REDIS_REPLY_STRING) {
+		custom_400(cmd);
+		return;
 	}
 
-	if(reply->element[0]->type != REDIS_REPLY_STRING) {
-		goto fail;
-	}
-
+	/* case of MGET, we need to have a string for content-type in element[1] */
 	if(reply->element[1]->type == REDIS_REPLY_STRING) {
 		ct = reply->element[1]->str;
 	} else {
@@ -51,10 +52,6 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	/* send reply */
 	format_send_reply(cmd, reply->element[0]->str, reply->element[0]->len, ct);
 	return;
-
-fail:
-	evhttp_send_reply(cmd->rq, 400, "Bad request", NULL);
-	cmd_free(cmd);
 }
 
 /* This will change a GET command into MGET if a key is provided to get the response MIME-type from. */
