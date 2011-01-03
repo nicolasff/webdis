@@ -9,8 +9,10 @@
 
 struct evhttp_request;
 struct server;
+struct cmd;
 
 typedef void (*formatting_fun)(redisAsyncContext *, void *, void *);
+typedef void (*transform_fun)(struct cmd *);
 
 struct cmd {
 
@@ -22,6 +24,9 @@ struct cmd {
 	struct evkeyvalq uri_params;
 
 	int started_responding;
+
+	char *mime;
+	char *mimeKey;
 };
 
 struct pubsub_client {
@@ -39,8 +44,8 @@ int
 cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len);
 
-formatting_fun
-get_formatting_function(struct evkeyvalq *params);
+void
+get_functions(struct cmd *cmd, formatting_fun *f_format, transform_fun *f_transform);
 
 int
 cmd_is_subscribe(struct cmd *cmd);

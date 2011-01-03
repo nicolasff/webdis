@@ -25,7 +25,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Possible Redis authentication in the config file.
 * Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
 * Drop privileges on startup.
-* MIME type in a second key with `?format=custom&typeKey=`
+* For `GET` commands, MIME type in a second key with `?format=custom&typeKey=` or custom MIME type with `format=custom&type=something/here`.
 * URL-encoded parameters for binary data or slashes. For instance, `%2f` is decoded as `/` but not used as a command separator.
 
 # Ideas, TODO...

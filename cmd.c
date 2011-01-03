@@ -20,8 +20,8 @@ cmd_new(struct evhttp_request *rq, int count) {
 	c->rq = rq;
 	c->count = count;
 
-	c->argv = calloc(count, sizeof(char*));
-	c->argv_len = calloc(count, sizeof(size_t));
+	c->argv = calloc(1+count, sizeof(char*));
+	c->argv_len = calloc(1+count, sizeof(size_t));
 
 	return c;
 }
@@ -32,6 +32,9 @@ cmd_free(struct cmd *c) {
 
 	free(c->argv);
 	free(c->argv_len);
+
+	free(c->mime);
+	free(c->mimeKey);
 
 	free(c);
 }
@@ -95,7 +98,9 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	int param_count = 0, cur_param = 1, i;
 
 	struct cmd *cmd;
-	formatting_fun fun;
+
+	formatting_fun f_format;
+	transform_fun f_transform = NULL;
 
 	/* count arguments */
 	if(qmark) {
@@ -117,7 +122,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	evhttp_parse_query(uri, &cmd->uri_params);
 
 	/* get output formatting function */
-	fun = get_formatting_function(&cmd->uri_params);
+	get_functions(cmd, &f_format, &f_transform);
 
 	/* there is always a first parameter, it's the command name */
 	cmd->argv[0] = uri;
@@ -141,7 +146,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	}
 
 	if(!slash) {
-		redisAsyncCommandArgv(s->ac, fun, cmd, 1, cmd->argv, cmd->argv_len);
+		redisAsyncCommandArgv(s->ac, f_format, cmd, 1, cmd->argv, cmd->argv_len);
 		return 0;
 	}
 	p = slash + 1;
@@ -163,10 +168,11 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		cur_param++;
 	}
 
-	/* MGET if */
-	// if(cmd->arg_len[0] == 3 && strncasecmp(cmd->argv[0], "GET", 3) == 0 && ) {
+	/* transform command if we need to. */
+	if(f_transform) f_transform(cmd);
 
-	redisAsyncCommandArgv(s->ac, fun, cmd, param_count, cmd->argv, cmd->argv_len);
+	redisAsyncCommandArgv(s->ac, f_format, cmd, cmd->count, cmd->argv, cmd->argv_len);
+
 	for(i = 1; i < cur_param; ++i) {
 		free((char*)cmd->argv[i]);
 	}
@@ -174,26 +180,32 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	return 0;
 }
 
-formatting_fun
-get_formatting_function(struct evkeyvalq *params) {
+void
+get_functions(struct cmd *cmd, formatting_fun *f_format, transform_fun *f_transform) {
 
 	struct evkeyval *kv;
 
+	/* defaults */
+	*f_format = json_reply;
+	*f_transform = NULL;
+
 	/* check for JSONP */
-	TAILQ_FOREACH(kv, params, next) {
+	TAILQ_FOREACH(kv, &cmd->uri_params, next) {
 		if(strcmp(kv->key, "format") == 0) {
 			if(strcmp(kv->value, "raw") == 0) {
-				return raw_reply;
+				*f_format = raw_reply;
 			} else if(strcmp(kv->value, "json") == 0) {
-				return json_reply;
-			} else if(strcmp(kv->value, "custom") == 0) {
-				return custom_type_reply;
+				*f_format = json_reply;
 			}
 			break;
+		} else if(strcmp(kv->key, "typeKey") == 0) { /* MIME type in key. */
+			cmd->mimeKey = strdup(kv->value);
+			*f_transform = custom_type_process_cmd;
+			*f_format = custom_type_reply;
+		} else if(strcmp(kv->key, "type") == 0) { /* MIME type in parameter */
+			cmd->mime = strdup(kv->value);
 		}
 	}
-
-	return json_reply;
 }
 
 int

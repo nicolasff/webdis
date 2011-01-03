@@ -9,4 +9,7 @@ struct cmd;
 void
 custom_type_reply(redisAsyncContext *c, void *r, void *privdata);
 
+void
+custom_type_process_cmd(struct cmd *cmd);
+
 #endif
