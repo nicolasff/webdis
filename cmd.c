@@ -92,7 +92,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len) {
 
 	char *qmark = strchr(uri, '?');
-	char *slash = strchr(uri, '/');
+	char *slash;
 	const char *p;
 	int cmd_len;
 	int param_count = 0, cur_param = 1, i;
@@ -112,6 +112,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 
 	cmd = cmd_new(rq, param_count);
 
+	slash = memchr(uri, '/', uri_len);
 	if(slash) {
 		cmd_len = slash - uri;
 	} else {
@@ -145,6 +146,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		evhttp_connection_set_closecb(rq->evcon, on_http_disconnect, ps);
 	}
 
+	/* no args (e.g. INFO command) */
 	if(!slash) {
 		redisAsyncCommandArgv(s->ac, f_format, cmd, 1, cmd->argv, cmd->argv_len);
 		return 0;
@@ -171,6 +173,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	/* transform command if we need to. */
 	if(f_transform) f_transform(cmd);
 
+	/* push command to Redis. */
 	redisAsyncCommandArgv(s->ac, f_format, cmd, cmd->count, cmd->argv, cmd->argv_len);
 
 	for(i = 1; i < cur_param; ++i) {
@@ -180,6 +183,10 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	return 0;
 }
 
+/**
+ * Return 2 functions, one to format the reply and
+ * one to transform the command before processing it.
+ */
 void
 get_functions(struct cmd *cmd, formatting_fun *f_format, transform_fun *f_transform) {
 
@@ -189,20 +196,20 @@ get_functions(struct cmd *cmd, formatting_fun *f_format, transform_fun *f_transf
 	*f_format = json_reply;
 	*f_transform = NULL;
 
-	/* check for JSONP */
+	/* loop over the query string */
 	TAILQ_FOREACH(kv, &cmd->uri_params, next) {
-		if(strcmp(kv->key, "format") == 0) {
+		if(strcmp(kv->key, "format") == 0) { /* output format */
 			if(strcmp(kv->value, "raw") == 0) {
 				*f_format = raw_reply;
 			} else if(strcmp(kv->value, "json") == 0) {
 				*f_format = json_reply;
 			}
 			break;
-		} else if(strcmp(kv->key, "typeKey") == 0) { /* MIME type in key. */
+		} else if(strcmp(kv->key, "typeKey") == 0) { /* MIME type in a key. */
 			cmd->mimeKey = strdup(kv->value);
 			*f_transform = custom_type_process_cmd;
 			*f_format = custom_type_reply;
-		} else if(strcmp(kv->key, "type") == 0) { /* MIME type in parameter */
+		} else if(strcmp(kv->key, "type") == 0) { /* MIME type directly in parameter */
 			cmd->mime = strdup(kv->value);
 			*f_format = custom_type_reply;
 		}
