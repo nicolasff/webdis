@@ -25,6 +25,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Possible Redis authentication in the config file.
 * Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
 * Drop privileges on startup.
+* URL-encoded parameters for binary data or slashes. For instance, `%2f` is decoded as `/` but not used as a command separator.
 
 # Ideas, TODO...
 * Add meta-data info per key (MIME type in a second key, for instance).
@@ -37,7 +38,6 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Multi-server support, using consistent hashing.
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 * Add WebSocket support, allow cross-origin XHR.
-* Support URL-encoded parameters, the current implementation is pretty limited (no `/` support, for instance).
 
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed
