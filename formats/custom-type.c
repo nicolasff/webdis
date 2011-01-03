@@ -58,16 +58,19 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 void
 custom_type_process_cmd(struct cmd *cmd) {
 	/* MGET if mode is “custom” */
-	if(cmd->argv_len[0] == 3 && strncasecmp(cmd->argv[0], "GET", 3) == 0 && cmd->mimeKey) {
+	if(cmd->count == 2 && cmd->argv_len[0] == 3 &&
+		strncasecmp(cmd->argv[0], "GET", 3) == 0 && cmd->mimeKey) {
 		
 		cmd->count++;	/* space for content-type key */
+		cmd->argv = realloc(cmd->argv, cmd->count * sizeof(char*));
+		cmd->argv_len = realloc(cmd->argv_len, cmd->count * sizeof(size_t));
 
 		/* replace command with MGET */
 		cmd->argv[0] = "MGET";
 		cmd->argv_len[0] = 4;
 
 		/* add mime key after the key. */
-		cmd->argv[2] = cmd->mimeKey;
+		cmd->argv[2] = strdup(cmd->mimeKey);
 		cmd->argv_len[2] = strlen(cmd->mimeKey);
 	}
 }

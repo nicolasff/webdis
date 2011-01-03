@@ -20,8 +20,8 @@ cmd_new(struct evhttp_request *rq, int count) {
 	c->rq = rq;
 	c->count = count;
 
-	c->argv = calloc(1+count, sizeof(char*));
-	c->argv_len = calloc(1+count, sizeof(size_t));
+	c->argv = calloc(count, sizeof(char*));
+	c->argv_len = calloc(count, sizeof(size_t));
 
 	return c;
 }
@@ -176,7 +176,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	/* push command to Redis. */
 	redisAsyncCommandArgv(s->ac, f_format, cmd, cmd->count, cmd->argv, cmd->argv_len);
 
-	for(i = 1; i < cur_param; ++i) {
+	for(i = 1; i < cmd->count; ++i) {
 		free((char*)cmd->argv[i]);
 	}
 

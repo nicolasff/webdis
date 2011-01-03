@@ -147,3 +147,41 @@ $ curl http://127.0.0.1:7379/MAKE-ME-COFFEE?format=raw
 -ERR unknown command 'MAKE-ME-COFFEE'
 
 </pre>
+
+# Custom content-type
+Webdis can serve `GET` requests with a custom content-type. There are two ways of doing this; the content-type can be in a key that is fetched with the content, or given as a query string parameter.
+
+**Content-Type in parameter:**
+<pre>
+curl -v "http://127.0.0.1:7379/GET/hello.html?type=text/html"
+[...]
+< HTTP/1.1 200 OK
+< Content-Type: text/html
+< Date: Mon, 03 Jan 2011 20:43:36 GMT
+< Content-Length: 137
+<
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+...
+&lt;/html&gt;
+</pre>
+
+**Content-Type in a separate key:**
+<pre>
+curl "http://127.0.0.1:7379/SET/hello.type/text%2fhtml"
+{"SET":[true,"OK"]}
+
+curl "http://127.0.0.1:7379/GET/hello.type"
+{"GET":"text/html"}
+
+curl -v "http://127.0.0.1:7379/GET/hello.html?typeKey=hello.type"
+< HTTP/1.1 200 OK
+< Content-Type: text/html
+< Date: Mon, 03 Jan 2011 20:56:43 GMT
+< Content-Length: 137
+<
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+...
+&lt;/html&gt;
+</pre>
