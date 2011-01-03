@@ -50,8 +50,6 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 
 	/* send reply */
 	format_send_reply(cmd, reply->element[0]->str, reply->element[0]->len, ct);
-
-	cmd_free(cmd);
 	return;
 
 fail:
