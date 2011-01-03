@@ -26,6 +26,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
 * Drop privileges on startup.
 * MIME type in a second key with `?format=custom&typeKey=`
+* URL-encoded parameters for binary data or slashes. For instance, `%2f` is decoded as `/` but not used as a command separator.
 
 # Ideas, TODO...
 * Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?

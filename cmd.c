@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <hiredis/hiredis.h>
+#include <ctype.h>
 
 struct cmd *
 cmd_new(struct evhttp_request *rq, int count) {
@@ -54,6 +55,35 @@ void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
 	free(ps);
 }
 
+/* taken from libevent */
+static char *
+decode_uri(const char *uri, size_t length, size_t *out_len, int always_decode_plus) {
+	char c;
+	size_t i, j;
+	int in_query = always_decode_plus;
+
+	char *ret = malloc(length);
+
+	for (i = j = 0; i < length; i++) {
+		c = uri[i];
+		if (c == '?') {
+			in_query = 1;
+		} else if (c == '+' && in_query) {
+			c = ' ';
+		} else if (c == '%' && isxdigit((unsigned char)uri[i+1]) &&
+		    isxdigit((unsigned char)uri[i+2])) {
+			char tmp[] = { uri[i+1], uri[i+2], '\0' };
+			c = (char)strtol(tmp, NULL, 16);
+			i += 2;
+		}
+		ret[j++] = c;
+	}
+	*out_len = (size_t)j;
+
+	return ret;
+}
+
+
 int
 cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len) {
@@ -62,7 +92,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	char *slash = strchr(uri, '/');
 	const char *p;
 	int cmd_len;
-	int param_count = 0, cur_param = 1;
+	int param_count = 0, cur_param = 1, i;
 
 	struct cmd *cmd;
 	formatting_fun fun;
@@ -129,9 +159,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		}
 
 		/* record argument */
-		cmd->argv[cur_param] = arg;
-		cmd->argv_len[cur_param] = arg_len;
-
+		cmd->argv[cur_param] = decode_uri(arg, arg_len, &cmd->argv_len[cur_param], 1);
 		cur_param++;
 	}
 
@@ -139,10 +167,12 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	// if(cmd->arg_len[0] == 3 && strncasecmp(cmd->argv[0], "GET", 3) == 0 && ) {
 
 	redisAsyncCommandArgv(s->ac, fun, cmd, param_count, cmd->argv, cmd->argv_len);
+	for(i = 1; i < cur_param; ++i) {
+		free((char*)cmd->argv[i]);
+	}
+
 	return 0;
 }
-
-
 
 formatting_fun
 get_formatting_function(struct evkeyvalq *params) {
