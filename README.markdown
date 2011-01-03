@@ -25,9 +25,9 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Possible Redis authentication in the config file.
 * Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
 * Drop privileges on startup.
+* MIME type in a second key with `?format=custom&typeKey=`
 
 # Ideas, TODO...
-* Add meta-data info per key (MIME type in a second key, for instance).
 * Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Add logs.

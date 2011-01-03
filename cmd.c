@@ -5,6 +5,7 @@
 
 #include "formats/json.h"
 #include "formats/raw.h"
+#include "formats/custom-type.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -134,6 +135,9 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		cur_param++;
 	}
 
+	/* MGET if */
+	// if(cmd->arg_len[0] == 3 && strncasecmp(cmd->argv[0], "GET", 3) == 0 && ) {
+
 	redisAsyncCommandArgv(s->ac, fun, cmd, param_count, cmd->argv, cmd->argv_len);
 	return 0;
 }
@@ -152,6 +156,8 @@ get_formatting_function(struct evkeyvalq *params) {
 				return raw_reply;
 			} else if(strcmp(kv->value, "json") == 0) {
 				return json_reply;
+			} else if(strcmp(kv->value, "custom") == 0) {
+				return custom_type_reply;
 			}
 			break;
 		}
