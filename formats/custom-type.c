@@ -28,16 +28,24 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 
 	if(cmd->mime) { /* use the given content-type */
-		if(reply->type != REDIS_REPLY_STRING) {
-			custom_400(cmd);
-			return;
+		switch(reply->type) {
+
+			case REDIS_REPLY_NIL:
+				format_send_reply(cmd, "", 0, cmd->mime);
+				return;
+
+			case REDIS_REPLY_STRING:
+				format_send_reply(cmd, reply->str, reply->len, cmd->mime);
+				return;
+
+			default:
+				custom_400(cmd);
+				return;
 		}
-		format_send_reply(cmd, reply->str, reply->len, cmd->mime);
-		return;
 	}
 
 	/* we expect array(string, string) */
-	if(!cmd->mimeKey || reply->type != REDIS_REPLY_ARRAY || reply->elements != 2 || reply->element[0]->type != REDIS_REPLY_STRING) {
+	if(reply->type != REDIS_REPLY_ARRAY || reply->elements != 2 || reply->element[0]->type != REDIS_REPLY_STRING) {
 		custom_400(cmd);
 		return;
 	}
@@ -54,23 +62,3 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	return;
 }
 
-/* This will change a GET command into MGET if a key is provided to get the response MIME-type from. */
-void
-custom_type_process_cmd(struct cmd *cmd) {
-	/* MGET if mode is “custom” */
-	if(cmd->count == 2 && cmd->argv_len[0] == 3 &&
-		strncasecmp(cmd->argv[0], "GET", 3) == 0 && cmd->mimeKey) {
-		
-		cmd->count++;	/* space for content-type key */
-		cmd->argv = realloc(cmd->argv, cmd->count * sizeof(char*));
-		cmd->argv_len = realloc(cmd->argv_len, cmd->count * sizeof(size_t));
-
-		/* replace command with MGET */
-		cmd->argv[0] = "MGET";
-		cmd->argv_len[0] = 4;
-
-		/* add mime key after the key. */
-		cmd->argv[2] = strdup(cmd->mimeKey);
-		cmd->argv_len[2] = strlen(cmd->mimeKey);
-	}
-}

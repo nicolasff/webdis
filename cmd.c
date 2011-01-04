@@ -33,9 +33,6 @@ cmd_free(struct cmd *c) {
 	free(c->argv);
 	free(c->argv_len);
 
-	free(c->mime);
-	free(c->mimeKey);
-
 	free(c);
 }
 
@@ -100,7 +97,6 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	struct cmd *cmd;
 
 	formatting_fun f_format;
-	transform_fun f_transform = NULL;
 
 	/* count arguments */
 	if(qmark) {
@@ -112,18 +108,19 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 
 	cmd = cmd_new(rq, param_count);
 
+	/* parse URI parameters */
+	evhttp_parse_query(uri, &cmd->uri_params);
+
+	/* get output formatting function */
+	uri_len = cmd_read_params(cmd, uri, uri_len, &f_format);
+
+	/* check if we only have one command or more. */
 	slash = memchr(uri, '/', uri_len);
 	if(slash) {
 		cmd_len = slash - uri;
 	} else {
 		cmd_len = uri_len;
 	}
-
-	/* parse URI parameters */
-	evhttp_parse_query(uri, &cmd->uri_params);
-
-	/* get output formatting function */
-	cmd_read_params(cmd, &f_format, &f_transform);
 
 	/* there is always a first parameter, it's the command name */
 	cmd->argv[0] = uri;
@@ -170,9 +167,6 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		cur_param++;
 	}
 
-	/* transform command if we need to. */
-	if(f_transform) f_transform(cmd);
-
 	/* push command to Redis. */
 	redisAsyncCommandArgv(s->ac, f_format, cmd, cmd->count, cmd->argv, cmd->argv_len);
 
@@ -187,33 +181,42 @@ cmd_run(struct server *s, struct evhttp_request *rq,
  * Return 2 functions, one to format the reply and
  * one to transform the command before processing it.
  */
-void
-cmd_read_params(struct cmd *cmd, formatting_fun *f_format, transform_fun *f_transform) {
+int
+cmd_read_params(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format) {
 
-	struct evkeyval *kv;
+	const char *ext;
+	int ext_len = -1;
+	unsigned int i;
+
+	struct reply_format funs[] = {
+		{.s = "json", .sz = 4, .f = json_reply, .ct = "application/json"},
+		{.s = "raw", .sz = 3, .f = raw_reply, .ct = "binary/octet-stream"},
+		{.s = "txt", .sz = 3, .f = custom_type_reply, .ct = "text/plain"},
+		{.s = "html", .sz = 4, .f = custom_type_reply, .ct = "text/html"},
+		{.s = "png", .sz = 3, .f = custom_type_reply, .ct = "image/png"},
+	};
 
 	/* defaults */
 	*f_format = json_reply;
-	*f_transform = NULL;
 
-	/* loop over the query string */
-	TAILQ_FOREACH(kv, &cmd->uri_params, next) {
-		if(strcmp(kv->key, "format") == 0) { /* output format */
-			if(strcmp(kv->value, "raw") == 0) {
-				*f_format = raw_reply;
-			} else if(strcmp(kv->value, "json") == 0) {
-				*f_format = json_reply;
-			}
+	/* find extension */
+	for(ext = uri + uri_len - 1; ext != uri && *ext != '/'; --ext) {
+		if(*ext == '.') {
+			ext++;
+			ext_len = uri + uri_len - ext;
 			break;
-		} else if(strcmp(kv->key, "typeKey") == 0) { /* MIME type in a key. */
-			cmd->mimeKey = strdup(kv->value);
-			*f_transform = custom_type_process_cmd;
-			*f_format = custom_type_reply;
-		} else if(strcmp(kv->key, "type") == 0) { /* MIME type directly in parameter */
-			cmd->mime = strdup(kv->value);
-			*f_format = custom_type_reply;
 		}
 	}
+	if(!ext_len) return uri_len;
+
+	/* find function for the given extension */
+	for(i = 0; i < sizeof(funs)/sizeof(funs[0]); ++i) {
+		if(ext_len == (int)funs[i].sz && strncmp(ext, funs[i].s, ext_len) == 0) {
+			*f_format = funs[i].f;
+			cmd->mime = funs[i].ct;
+		}
+	}
+	return uri_len - ext_len - 1;
 }
 
 int

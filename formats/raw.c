@@ -28,7 +28,7 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 	raw_out = raw_wrap(r, &sz);
 
 	/* send reply */
-	format_send_reply(cmd, raw_out, sz, "binary/octet-stream");
+	format_send_reply(cmd, raw_out, sz, cmd->mime?cmd->mime:"binary/octet-stream");
 
 	/* cleanup */
 	free(raw_out);
