@@ -123,7 +123,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	evhttp_parse_query(uri, &cmd->uri_params);
 
 	/* get output formatting function */
-	get_functions(cmd, &f_format, &f_transform);
+	cmd_read_params(cmd, &f_format, &f_transform);
 
 	/* there is always a first parameter, it's the command name */
 	cmd->argv[0] = uri;
@@ -188,7 +188,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
  * one to transform the command before processing it.
  */
 void
-get_functions(struct cmd *cmd, formatting_fun *f_format, transform_fun *f_transform) {
+cmd_read_params(struct cmd *cmd, formatting_fun *f_format, transform_fun *f_transform) {
 
 	struct evkeyval *kv;
 

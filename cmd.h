@@ -25,8 +25,11 @@ struct cmd {
 
 	int started_responding;
 
+	/* HTTP data */
 	char *mime;
 	char *mimeKey;
+
+	char *if_none_match;
 };
 
 struct pubsub_client {
@@ -45,7 +48,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len);
 
 void
-get_functions(struct cmd *cmd, formatting_fun *f_format, transform_fun *f_transform);
+cmd_read_params(struct cmd *cmd, formatting_fun *f_format, transform_fun *f_transform);
 
 int
 cmd_is_subscribe(struct cmd *cmd);
