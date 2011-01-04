@@ -112,7 +112,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	evhttp_parse_query(uri, &cmd->uri_params);
 
 	/* get output formatting function */
-	uri_len = cmd_read_params(cmd, uri, uri_len, &f_format);
+	uri_len = cmd_select_format(cmd, uri, uri_len, &f_format);
 
 	/* check if we only have one command or more. */
 	slash = memchr(uri, '/', uri_len);
@@ -135,9 +135,9 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	/* check if we have to split the connection */
 	if(cmd_is_subscribe(cmd)) {
 		struct pubsub_client *ps;
+
 		ps = calloc(1, sizeof(struct pubsub_client));
 		ps->s = s = server_copy(s);
-
 		ps->rq = rq;
 
 		evhttp_connection_set_closecb(rq->evcon, on_http_disconnect, ps);
@@ -177,17 +177,24 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	return 0;
 }
 
+
 /**
- * Return 2 functions, one to format the reply and
- * one to transform the command before processing it.
+ * Select Content-Type and processing function.
  */
 int
-cmd_read_params(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format) {
+cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format) {
 
 	const char *ext;
 	int ext_len = -1;
 	unsigned int i;
 
+	/* those are the available reply formats */
+	struct reply_format {
+		const char *s;
+		size_t sz;
+		formatting_fun f;
+		const char *ct;
+	};
 	struct reply_format funs[] = {
 		{.s = "json", .sz = 4, .f = json_reply, .ct = "application/json"},
 		{.s = "raw", .sz = 3, .f = raw_reply, .ct = "binary/octet-stream"},
@@ -196,7 +203,7 @@ cmd_read_params(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun
 		{.s = "png", .sz = 3, .f = custom_type_reply, .ct = "image/png"},
 	};
 
-	/* defaults */
+	/* default */
 	*f_format = json_reply;
 
 	/* find extension */
@@ -207,7 +214,7 @@ cmd_read_params(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun
 			break;
 		}
 	}
-	if(!ext_len) return uri_len;
+	if(!ext_len) return uri_len; /* nothing found */
 
 	/* find function for the given extension */
 	for(i = 0; i < sizeof(funs)/sizeof(funs[0]); ++i) {

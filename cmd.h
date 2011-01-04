@@ -35,13 +35,6 @@ struct pubsub_client {
 	struct evhttp_request *rq;
 };
 
-struct reply_format {
-	const char *s;
-	size_t sz;
-	formatting_fun f;
-	const char *ct;
-};
-
 struct cmd *
 cmd_new(struct evhttp_request *rq, int count);
 
@@ -53,7 +46,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len);
 
 int
-cmd_read_params(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format);
+cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format);
 
 int
 cmd_is_subscribe(struct cmd *cmd);
