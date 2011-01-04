@@ -45,11 +45,11 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed
 * Redis is unreachable: 503 Service Unavailable
+* Matching ETag sent using `If-None-Match`: 304 Not Modified.
 * Could also be used:
 	* Timeout on the redis side: 503 Service Unavailable (this isn't supported by HiRedis yet).
 	* Missing key: 404 Not Found.
 	* Unauthorized command (disabled in config file): 403 Forbidden.
-	* Matching ETag sent using `If-None-Match`: 304 Not Modified.
 
 # Command format
 The URI `/COMMAND/arg0/arg1/.../argN` executes the command on Redis and returns the response to the client. GET and POST are supported:
