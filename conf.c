@@ -33,7 +33,7 @@ conf_read(const char *filename) {
 	conf->user = getuid();
 	conf->group = getgid();
 	conf->logfile = "webdis.log";
-	conf->verbosity = WEBDIS_VERBOSE;
+	conf->verbosity = WEBDIS_NOTICE;
 
 	j = json_load_file(filename, 0, &error);
 	if(!j) {

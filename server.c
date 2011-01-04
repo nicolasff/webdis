@@ -131,26 +131,24 @@ on_request(struct evhttp_request *rq, void *ctx) {
 	/* check that the command can be executed */
 	switch(rq->type) {
 		case EVHTTP_REQ_GET:
-			webdis_log(s,1,uri);
+			slog(s, WEBDIS_DEBUG, uri);
 			ret = cmd_run(s, rq, 1+uri, strlen(uri)-1);
 			break;
 
 		case EVHTTP_REQ_POST:
-			webdis_log(s,1,uri);
+			slog(s, WEBDIS_DEBUG, uri);
 			ret = cmd_run(s, rq,
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
 				EVBUFFER_LENGTH(rq->input_buffer));
 			break;
 
 		default:
-			printf("405\n");
-			webdis_log(s,1,"405");
+			slog(s, WEBDIS_DEBUG, "405");
 			evhttp_send_reply(rq, 405, "Method Not Allowed", NULL);
 			return;
 	}
 
 	if(ret < 0) {
-		slog(s->cfg->logfile,2, uri);
 		evhttp_send_reply(rq, 403, "Forbidden", NULL);
 	}
 }
@@ -164,13 +162,13 @@ server_start(struct server *s) {
 #endif
 
 	/* start http server */
-	slog(s->cfg->logfile,1,"Starting HTTP Server");
+	slog(s, WEBDIS_INFO, "Starting HTTP Server");
 	evhttp_bind_socket(s->http, s->cfg->http_host, s->cfg->http_port);
 	evhttp_set_cb(s->http, "/crossdomain.xml", on_flash_request, s);
 	evhttp_set_gencb(s->http, on_request, s);
 
 	/* drop privileges */
-	slog(s->cfg->logfile,1,"Dropping Privileges");
+	slog(s, WEBDIS_INFO, "Dropping Privileges");
 	setuid(s->cfg->user);
 	setgid(s->cfg->group);
 
@@ -179,11 +177,4 @@ server_start(struct server *s) {
 
 	/* loop */
 	event_base_dispatch(s->base);
-}
-
-void 
-webdis_log(struct server *s, int level, const char *body){ 
-	if(level > (int)s->cfg->verbosity){
-		slog(s->cfg->logfile,level,body);
-	}
 }

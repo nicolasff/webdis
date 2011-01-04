@@ -17,6 +17,6 @@
 			"enabled":		["DEBUG"]
 		}
 	],
-        "verbosity": 0,
+        "verbosity": 3,
         "logfile": "webdis.log"
 }
