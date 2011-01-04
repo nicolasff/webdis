@@ -18,8 +18,6 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 	size_t sz;
 	(void)c;
 
-	evhttp_clear_headers(&cmd->uri_params);
-
 	if (reply == NULL) {
 		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
 		return;

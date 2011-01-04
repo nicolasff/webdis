@@ -13,8 +13,6 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	struct cmd *cmd = privdata;
 	(void)c;
 
-	evhttp_clear_headers(&cmd->uri_params);
-
 	if(reply == NULL) {
 		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
 		return;
