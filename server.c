@@ -131,12 +131,12 @@ on_request(struct evhttp_request *rq, void *ctx) {
        	/* check that the command can be executed */
 	switch(rq->type) {
 		case EVHTTP_REQ_GET:
-                        slog(s->cfg->logfile,1, uri);
+                        webdis_log(s,1,uri);
                         ret = cmd_run(s, rq, 1+uri, strlen(uri)-1);
 			break;
 
 		case EVHTTP_REQ_POST:
-                        slog(s->cfg->logfile,1, uri);
+                        webdis_log(s,1,uri);
 			ret = cmd_run(s, rq,
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
 				EVBUFFER_LENGTH(rq->input_buffer));
@@ -144,7 +144,7 @@ on_request(struct evhttp_request *rq, void *ctx) {
 
 		default:
 			printf("405\n");
-                        slog(s->cfg->logfile,2, uri);
+                        webdis_log(s,1,"405");
 			evhttp_send_reply(rq, 405, "Method Not Allowed", NULL);
 			return;
 	}
@@ -181,3 +181,9 @@ server_start(struct server *s) {
 	event_base_dispatch(s->base);
 }
 
+void 
+webdis_log(struct server *s, int level, const char *body){ 
+  if(level > (int)s->cfg->verbosity){
+    slog(s->cfg->logfile,level,body);
+  }
+}

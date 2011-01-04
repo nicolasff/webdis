@@ -33,6 +33,7 @@ conf_read(const char *filename) {
 	conf->user = getuid();
 	conf->group = getgid();
         conf->logfile = "webdis.log";
+        conf->verbosity = WEBDIS_VERBOSE;
 
 	j = json_load_file(filename, 0, &error);
 	if(!j) {
@@ -69,6 +70,8 @@ conf_read(const char *filename) {
 			}
 		} else if(strcmp(json_object_iter_key(kv),"logfile") == 0 && json_typeof(jtmp) == JSON_STRING){
                         conf->logfile = strdup(json_string_value(jtmp));
+                } else if(strcmp(json_object_iter_key(kv),"verbosity") == 0 && json_typeof(jtmp) == JSON_INTEGER){
+                  conf->verbosity = (short)json_integer_value(jtmp);
                 }
 	}
 
