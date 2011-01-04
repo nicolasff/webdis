@@ -122,7 +122,6 @@ on_request(struct evhttp_request *rq, void *ctx) {
 	int ret;
 
 	if(!s->ac) { /* redis is unavailable */
-		printf("503\n");
 		evhttp_send_reply(rq, 503, "Service Unavailable", NULL);
 		return;
 	}
@@ -140,7 +139,6 @@ on_request(struct evhttp_request *rq, void *ctx) {
 			break;
 
 		default:
-			printf("405\n");
 			evhttp_send_reply(rq, 405, "Method Not Allowed", NULL);
 			return;
 	}
