@@ -71,7 +71,10 @@ conf_read(const char *filename) {
 		} else if(strcmp(json_object_iter_key(kv),"logfile") == 0 && json_typeof(jtmp) == JSON_STRING){
 			conf->logfile = strdup(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv),"verbosity") == 0 && json_typeof(jtmp) == JSON_INTEGER){
-			conf->verbosity = (short)json_integer_value(jtmp);
+			int tmp = json_integer_value(jtmp);
+			if(tmp < 0) conf->verbosity = WEBDIS_ERROR;
+			else if(tmp > (int)WEBDIS_DEBUG) conf->verbosity = WEBDIS_DEBUG;
+			else conf->verbosity = (log_level)tmp;
 		}
 	}
 

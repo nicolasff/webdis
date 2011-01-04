@@ -1,3 +1,4 @@
 *.log
+*.swp
 *.o
 webdis

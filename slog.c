@@ -13,23 +13,22 @@
 void slog(const struct server *s, log_level level, const char *body) {
 	const char *c = ".-*#";
 	time_t now = time(NULL);
-	FILE *fp;
+	static FILE *fp = NULL;
 	char buf[64];
-	char msg[1024];
+	char msg[124];
 
-	if(level > s->cfg->verbosity) {
-		return;
-	}
+	static pid_t self = 0;
+	if(!self) self = getpid();
 
-	snprintf(msg, sizeof(msg), "%s", body);
+	if(level > s->cfg->verbosity) return; /* too verbose */
 
-	fp = (s->cfg->logfile == NULL) ? stdout : fopen(s->cfg->logfile,"a");
+	if(!fp) fp = (s->cfg->logfile == NULL) ? stdout : fopen(s->cfg->logfile, "a");
 	if(!fp) return;
 
-	strftime(buf,sizeof(buf),"%d %b %H:%M:%S",localtime(&now));
-	fprintf(fp,"[%d] %s %c %s\n",(int)getpid(),buf,c[level],msg);
-	fprintf(stdout,"[%d] %s %c %s\n",(int)getpid(),buf,c[level],msg);
-	fflush(fp);
+	/* limit message size */
+	snprintf(msg, sizeof(msg), "%s", body);
 
-	if(s->cfg->logfile) fclose(fp);
+	strftime(buf,sizeof(buf),"%d %b %H:%M:%S",localtime(&now));
+	fprintf(fp,"[%d] %s %c %s\n", (int)self, buf, c[level], msg);
+	fflush(fp);
 }

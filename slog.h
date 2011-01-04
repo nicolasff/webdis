@@ -2,7 +2,7 @@
 #define SLOG_H
 
 typedef enum {
-	WEBDIS_ERROR,
+	WEBDIS_ERROR = 0,
 	WEBDIS_WARNING,
 	WEBDIS_NOTICE,
 	WEBDIS_INFO,
