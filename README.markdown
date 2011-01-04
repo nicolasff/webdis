@@ -40,6 +40,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Multi-server support, using consistent hashing.
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 * Add WebSocket support, allow cross-origin XHR.
+* Recognize `If-None-Match`, and send ETags.
 
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed
