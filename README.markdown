@@ -51,12 +51,14 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 	* Unauthorized command (disabled in config file): 403 Forbidden.
 
 # Command format
-The URI `/COMMAND/arg0/arg1/.../argN` executes the command on Redis and returns the response to the client. GET and POST are supported:
+The URI `/COMMAND/arg0/arg1/.../argN.ext` executes the command on Redis and returns the response to the client. GET and POST are supported:
 
-* `GET /COMMAND/arg0/.../argN`
+* `GET /COMMAND/arg0/.../argN.ext`
 * `POST /` with `COMMAND/arg0/.../argN` in the HTTP body.
 
-Special characters: `/` and `.` have special meanings, `/` separates arguments and `.` adds a file extension to change the Content-Type. They can be replaced by `%2f` and `%2e`, respectively.
+`.ext` is an optional extension; it is not read as part of the last argument but only represents the output format. Several formats are available (see below).
+
+Special characters: `/` and `.` have special meanings, `/` separates arguments and `.` changes the Content-Type. They can be replaced by `%2f` and `%2e`, respectively.
 
 # ACL
 Access control is configured in `webdis.json`. Each configuration tries to match a client profile according to two criterias:
@@ -118,7 +120,6 @@ $ curl http://127.0.0.1:7379/MAKE-ME-COFFEE
 // JSONP callback:
 $ curl  "http://127.0.0.1:7379/TYPE/y?jsonp=myCustomFunction"
 myCustomFunction({"TYPE":[true,"string"]})
-
 </pre>
 
 # RAW output
@@ -149,22 +150,21 @@ $ curl http://127.0.0.1:7379/TYPE/y.raw
 // error, which is basically a status
 $ curl http://127.0.0.1:7379/MAKE-ME-COFFEE.raw
 -ERR unknown command 'MAKE-ME-COFFEE'
-
 </pre>
 
 # Custom content-type
 Several content-types are available:
-	* `.json` for `application/json` (this is the default Content-Type).
-	* `.txt` for `text/plain`
-	* `.html` for `text/html`
-	* `xhtml` for `application/xhtml+xml`
-	* `xml` for `text/xml`
-	* `.png` for `image/png`
-	* `jpg` or `jpeg` for `image/jpeg`
-	* Any other with the `?type=anything/youwant` query string.
+* `.json` for `application/json` (this is the default Content-Type).
+* `.txt` for `text/plain`
+* `.html` for `text/html`
+* `xhtml` for `application/xhtml+xml`
+* `xml` for `text/xml`
+* `.png` for `image/png`
+* `jpg` or `jpeg` for `image/jpeg`
+* Any other with the `?type=anything/youwant` query string.
 
 <pre>
-curl -v "http://127.0.0.1:7379/GET/hello.html"	# the key is “hello” here, not “hello.html”
+curl -v "http://127.0.0.1:7379/GET/hello.html"
 [...]
 &lt; HTTP/1.1 200 OK
 &lt; Content-Type: text/html
@@ -173,7 +173,22 @@ curl -v "http://127.0.0.1:7379/GET/hello.html"	# the key is “hello” here, no
 &lt;
 &lt;!DOCTYPE html&gt;
 &lt;html&gt;
-...
+[...]
 &lt;/html&gt;
+
+curl -v "http://127.0.0.1:7379/GET/hello.txt"
+[...]
+&lt; HTTP/1.1 200 OK
+&lt; Content-Type: text/plain
+&lt; Date: Mon, 03 Jan 2011 20:43:36 GMT
+&lt; Content-Length: 137
+[...]
+
+curl -v "http://127.0.0.1:7379/GET/big-file?type=application/pdf"
+[...]
+&lt; HTTP/1.1 200 OK
+&lt; Content-Type: application/pdf
+&lt; Date: Mon, 03 Jan 2011 20:45:12 GMT
+[...]
 </pre>
 
