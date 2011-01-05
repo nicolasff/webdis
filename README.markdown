@@ -136,7 +136,7 @@ curl http://127.0.0.1:7379/INCR/a.raw
 :2
 
 // list
-$ curl http://127.0.0.1:7379/LRANGE/x/0/-1?.raw
+$ curl http://127.0.0.1:7379/LRANGE/x/0/-1.raw
 *2
 $3
 abc
