@@ -172,7 +172,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	/* push command to Redis. */
 	redisAsyncCommandArgv(s->ac, f_format, cmd, cmd->count, cmd->argv, cmd->argv_len);
 
-	for(i = 1; i < cmd->count; ++i) {
+	for(i = 1; i < cur_param; ++i) {
 		free((char*)cmd->argv[i]);
 	}
 
@@ -186,7 +186,8 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 int
 cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format) {
 
-	const char *ext, *accept_ct;
+	struct evkeyval *kv;
+	const char *ext;
 	int ext_len = -1;
 	unsigned int i;
 
@@ -202,18 +203,16 @@ cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_f
 		{.s = "raw", .sz = 3, .f = raw_reply, .ct = "binary/octet-stream"},
 		{.s = "txt", .sz = 3, .f = custom_type_reply, .ct = "text/plain"},
 		{.s = "html", .sz = 4, .f = custom_type_reply, .ct = "text/html"},
+		{.s = "xhtml", .sz = 5, .f = custom_type_reply, .ct = "application/xhtml+xml"},
+		{.s = "xml", .sz = 3, .f = custom_type_reply, .ct = "text/xml"},
+
 		{.s = "png", .sz = 3, .f = custom_type_reply, .ct = "image/png"},
+		{.s = "jpg", .sz = 3, .f = custom_type_reply, .ct = "image/jpeg"},
+		{.s = "jpeg", .sz = 4, .f = custom_type_reply, .ct = "image/jpeg"},
 	};
 
 	/* default */
 	*f_format = json_reply;
-
-	/* if there is an Accept header, use it */
-	if((accept_ct = evhttp_find_header(cmd->rq->input_headers, "Accept"))) {
-		cmd->mime = strdup(accept_ct);
-		cmd->mime_free = 1;
-		// printf("Accept: [%s]\n", cmd->mime);
-	}
 
 	/* find extension */
 	for(ext = uri + uri_len - 1; ext != uri && *ext != '/'; --ext) {
@@ -234,6 +233,18 @@ cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_f
 			cmd->mime_free = 0;
 
 			*f_format = funs[i].f;
+		}
+	}
+
+	/* the user can force it with ?type=some/thing */
+	TAILQ_FOREACH(kv, &cmd->uri_params, next) {
+		if(strcmp(kv->key, "type") == 0) {
+
+			*f_format = custom_type_reply;
+			cmd->mime = strdup(kv->value);
+			cmd->mime_free = 1;
+
+			break;
 		}
 	}
 	return uri_len - ext_len - 1;

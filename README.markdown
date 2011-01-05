@@ -25,7 +25,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Possible Redis authentication in the config file.
 * Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
 * Drop privileges on startup.
-* Custom Content-Type using a pre-defined file extension.
+* Custom Content-Type using a pre-defined file extension, or with `?type=some/thing`.
 * URL-encoded parameters for binary data or slashes. For instance, `%2f` is decoded as `/` but not used as a command separator.
 
 # Ideas, TODO...
@@ -157,7 +157,11 @@ Several content-types are available:
 	* `.json` for `application/json` (this is the default Content-Type).
 	* `.txt` for `text/plain`
 	* `.html` for `text/html`
+	* `xhtml` for `application/xhtml+xml`
+	* `xml` for `text/xml`
 	* `.png` for `image/png`
+	* `jpg` or `jpeg` for `image/jpeg`
+	* Any other with the `?type=anything/youwant` query string.
 
 <pre>
 curl -v "http://127.0.0.1:7379/GET/hello.html"	# the key is “hello” here, not “hello.html”
