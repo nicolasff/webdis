@@ -17,17 +17,15 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 
 # Features
 * GET and POST are supported.
-* JSON output by default, optional JSONP parameter.
-* Raw Redis 2.0 protocol output with `?format=raw`
+* JSON output by default, optional JSONP parameter (`?jsonp=myFunction`).
+* Raw Redis 2.0 protocol output with `.raw` suffix
 * HTTP 1.1 pipelining (50,000 http requests per second on a desktop Linux machine.)
 * Connects to Redis using a TCP or UNIX socket.
 * Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Possible Redis authentication in the config file.
 * Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
 * Drop privileges on startup.
-* For `GET` commands:
-	* MIME type in a second key with `/GET/k?typeKey=type-k`. This will transform the `GET` request into `MGET` and fetch both `k` and `type-k`. If `type-k` is a string, it will be used as Content-Type in the response. If the key doesn't exist or isn't a string, `binary/octet-stream` is used instead.
-	* Custom MIME type  with `?type=text/plain` (or any other MIME type).
+* Custom Content-Type using a pre-defined file extension, or with `?type=some/thing`.
 * URL-encoded parameters for binary data or slashes. For instance, `%2f` is decoded as `/` but not used as a command separator.
 
 # Ideas, TODO...
@@ -38,8 +36,10 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Enrich config file:
 	* Provide timeout (this needs to be added to hiredis first.)
 * Multi-server support, using consistent hashing.
+* Add WebSocket support (with which protocol?)
+* Allow cross-origin XHR.
+* Allow file upload with PUT? Saving a file in Redis using the `SET` command should be easy to do with cURL.
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
-* Add WebSocket support, allow cross-origin XHR.
 
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed
@@ -51,10 +51,14 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 	* Unauthorized command (disabled in config file): 403 Forbidden.
 
 # Command format
-The URI `/COMMAND/arg0/arg1/.../argN` executes the command on Redis and returns the response to the client. GET and POST are supported:
+The URI `/COMMAND/arg0/arg1/.../argN.ext` executes the command on Redis and returns the response to the client. GET and POST are supported:
 
-* `GET /COMMAND/arg0/.../argN`
+* `GET /COMMAND/arg0/.../argN.ext`
 * `POST /` with `COMMAND/arg0/.../argN` in the HTTP body.
+
+`.ext` is an optional extension; it is not read as part of the last argument but only represents the output format. Several formats are available (see below).
+
+Special characters: `/` and `.` have special meanings, `/` separates arguments and `.` changes the Content-Type. They can be replaced by `%2f` and `%2e`, respectively.
 
 # ACL
 Access control is configured in `webdis.json`. Each configuration tries to match a client profile according to two criterias:
@@ -68,6 +72,7 @@ Examples:
 {
 	"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
 },
+
 {
 	"http_basic_auth": "user:password",
 	"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
@@ -115,24 +120,23 @@ $ curl http://127.0.0.1:7379/MAKE-ME-COFFEE
 // JSONP callback:
 $ curl  "http://127.0.0.1:7379/TYPE/y?jsonp=myCustomFunction"
 myCustomFunction({"TYPE":[true,"string"]})
-
 </pre>
 
 # RAW output
-This is the raw output of Redis; enable it with `?format=raw`.
+This is the raw output of Redis; enable it with the `.raw` suffix.
 <pre>
 
 // string
-$ curl http://127.0.0.1:7379/GET/z?format=raw
+$ curl http://127.0.0.1:7379/GET/z.raw
 $5
 hello
 
 // number
-curl http://127.0.0.1:7379/INCR/a?format=raw
+curl http://127.0.0.1:7379/INCR/a.raw
 :2
 
 // list
-$ curl http://127.0.0.1:7379/LRANGE/x/0/-1?format=raw
+$ curl http://127.0.0.1:7379/LRANGE/x/0/-1.raw
 *2
 $3
 abc
@@ -140,22 +144,28 @@ $3
 def
 
 // status
-$ curl http://127.0.0.1:7379/TYPE/y?format=raw
+$ curl http://127.0.0.1:7379/TYPE/y.raw
 +zset
 
 // error, which is basically a status
-$ curl http://127.0.0.1:7379/MAKE-ME-COFFEE?format=raw
+$ curl http://127.0.0.1:7379/MAKE-ME-COFFEE.raw
 -ERR unknown command 'MAKE-ME-COFFEE'
-
 </pre>
 
 # Custom content-type
-Webdis can serve `GET` requests with a custom content-type. There are two ways of doing this; the content-type can be in a key that is fetched with the content, or given as a query string parameter.
+Several content-types are available:
 
-**Content-Type in parameter:**
+* `.json` for `application/json` (this is the default Content-Type).
+* `.txt` for `text/plain`
+* `.html` for `text/html`
+* `xhtml` for `application/xhtml+xml`
+* `xml` for `text/xml`
+* `.png` for `image/png`
+* `jpg` or `jpeg` for `image/jpeg`
+* Any other with the `?type=anything/youwant` query string.
 
 <pre>
-curl -v "http://127.0.0.1:7379/GET/hello.html?type=text/html"
+curl -v "http://127.0.0.1:7379/GET/hello.html"
 [...]
 &lt; HTTP/1.1 200 OK
 &lt; Content-Type: text/html
@@ -164,28 +174,22 @@ curl -v "http://127.0.0.1:7379/GET/hello.html?type=text/html"
 &lt;
 &lt;!DOCTYPE html&gt;
 &lt;html&gt;
-...
+[...]
 &lt;/html&gt;
-</pre>
 
-**Content-Type in a separate key:**
-
-<pre>
-curl "http://127.0.0.1:7379/SET/hello.type/text%2fhtml"
-{"SET":[true,"OK"]}
-
-curl "http://127.0.0.1:7379/GET/hello.type"
-{"GET":"text/html"}
-
-curl -v "http://127.0.0.1:7379/GET/hello.html?typeKey=hello.type"
+curl -v "http://127.0.0.1:7379/GET/hello.txt"
 [...]
 &lt; HTTP/1.1 200 OK
-&lt; Content-Type: text/html
-&lt; Date: Mon, 03 Jan 2011 20:56:43 GMT
+&lt; Content-Type: text/plain
+&lt; Date: Mon, 03 Jan 2011 20:43:36 GMT
 &lt; Content-Length: 137
-&lt;
-&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-...
-&lt;/html&gt;
+[...]
+
+curl -v "http://127.0.0.1:7379/GET/big-file?type=application/pdf"
+[...]
+&lt; HTTP/1.1 200 OK
+&lt; Content-Type: application/pdf
+&lt; Date: Mon, 03 Jan 2011 20:45:12 GMT
+[...]
 </pre>
+

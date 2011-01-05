@@ -12,7 +12,6 @@ struct server;
 struct cmd;
 
 typedef void (*formatting_fun)(redisAsyncContext *, void *, void *);
-typedef void (*transform_fun)(struct cmd *);
 
 struct cmd {
 
@@ -27,7 +26,7 @@ struct cmd {
 
 	/* HTTP data */
 	char *mime;
-	char *mimeKey;
+	int mime_free;
 
 	char *if_none_match;
 };
@@ -47,8 +46,8 @@ int
 cmd_run(struct server *s, struct evhttp_request *rq,
 		const char *uri, size_t uri_len);
 
-void
-cmd_read_params(struct cmd *cmd, formatting_fun *f_format, transform_fun *f_transform);
+int
+cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format);
 
 int
 cmd_is_subscribe(struct cmd *cmd);

@@ -5,6 +5,7 @@
 #include <evhttp.h>
 #include <string.h>
 
+/* TODO: replace this with a faster hash function */
 char *etag_new(const char *p, size_t sz) {
 
 	md5_byte_t buf[16];
