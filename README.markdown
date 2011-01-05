@@ -36,7 +36,9 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Enrich config file:
 	* Provide timeout (this needs to be added to hiredis first.)
 * Multi-server support, using consistent hashing.
-* Add WebSocket support, allow cross-origin XHR.
+* Add WebSocket support (with which protocol?)
+* Allow cross-origin XHR.
+* Allow file upload with PUT? Saving a file in Redis using the `SET` command should be easy to do with cURL.
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 
 # HTTP error codes
@@ -54,6 +56,8 @@ The URI `/COMMAND/arg0/arg1/.../argN` executes the command on Redis and returns 
 * `GET /COMMAND/arg0/.../argN`
 * `POST /` with `COMMAND/arg0/.../argN` in the HTTP body.
 
+Special characters: `/` and `.` have special meanings, `/` separates arguments and `.` adds a file extension to change the Content-Type. They can be replaced by `%2f` and `%2e`, respectively.
+
 # ACL
 Access control is configured in `webdis.json`. Each configuration tries to match a client profile according to two criterias:
 
@@ -66,6 +70,7 @@ Examples:
 {
 	"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
 },
+
 {
 	"http_basic_auth": "user:password",
 	"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
