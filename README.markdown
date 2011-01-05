@@ -154,6 +154,7 @@ $ curl http://127.0.0.1:7379/MAKE-ME-COFFEE.raw
 
 # Custom content-type
 Several content-types are available:
+
 * `.json` for `application/json` (this is the default Content-Type).
 * `.txt` for `text/plain`
 * `.html` for `text/html`
