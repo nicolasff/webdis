@@ -33,6 +33,8 @@ cmd_free(struct cmd *c) {
 	free(c->argv);
 	free(c->argv_len);
 
+	if(c->mime_free) free(c->mime);
+
 	free(c);
 }
 
@@ -184,7 +186,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 int
 cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format) {
 
-	const char *ext;
+	const char *ext, *accept_ct;
 	int ext_len = -1;
 	unsigned int i;
 
@@ -206,6 +208,13 @@ cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_f
 	/* default */
 	*f_format = json_reply;
 
+	/* if there is an Accept header, use it */
+	if((accept_ct = evhttp_find_header(cmd->rq->input_headers, "Accept"))) {
+		cmd->mime = strdup(accept_ct);
+		cmd->mime_free = 1;
+		// printf("Accept: [%s]\n", cmd->mime);
+	}
+
 	/* find extension */
 	for(ext = uri + uri_len - 1; ext != uri && *ext != '/'; --ext) {
 		if(*ext == '.') {
@@ -219,8 +228,12 @@ cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_f
 	/* find function for the given extension */
 	for(i = 0; i < sizeof(funs)/sizeof(funs[0]); ++i) {
 		if(ext_len == (int)funs[i].sz && strncmp(ext, funs[i].s, ext_len) == 0) {
+
+			if(cmd->mime_free) free(cmd->mime);
+			cmd->mime = (char*)funs[i].ct;
+			cmd->mime_free = 0;
+
 			*f_format = funs[i].f;
-			cmd->mime = funs[i].ct;
 		}
 	}
 	return uri_len - ext_len - 1;

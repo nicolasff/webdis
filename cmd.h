@@ -25,7 +25,8 @@ struct cmd {
 	int started_responding;
 
 	/* HTTP data */
-	const char *mime;
+	char *mime;
+	int mime_free;
 
 	char *if_none_match;
 };
