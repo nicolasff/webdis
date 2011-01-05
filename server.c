@@ -114,6 +114,22 @@ on_flash_request(struct evhttp_request *rq, void *ctx) {
 	evbuffer_free(body);
 }
 
+#ifdef _EVENT2_HTTP_H_
+/* reply to OPTIONS HTTP verb */
+static int
+on_options(struct evhttp_request *rq) {
+
+	evhttp_add_header(rq->output_headers, "Content-Type", "text/html");
+	evhttp_add_header(rq->output_headers, "Allow", "GET,POST,OPTIONS");
+
+	/* Cross-Origin Resource Sharing, CORS. */
+	evhttp_add_header(rq->output_headers, "Access-Control-Allow-Origin", "*");
+	evhttp_send_reply(rq, 200, "OK", body);
+
+	return 1;
+}
+#endif
+
 void
 on_request(struct evhttp_request *rq, void *ctx) {
 
@@ -137,6 +153,11 @@ on_request(struct evhttp_request *rq, void *ctx) {
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
 				EVBUFFER_LENGTH(rq->input_buffer));
 			break;
+
+#ifdef _EVENT2_HTTP_H_
+		case EVHTTP_REQ_OPTIONS:
+			return on_options(rq);
+#endif
 
 		default:
 			evhttp_send_reply(rq, 405, "Method Not Allowed", NULL);
