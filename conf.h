@@ -2,6 +2,7 @@
 #define CONF_H
 
 #include <sys/types.h>
+#include "slog.h"
 
 struct conf {
 
@@ -20,6 +21,10 @@ struct conf {
 	/* user/group */
 	uid_t user;
 	gid_t group;
+
+	/* Logging */
+	char *logfile;
+	log_level verbosity;
 };
 
 struct conf *

@@ -1,6 +1,7 @@
 #include "server.h"
 #include "conf.h"
 #include "cmd.h"
+#include "slog.h"
 
 #include <hiredis/hiredis.h>
 #include <hiredis/adapters/libevent.h>
@@ -61,6 +62,7 @@ on_timer_reconnect(int fd, short event, void *ctx) {
 	s->ac->data = s;
 
 	if(s->ac->err) {
+		slog(s, WEBDIS_ERROR, "Connection failed");
 		fprintf(stderr, "Error: %s\n", s->ac->errstr);
 	}
 
@@ -116,7 +118,6 @@ on_flash_request(struct evhttp_request *rq, void *ctx) {
 
 void
 on_request(struct evhttp_request *rq, void *ctx) {
-
 	const char *uri = evhttp_request_uri(rq);
 	struct server *s = ctx;
 	int ret;
@@ -126,19 +127,23 @@ on_request(struct evhttp_request *rq, void *ctx) {
 		return;
 	}
 
+
 	/* check that the command can be executed */
 	switch(rq->type) {
 		case EVHTTP_REQ_GET:
+			slog(s, WEBDIS_DEBUG, uri);
 			ret = cmd_run(s, rq, 1+uri, strlen(uri)-1);
 			break;
 
 		case EVHTTP_REQ_POST:
+			slog(s, WEBDIS_DEBUG, uri);
 			ret = cmd_run(s, rq,
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
 				EVBUFFER_LENGTH(rq->input_buffer));
 			break;
 
 		default:
+			slog(s, WEBDIS_DEBUG, "405");
 			evhttp_send_reply(rq, 405, "Method Not Allowed", NULL);
 			return;
 	}
@@ -157,11 +162,13 @@ server_start(struct server *s) {
 #endif
 
 	/* start http server */
+	slog(s, WEBDIS_INFO, "Starting HTTP Server");
 	evhttp_bind_socket(s->http, s->cfg->http_host, s->cfg->http_port);
 	evhttp_set_cb(s->http, "/crossdomain.xml", on_flash_request, s);
 	evhttp_set_gencb(s->http, on_request, s);
 
 	/* drop privileges */
+	slog(s, WEBDIS_INFO, "Dropping Privileges");
 	setuid(s->cfg->user);
 	setgid(s->cfg->group);
 
@@ -171,4 +178,3 @@ server_start(struct server *s) {
 	/* loop */
 	event_base_dispatch(s->base);
 }
-

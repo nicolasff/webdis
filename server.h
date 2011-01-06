@@ -31,5 +31,8 @@ server_copy(const struct server *s);
 void
 server_start(struct server *s);
 
+void 
+webdis_log(struct server *s, int level, const char *body);
+
 #endif
 

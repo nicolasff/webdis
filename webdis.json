@@ -16,5 +16,8 @@
 			"http_basic_auth":	"user:password",
 			"enabled":		["DEBUG"]
 		}
-	]
+	],
+
+        "verbosity": 3,
+        "logfile": "webdis.log"
 }
