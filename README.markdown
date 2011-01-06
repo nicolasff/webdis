@@ -30,11 +30,11 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Drop privileges on startup.
 * Custom Content-Type using a pre-defined file extension, or with `?type=some/thing`.
 * URL-encoded parameters for binary data or slashes. For instance, `%2f` is decoded as `/` but not used as a command separator.
+* Logs, with a configurable verbosity.
 
 # Ideas, TODO...
 * Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
-* Add logs.
 * Support POST of raw Redis protocol data, and execute the whole thing. This could be useful for MULTI/EXEC transactions.
 * Enrich config file:
 	* Provide timeout (this needs to be added to hiredis first.)
