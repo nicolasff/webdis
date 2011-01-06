@@ -62,6 +62,7 @@ on_timer_reconnect(int fd, short event, void *ctx) {
 	s->ac->data = s;
 
 	if(s->ac->err) {
+		slog(s, WEBDIS_ERROR, "Connection failed");
 		fprintf(stderr, "Error: %s\n", s->ac->errstr);
 	}
 
