@@ -32,6 +32,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * URL-encoded parameters for binary data or slashes. For instance, `%2f` is decoded as `/` but not used as a command separator.
 * Logs, with a configurable verbosity.
 * Cross-origin XHR, if compiled with libevent2 (for `OPTIONS` support).
+* File upload with PUT, if compiled with libevent2 (for `PUT` support).
 
 # Ideas, TODO...
 * Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
@@ -41,7 +42,6 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 	* Provide timeout (this needs to be added to hiredis first.)
 * Multi-server support, using consistent hashing.
 * Add WebSocket support (with which protocol?)
-* Allow file upload with PUT? Saving a file in Redis using the `SET` command should be easy to do with cURL.
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 
 # HTTP error codes
@@ -196,3 +196,51 @@ curl -v "http://127.0.0.1:7379/GET/big-file?type=application/pdf"
 [...]
 </pre>
 
+# File upload (only with libevent 2)
+Webdis supports file upload using HTTP PUT. The command URI is slightly different, as the last argument is taken from the HTTP body.
+For example: instead of `/SET/key/value`, the URI becomes `/SET/key` and the value is the entirety of the body. This works for other commands such as LPUSH, etc.
+
+**Uploading a binary file to webdis**:
+<pre>
+$ file redis-logo.png
+redis-logo.png: PNG image, 513 x 197, 8-bit/color RGBA, non-interlaced
+
+$ wc -c redis-logo.png
+16744 redis-logo.png
+
+$ curl -v --upload-file redis-logo.png http://127.0.0.1:7379/SET/logo
+[...]
+&gt; PUT /SET/logo HTTP/1.1
+&gt; User-Agent: curl/7.19.7 (x86_64-pc-linux-gnu) libcurl/7.19.7 OpenSSL/0.9.8k zlib/1.2.3.3 libidn/1.15
+&gt; Host: 127.0.0.1:7379
+&gt; Accept: */*
+&gt; Content-Length: 16744
+&gt; Expect: 100-continue
+&gt;
+&lt; HTTP/1.1 100 Continue
+&lt; HTTP/1.1 200 OK
+&lt; Content-Type: application/json
+&lt; ETag: "0db1124cf79ffeb80aff6d199d5822f8"
+&lt; Date: Sun, 09 Jan 2011 16:48:19 GMT
+&lt; Content-Length: 19
+&lt;
+{"SET":[true,"OK"]}
+
+$ curl -vs http://127.0.0.1:7379/GET/logo.png -o out.png
+&gt; GET /GET/logo.png HTTP/1.1
+&gt; User-Agent: curl/7.19.7 (x86_64-pc-linux-gnu) libcurl/7.19.7 OpenSSL/0.9.8k zlib/1.2.3.3 libidn/1.15
+&gt; Host: 127.0.0.1:7379
+&gt; Accept: */*
+&gt;
+&lt; HTTP/1.1 200 OK
+&lt; Content-Type: image/png
+&lt; ETag: "1991df597267d70bf9066a7d11969da0"
+&lt; Date: Sun, 09 Jan 2011 16:50:51 GMT
+&lt; Content-Length: 16744
+
+$ md5sum redis-logo.png out.png
+1991df597267d70bf9066a7d11969da0  redis-logo.png
+1991df597267d70bf9066a7d11969da0  out.png
+</pre>
+
+The file was uploaded and re-downloaded properly: it has the same hash and the content-type was set properly thanks to the `.png` extension.

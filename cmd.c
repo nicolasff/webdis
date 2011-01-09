@@ -88,7 +88,7 @@ decode_uri(const char *uri, size_t length, size_t *out_len, int always_decode_pl
 
 int
 cmd_run(struct server *s, struct evhttp_request *rq,
-		const char *uri, size_t uri_len) {
+		const char *uri, size_t uri_len, const char *body, size_t body_len) {
 
 	char *qmark = strchr(uri, '?');
 	char *slash;
@@ -106,6 +106,10 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	}
 	for(p = uri; p && p < uri + uri_len; param_count++) {
 		p = strchr(p+1, '/');
+	}
+
+	if(body && body_len) { /* PUT request */
+		param_count++;
 	}
 
 	cmd = cmd_new(rq, param_count);
@@ -167,6 +171,11 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		/* record argument */
 		cmd->argv[cur_param] = decode_uri(arg, arg_len, &cmd->argv_len[cur_param], 1);
 		cur_param++;
+	}
+
+	if(body && body_len) { /* PUT request */
+		cmd->argv[cur_param] = body;
+		cmd->argv_len[cur_param] = body_len;
 	}
 
 	/* push command to Redis. */

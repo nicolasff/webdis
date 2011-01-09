@@ -132,15 +132,24 @@ on_request(struct evhttp_request *rq, void *ctx) {
 	switch(rq->type) {
 		case EVHTTP_REQ_GET:
 			slog(s, WEBDIS_DEBUG, uri);
-			ret = cmd_run(s, rq, 1+uri, strlen(uri)-1);
+			ret = cmd_run(s, rq, 1+uri, strlen(uri)-1, NULL, 0);
 			break;
 
 		case EVHTTP_REQ_POST:
 			slog(s, WEBDIS_DEBUG, uri);
 			ret = cmd_run(s, rq,
 				(const char*)EVBUFFER_DATA(rq->input_buffer),
+				EVBUFFER_LENGTH(rq->input_buffer), NULL, 0);
+			break;
+
+#ifdef _EVENT2_HTTP_H_
+		case EVHTTP_REQ_PUT:
+			slog(s, WEBDIS_DEBUG, uri);
+			ret = cmd_run(s, rq, 1+uri, strlen(uri)-1,
+				(const char*)EVBUFFER_DATA(rq->input_buffer),
 				EVBUFFER_LENGTH(rq->input_buffer));
 			break;
+#endif
 
 		default:
 			slog(s, WEBDIS_DEBUG, "405");
