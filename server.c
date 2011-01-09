@@ -126,7 +126,7 @@ on_options(struct evhttp_request *rq) {
 
 	/* Cross-Origin Resource Sharing, CORS. */
 	evhttp_add_header(rq->output_headers, "Access-Control-Allow-Origin", "*");
-	evhttp_send_reply(rq, 200, "OK", body);
+	evhttp_send_reply(rq, 200, "OK", NULL);
 
 	return 1;
 }
@@ -169,7 +169,8 @@ on_request(struct evhttp_request *rq, void *ctx) {
 
 #ifdef _EVENT2_HTTP_H_
 		case EVHTTP_REQ_OPTIONS:
-			return on_options(rq);
+			on_options(rq);
+			return;
 #endif
 
 		default:
