@@ -88,7 +88,7 @@ decode_uri(const char *uri, size_t length, size_t *out_len, int always_decode_pl
 
 int
 cmd_run(struct server *s, struct evhttp_request *rq,
-		const char *uri, size_t uri_len) {
+		const char *uri, size_t uri_len, const char *body, size_t body_len) {
 
 	char *qmark = strchr(uri, '?');
 	char *slash;
@@ -106,6 +106,10 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	}
 	for(p = uri; p && p < uri + uri_len; param_count++) {
 		p = strchr(p+1, '/');
+	}
+
+	if(body && body_len) { /* PUT request */
+		param_count++;
 	}
 
 	cmd = cmd_new(rq, param_count);
@@ -169,6 +173,11 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		cur_param++;
 	}
 
+	if(body && body_len) { /* PUT request */
+		cmd->argv[cur_param] = body;
+		cmd->argv_len[cur_param] = body_len;
+	}
+
 	/* push command to Redis. */
 	redisAsyncCommandArgv(s->ac, f_format, cmd, cmd->count, cmd->argv, cmd->argv_len);
 
@@ -201,6 +210,8 @@ cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_f
 	struct reply_format funs[] = {
 		{.s = "json", .sz = 4, .f = json_reply, .ct = "application/json"},
 		{.s = "raw", .sz = 3, .f = raw_reply, .ct = "binary/octet-stream"},
+
+		{.s = "bin", .sz = 3, .f = custom_type_reply, .ct = "binary/octet-stream"},
 		{.s = "txt", .sz = 3, .f = custom_type_reply, .ct = "text/plain"},
 		{.s = "html", .sz = 4, .f = custom_type_reply, .ct = "text/html"},
 		{.s = "xhtml", .sz = 5, .f = custom_type_reply, .ct = "application/xhtml+xml"},

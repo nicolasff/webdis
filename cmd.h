@@ -44,7 +44,8 @@ cmd_free(struct cmd *c);
 
 int
 cmd_run(struct server *s, struct evhttp_request *rq,
-		const char *uri, size_t uri_len);
+		const char *uri, size_t uri_len,
+		const char *body, size_t body_len);
 
 int
 cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format);
