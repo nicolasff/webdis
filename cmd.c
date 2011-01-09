@@ -201,6 +201,8 @@ cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_f
 	struct reply_format funs[] = {
 		{.s = "json", .sz = 4, .f = json_reply, .ct = "application/json"},
 		{.s = "raw", .sz = 3, .f = raw_reply, .ct = "binary/octet-stream"},
+
+		{.s = "bin", .sz = 3, .f = custom_type_reply, .ct = "binary/octet-stream"},
 		{.s = "txt", .sz = 3, .f = custom_type_reply, .ct = "text/plain"},
 		{.s = "html", .sz = 4, .f = custom_type_reply, .ct = "text/html"},
 		{.s = "xhtml", .sz = 5, .f = custom_type_reply, .ct = "application/xhtml+xml"},
