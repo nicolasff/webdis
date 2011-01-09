@@ -31,6 +31,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Custom Content-Type using a pre-defined file extension, or with `?type=some/thing`.
 * URL-encoded parameters for binary data or slashes. For instance, `%2f` is decoded as `/` but not used as a command separator.
 * Logs, with a configurable verbosity.
+* Cross-origin XHR, if compiled with libevent2 (for `OPTIONS` support).
 
 # Ideas, TODO...
 * Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
@@ -40,7 +41,6 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 	* Provide timeout (this needs to be added to hiredis first.)
 * Multi-server support, using consistent hashing.
 * Add WebSocket support (with which protocol?)
-* Allow cross-origin XHR.
 * Allow file upload with PUT? Saving a file in Redis using the `SET` command should be easy to do with cURL.
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 
