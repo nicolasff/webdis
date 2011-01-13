@@ -36,6 +36,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 
 # Ideas, TODO...
 * Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
+* Switch from evhttp to raw libevent + the http-parser library from node.js for clean disconnection support on SUBSCRIBE commands.
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Support POST of raw Redis protocol data, and execute the whole thing. This could be useful for MULTI/EXEC transactions.
 * Enrich config file:
