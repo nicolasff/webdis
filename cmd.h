@@ -33,6 +33,7 @@ struct cmd {
 
 struct pubsub_client {
 	struct server *s;
+	struct cmd *cmd;
 	struct evhttp_request *rq;
 };
 

@@ -46,14 +46,13 @@ void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
 
 	(void)evcon;
 
-	if(ps->s->ac->replies.head) {
-		struct cmd *cmd = ps->s->ac->replies.head->privdata;
-		if(cmd) {
-			cmd_free(cmd);
-		}
-		ps->s->ac->replies.head->privdata = NULL;
-	}
+	/* clean up redis object */
 	redisAsyncFree(ps->s->ac);
+
+	/* clean up command object */
+	if(ps->cmd) {
+		cmd_free(ps->cmd);
+	}
 	free(ps);
 }
 
@@ -144,8 +143,8 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 
 		ps = calloc(1, sizeof(struct pubsub_client));
 		ps->s = s = server_copy(s);
+		ps->cmd = cmd;
 		ps->rq = rq;
-
 		evhttp_connection_set_closecb(rq->evcon, on_http_disconnect, ps);
 	}
 
