@@ -12,6 +12,8 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	redisReply *reply = r;
 	struct cmd *cmd = privdata;
 	(void)c;
+	char int_buffer[50];
+	int int_len;
 
 	if(reply == NULL) {
 		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
@@ -27,6 +29,11 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 
 			case REDIS_REPLY_STRING:
 				format_send_reply(cmd, reply->str, reply->len, cmd->mime);
+				return;
+
+			case REDIS_REPLY_INTEGER:
+				int_len = sprintf(int_buffer, "%lld", reply->integer);
+				format_send_reply(cmd, int_buffer, int_len, cmd->mime);
 				return;
 		}
 	}
