@@ -35,14 +35,14 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * File upload with PUT, if compiled with libevent2 (for `PUT` support).
 
 # Ideas, TODO...
-* Support PUT, DELETE, HEAD, OPTIONS? How? For which commands?
+* Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands?
 * Switch from evhttp to raw libevent + the http-parser library from node.js for clean disconnection support on SUBSCRIBE commands.
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Support POST of raw Redis protocol data, and execute the whole thing. This could be useful for MULTI/EXEC transactions.
 * Enrich config file:
-	* Provide timeout (this needs to be added to hiredis first.)
+	* Provide timeout (maybe for some commands only?). What should the response be? 504 Gateway Timeout? 503 Service Unavailable?
 * Multi-server support, using consistent hashing.
-* Add WebSocket support (with which protocol?)
+* Add WebSocket support (with which protocol?). This will only be possible after the switch from evhttp to http-parser.
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 
 # HTTP error codes
