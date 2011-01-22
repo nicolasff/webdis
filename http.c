@@ -351,6 +351,12 @@ http_on_header_value(http_parser *p, const char *at, size_t length) {
 		c->header_authorization.s = calloc(length+1, 1);
 		memcpy(c->header_authorization.s, at, length);
 		c->header_authorization.sz = length;
+	} else if(strncmp("Expect", c->last_header_name.s, c->last_header_name.sz) == 0) {
+		if(length == 12 && memcmp(at, "100-continue", length) == 0) {
+			/* support HTTP file upload */
+			char http100[] = "HTTP/1.1 100 Continue\r\n\r\n";
+			write(c->fd, http100, sizeof(http100)-1);
+		}
 	}
 
 	free(c->last_header_name.s);
