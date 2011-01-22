@@ -35,8 +35,11 @@ struct http_client {
 	str_t out_content_type;
 	str_t out_etag;
 
+	/* query string */
 	str_t qs_type;
 	str_t qs_jsonp;
+
+	struct subscription *sub;
 
 	/* private, used in HTTP parser */
 	str_t last_header_name;
@@ -91,6 +94,16 @@ void
 http_send_reply(struct http_client *c, short code, const char *msg,
 		const char *body, size_t body_len);
 
+/* Transfer-encoding: chunked */
+void
+http_send_reply_start(struct http_client *c, short code, const char *msg);
+
+void
+http_send_reply_chunk(struct http_client *c, const char *p, size_t sz);
+
+void
+http_send_reply_end(struct http_client *c);
+
 void
 http_send_error(struct http_client *c, short code, const char *msg);
 
@@ -106,6 +119,5 @@ http_response_set_body(struct http_response *r, const char *body, size_t body_le
 
 int
 http_response_send(struct http_response *r, int fd);
-
 
 #endif

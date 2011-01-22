@@ -39,24 +39,6 @@ cmd_free(struct cmd *c) {
 	free(c);
 }
 
-/**
- * Detect disconnection of a pub/sub client. We need to clean up the command.
- */
-void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
-	struct pubsub_client *ps = ctx;
-
-	(void)evcon;
-
-	/* clean up redis object */
-	redisAsyncFree(ps->s->ac);
-
-	/* clean up command object */
-	if(ps->cmd) {
-		cmd_free(ps->cmd);
-	}
-	free(ps);
-}
-
 /* taken from libevent */
 static char *
 decode_uri(const char *uri, size_t length, size_t *out_len, int always_decode_plus) {
@@ -136,18 +118,13 @@ cmd_run(struct server *s, struct http_client *client,
 		return -1;
 	}
 
-	/* FIXME:check if we have to split the connection */
-	/*
+	/* check if we have to split the connection */
 	if(cmd_is_subscribe(cmd)) {
-		struct pubsub_client *ps;
 
-		ps = calloc(1, sizeof(struct pubsub_client));
-		ps->s = s = server_copy(s);
-		ps->cmd = cmd;
-		ps->rq = rq;
-		evhttp_connection_set_closecb(rq->evcon, on_http_disconnect, ps);
+		client->sub = malloc(sizeof(struct subscription));
+		client->sub->s = s = server_copy(s);
+		client->sub->cmd = cmd;
 	}
-	*/
 
 	/* no args (e.g. INFO command) */
 	if(!slash) {
@@ -247,7 +224,7 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 		}
 	}
 
-	/* FIXME:the user can force it with ?type=some/thing */
+	/* the user can force it with ?type=some/thing */
 	if(client->qs_type.s) {
 		*f_format = custom_type_reply;
 		cmd->mime = strdup(client->qs_type.s);
@@ -259,6 +236,12 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 
 int
 cmd_is_subscribe(struct cmd *cmd) {
+
+	/*
+	if(cmd->started_responding) {
+		return 1;
+	}
+	*/
 
 	if(cmd->count >= 1 && 
 		(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0 ||

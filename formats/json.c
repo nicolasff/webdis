@@ -25,7 +25,6 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 
 	if (reply == NULL) {
-		http_send_reply(cmd->client, 404, "Not Found", NULL, 0);
 		return;
 	}
 

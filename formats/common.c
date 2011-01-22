@@ -33,7 +33,6 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 
 	int free_cmd = 1;
 
-
 	if(cmd_is_subscribe(cmd)) {
 		free_cmd = 0;
 
@@ -42,18 +41,15 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			const char *ct = cmd->mime?cmd->mime:content_type;
 			cmd->started_responding = 1;
 			http_set_header(&cmd->client->out_content_type, ct, strlen(ct));
-			/*FIXME:
-			evhttp_send_reply_start(cmd->rq, 200, "OK");
-			*/
+			http_send_reply_start(cmd->client, 200, "OK");
 		}
-		/*FIXME: evhttp_send_reply_chunk(cmd->rq, body); */
+		http_send_reply_chunk(cmd->client, p, sz);
 
 	} else {
 		/* compute ETag */
 		char *etag = etag_new(p, sz);
 		const char *if_none_match = cmd->client->header_if_none_match.s;
-		/* FIXME */
-#if 1
+
 		/* check If-None-Match */
 		if(if_none_match && strncmp(if_none_match, etag, cmd->client->header_if_none_match.sz) == 0) {
 			/* SAME! send 304. */
@@ -64,12 +60,11 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			http_set_header(&cmd->client->out_etag, etag, strlen(etag));
 			http_send_reply(cmd->client, 200, "OK", p, sz);
 		}
-#endif
+
 		free(etag);
 	}
 	/* cleanup */
 	if(free_cmd) {
-		/*FIXME: evhttp_clear_headers(&cmd->uri_params); */
 		cmd_free(cmd);
 	}
 }

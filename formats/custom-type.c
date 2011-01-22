@@ -17,7 +17,6 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	int int_len;
 
 	if(reply == NULL) {
-		http_send_reply(cmd->client, 404, "Not Found", NULL, 0);
 		return;
 	}
 

@@ -15,7 +15,6 @@ struct cmd;
 typedef void (*formatting_fun)(redisAsyncContext *, void *, void *);
 
 struct cmd {
-
 	int count;
 	const char **argv;
 	size_t *argv_len;
@@ -28,10 +27,9 @@ struct cmd {
 	int mime_free;
 };
 
-struct pubsub_client {
+struct subscription {
 	struct server *s;
 	struct cmd *cmd;
-	struct evhttp_request *rq;
 };
 
 struct cmd *

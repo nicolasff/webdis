@@ -61,6 +61,10 @@ http_client_read(int fd, short event, void *ctx) {
 static void
 http_client_cleanup(struct http_client *c) {
 
+	if(c->sub) {
+		return; /* we need to keep those. */
+	}
+
 	free(c->path.s);
 	memset(&c->path, 0, sizeof(str_t));
 
@@ -100,6 +104,18 @@ http_client_free(struct http_client *c) {
 	event_del(&c->ev);
 	close(c->fd);
 
+	if(c->sub) {
+		/* clean up redis object */
+		redisAsyncFree(c->sub->s->ac);
+
+		/* clean up command object */
+		if(c->sub->cmd) {
+			cmd_free(c->sub->cmd);
+		}
+		free(c->sub);
+		c->sub = NULL;
+	}
+
 	http_client_cleanup(c);
 	free(c);
 }
@@ -128,7 +144,7 @@ http_client_keep_alive(struct http_client *c) {
 void
 http_client_reset(struct http_client *c) {
 
-	if(!http_client_keep_alive(c)) {
+	if(!http_client_keep_alive(c) && !c->sub) {
 		http_client_free(c);
 		return;
 	}
@@ -285,9 +301,15 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 	http_response_init(c, &resp, code, msg);
 
 	sprintf(content_length, "%zd", body_len);
-	http_response_set_header(&resp, "Content-Length", content_length);
+	if(!c->sub) {
+		http_response_set_header(&resp, "Content-Length", content_length);
+	}
 	if(body_len) {
 		http_response_set_header(&resp, "Content-Type", ct);
+	}
+
+	if(c->sub) {
+		http_response_set_header(&resp, "Transfer-Encoding", "chunked");
 	}
 
 	if(code == 200 && c->out_etag.s) {
@@ -296,16 +318,46 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 
 	http_response_set_body(&resp, body, body_len);
 
+	/* flush response in the socket */
 	if(http_response_send(&resp, c->fd)) {
 		http_client_free(c);
 	} else {
-		if(code == 200 && http_client_keep_alive(c)) {
+		if(c->sub) { /* don't free the client, but monitor fd. */
+			http_client_serve(c);
+			return;
+		} else if(code == 200 && http_client_keep_alive(c)) { /* reset client */
 			http_client_reset(c);
 			http_client_serve(c);
 		} else {
-			http_client_free(c);
+			http_client_free(c); /* error or HTTP < 1.1: close */
 		}
 	}
+}
+
+/* Transfer-encoding: chunked */
+void
+http_send_reply_start(struct http_client *c, short code, const char *msg) {
+
+	http_send_reply(c, code, msg, NULL, 0);
+}
+
+void
+http_send_reply_chunk(struct http_client *c, const char *p, size_t sz) {
+
+	char buf[64];
+	int ret;
+
+	ret = sprintf(buf, "%x\r\n", (int)sz);
+	write(c->fd, buf, ret);
+	write(c->fd, p, sz);
+	write(c->fd, "\r\n", 2);
+}
+
+void
+http_send_reply_end(struct http_client *c) {
+
+	http_send_reply_chunk(c, "", 0);
+	http_client_free(c);
 }
 
 void
