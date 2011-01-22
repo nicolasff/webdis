@@ -1,6 +1,7 @@
 #include "json.h"
 #include "common.h"
 #include "cmd.h"
+#include "http.h"
 
 #include <string.h>
 #include <hiredis/hiredis.h>

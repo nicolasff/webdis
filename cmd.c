@@ -270,8 +270,9 @@ cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_f
 int
 cmd_is_subscribe(struct cmd *cmd) {
 
-	if(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0 ||
-		strncasecmp(cmd->argv[0], "PSUBSCRIBE", cmd->argv_len[0]) == 0) {
+	if(cmd->count >= 1 && 
+		(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0 ||
+		strncasecmp(cmd->argv[0], "PSUBSCRIBE", cmd->argv_len[0]) == 0)) {
 		return 1;
 	}
 	return 0;

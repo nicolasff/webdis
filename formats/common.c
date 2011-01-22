@@ -36,6 +36,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 
 	if(cmd_is_subscribe(cmd)) {
 		free_cmd = 0;
+		printf("wtf\n");
 
 		/* start streaming */
 		if(cmd->started_responding == 0) {

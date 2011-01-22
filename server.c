@@ -193,59 +193,6 @@ on_options(struct evhttp_request *rq) {
 }
 #endif
 
-void
-on_request(struct evhttp_request *rq, void *ctx) {
-	const char *uri = evhttp_request_uri(rq);
-	struct server *s = ctx;
-	int ret;
-
-	if(!s->ac) { /* redis is unavailable */
-		evhttp_send_reply(rq, 503, "Service Unavailable", NULL);
-		return;
-	}
-
-
-	/* check that the command can be executed */
-	switch(rq->type) {
-		case EVHTTP_REQ_GET:
-			slog(s, WEBDIS_DEBUG, uri);
-			ret = cmd_run(s, rq, 1+uri, strlen(uri)-1, NULL, 0);
-			break;
-
-		case EVHTTP_REQ_POST:
-			slog(s, WEBDIS_DEBUG, uri);
-			ret = cmd_run(s, rq,
-				(const char*)EVBUFFER_DATA(rq->input_buffer),
-				EVBUFFER_LENGTH(rq->input_buffer), NULL, 0);
-			break;
-
-#ifdef _EVENT2_HTTP_H_
-		case EVHTTP_REQ_PUT:
-			slog(s, WEBDIS_DEBUG, uri);
-			ret = cmd_run(s, rq, 1+uri, strlen(uri)-1,
-				(const char*)EVBUFFER_DATA(rq->input_buffer),
-				EVBUFFER_LENGTH(rq->input_buffer));
-			break;
-#endif
-
-#ifdef _EVENT2_HTTP_H_
-		case EVHTTP_REQ_OPTIONS:
-			on_options(rq);
-			return;
-#endif
-
-		default:
-			slog(s, WEBDIS_DEBUG, "405");
-			evhttp_send_reply(rq, 405, "Method Not Allowed", NULL);
-			return;
-	}
-
-	if(ret < 0) {
-		evhttp_send_reply(rq, 403, "Forbidden", NULL);
-	}
-}
-
-
 static void
 on_possible_accept(int fd, short event, void *ctx) {
 
