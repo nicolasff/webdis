@@ -96,12 +96,20 @@ http_client_reset(struct http_client *c) {
 		return;
 	}
 
+
+	free(c->path.s);
 	memset(&c->path, 0, sizeof(str_t));
+
+	free(c->body.s);
 	memset(&c->body, 0, sizeof(str_t));
+
+	free(c->header_connection.s);
 	memset(&c->header_connection, 0, sizeof(str_t));
+
+	free(c->header_if_none_match.s);
 	memset(&c->header_if_none_match, 0, sizeof(str_t));
 
-	free((char*)c->out_content_type.s);
+	free(c->out_content_type.s);
 	memset(&c->out_content_type, 0, sizeof(str_t));
 	memset(&c->out_etag, 0, sizeof(str_t));
 
@@ -130,7 +138,8 @@ http_on_path(http_parser *p, const char *at, size_t length) {
 
 	struct http_client *c = p->data;
 
-	c->path.s = at;
+	c->path.s = calloc(length+1, 1);
+	memcpy(c->path.s, at, length);
 	c->path.sz = length;
 
 	/* save HTTP verb as well */
@@ -143,9 +152,57 @@ int
 http_on_body(http_parser *p, const char *at, size_t length) {
 	struct http_client *c = p->data;
 
-	c->body.s = at;
+	c->body.s = calloc(length+1, 1);
+	memcpy(c->body.s, at, length);
 	c->body.sz = length;
 
+	return 0;
+}
+
+/* Adobe flash cross-domain request */
+static int
+http_crossdomain(struct http_client *c) {
+
+	struct http_response resp;
+	char content_length[10];
+	char out[] = "<?xml version=\"1.0\"?>\n"
+"<!DOCTYPE cross-domain-policy SYSTEM \"http://www.macromedia.com/xml/dtds/cross-domain-policy.dtd\">\n"
+"<cross-domain-policy>\n"
+  "<allow-access-from domain=\"*\" />\n"
+"</cross-domain-policy>\n";
+
+	http_response_init(&resp, 200, "OK");
+
+	http_response_set_header(&resp, "Content-Type", "application/xml");
+	sprintf(content_length, "%zd", sizeof(content_length));
+	http_response_set_header(&resp, "Content-Length", content_length);
+	http_response_set_body(&resp, out, sizeof(out)-1);
+
+	http_response_send(&resp, c->fd);
+	http_client_reset(c);
+
+	return 0;
+}
+
+
+/* reply to OPTIONS HTTP verb */
+static int
+http_options(struct http_client *c) {
+
+	struct http_response resp;
+
+	http_response_init(&resp, 200, "OK");
+
+	http_response_set_header(&resp, "Content-Type", "text/html");
+	http_response_set_header(&resp, "Allow", "GET,POST,OPTIONS");
+	http_response_set_header(&resp, "Content-Length", "0");
+
+	/* Cross-Origin Resource Sharing, CORS. */
+	http_response_set_header(&resp, "Access-Control-Allow-Origin", "*");
+
+	http_response_send(&resp, c->fd);
+	http_client_reset(c);
+	
 	return 0;
 }
 
@@ -157,6 +214,9 @@ http_on_complete(http_parser *p) {
 	/* check that the command can be executed */
 	switch(c->verb) {
 		case HTTP_GET:
+			if(c->path.sz == 16 && memcmp(c->path.s, "/crossdomain.xml", 16) == 0) {
+				return http_crossdomain(c);
+			}
 			/* slog(s, WEBDIS_DEBUG, uri); */
 			ret = cmd_run(c->s, c, 1+c->path.s, c->path.sz-1, NULL, 0);
 			break;
@@ -173,8 +233,7 @@ http_on_complete(http_parser *p) {
 			break;
 
 		case HTTP_OPTIONS:
-			/* on_options(rq); */
-			return 0;
+			return http_options(c);
 
 		default:
 			slog(c->s, WEBDIS_DEBUG, "405");
@@ -198,7 +257,6 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 	/* respond */
 	http_response_init(&resp, code, msg);
 
-	http_response_set_header(&resp, "Server", "Webdis");
 	if(!http_client_keep_alive(c)) {
 		http_response_set_header(&resp, "Connection", "Close");
 	} else if(code == 200) {
@@ -231,8 +289,10 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 void
 http_set_header(str_t *h, const char *p) {
 
-	h->s = strdup(p);
-	h->sz = strlen(p);
+	size_t sz = strlen(p);
+	h->s = calloc(1, 1+sz);
+	memcpy(h->s, p, sz);
+	h->sz = sz;
 }
 
 /**
@@ -243,7 +303,8 @@ http_on_header_name(http_parser *p, const char *at, size_t length) {
 
 	struct http_client *c = p->data;
 
-	c->last_header_name.s = at;
+	c->last_header_name.s = calloc(length+1, 1);
+	memcpy(c->last_header_name.s, at, length);
 	c->last_header_name.sz = length;
 
 	return 0;
@@ -258,12 +319,17 @@ http_on_header_value(http_parser *p, const char *at, size_t length) {
 	struct http_client *c = p->data;
 
 	if(strncmp("Connection", c->last_header_name.s, c->last_header_name.sz) == 0) {
-		c->header_connection.s = at;
+		c->header_connection.s = calloc(length+1, 1);
+		memcpy(c->header_connection.s, at, length);
 		c->header_connection.sz = length;
 	} else if(strncmp("If-None-Match", c->last_header_name.s, c->last_header_name.sz) == 0) {
-		c->header_if_none_match.s = at;
+		c->header_if_none_match.s = calloc(length+1, 1);
+		memcpy(c->header_if_none_match.s, at, length);
 		c->header_if_none_match.sz = length;
 	}
+
+	free(c->last_header_name.s);
+	c->last_header_name.s = NULL;
 	return 0;
 }
 
@@ -274,6 +340,8 @@ http_response_init(struct http_response *r, int code, const char *msg) {
 	memset(r, 0, sizeof(struct http_response));
 	r->code = code;
 	r->msg = msg;
+
+	http_response_set_header(r, "Server", "Webdis");
 }
 
 void

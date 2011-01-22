@@ -163,7 +163,7 @@ cmd_run(struct server *s, struct http_client *client,
 
 		const char *arg = p;
 		int arg_len;
-		char *next = memchr(arg, '/', uri_len - (arg-p));
+		char *next = memchr(arg, '/', uri_len - (arg-uri));
 		if(!next || next > uri + uri_len) { /* last argument */
 			p = uri + uri_len;
 			arg_len = p - arg;

@@ -5,7 +5,7 @@
 #include "http-parser/http_parser.h"
 
 typedef struct {
-	const char *s;
+	char *s;
 	size_t sz;
 } str_t;
 

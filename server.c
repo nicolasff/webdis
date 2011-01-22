@@ -157,42 +157,6 @@ server_copy(const struct server *s) {
 	return ret;
 }
 
-/* Adobe flash cross-domain request */
-void
-on_flash_request(struct evhttp_request *rq, void *ctx) {
-
-	(void)ctx;
-
-	char out[] = "<?xml version=\"1.0\"?>\n"
-"<!DOCTYPE cross-domain-policy SYSTEM \"http://www.macromedia.com/xml/dtds/cross-domain-policy.dtd\">\n"
-"<cross-domain-policy>\n"
-  "<allow-access-from domain=\"*\" />\n"
-"</cross-domain-policy>\n";
-
-	struct evbuffer *body = evbuffer_new();
-	evbuffer_add(body, out, sizeof(out) - 1);
-
-	evhttp_add_header(rq->output_headers, "Content-Type", "application/xml");
-	evhttp_send_reply(rq, 200, "OK", body);
-	evbuffer_free(body);
-}
-
-#ifdef _EVENT2_HTTP_H_
-/* reply to OPTIONS HTTP verb */
-static int
-on_options(struct evhttp_request *rq) {
-
-	evhttp_add_header(rq->output_headers, "Content-Type", "text/html");
-	evhttp_add_header(rq->output_headers, "Allow", "GET,POST,OPTIONS");
-
-	/* Cross-Origin Resource Sharing, CORS. */
-	evhttp_add_header(rq->output_headers, "Access-Control-Allow-Origin", "*");
-	evhttp_send_reply(rq, 200, "OK", NULL);
-
-	return 1;
-}
-#endif
-
 static void
 on_possible_accept(int fd, short event, void *ctx) {
 

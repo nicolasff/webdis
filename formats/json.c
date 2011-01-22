@@ -52,8 +52,12 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 
 	/* copy verb, as jansson only takes a char* but not its length. */
 	char *verb;
-	verb = calloc(cmd->argv_len[0]+1, 1);
-	memcpy(verb, cmd->argv[0], cmd->argv_len[0]);
+	if(cmd->count) {
+		verb = calloc(cmd->argv_len[0]+1, 1);
+		memcpy(verb, cmd->argv[0], cmd->argv_len[0]);
+	} else {
+		verb = strdup("");
+	}
 
 	switch(r->type) {
 		case REDIS_REPLY_STATUS:
