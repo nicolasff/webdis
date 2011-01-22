@@ -36,6 +36,9 @@ struct http_client {
 	str_t out_content_type;
 	str_t out_etag;
 
+	str_t qs_type;
+	str_t qs_jsonp;
+
 	/* private, used in HTTP parser */
 	str_t last_header_name;
 };
@@ -78,8 +81,12 @@ http_on_header_value(http_parser*, const char *at, size_t length);
 int
 http_on_complete(http_parser*);
 
+int
+http_on_query_string(http_parser*, const char *at, size_t length);
+
+
 void
-http_set_header(str_t *h, const char *p);
+http_set_header(str_t *h, const char *p, size_t sz);
 
 void
 http_send_reply(struct http_client *c, short code, const char *msg,

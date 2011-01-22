@@ -39,8 +39,9 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 
 		/* start streaming */
 		if(cmd->started_responding == 0) {
+			const char *ct = cmd->mime?cmd->mime:content_type;
 			cmd->started_responding = 1;
-			http_set_header(&cmd->client->out_content_type, cmd->mime?cmd->mime:content_type);
+			http_set_header(&cmd->client->out_content_type, ct, strlen(ct));
 			/*FIXME:
 			evhttp_send_reply_start(cmd->rq, 200, "OK");
 			*/
@@ -58,8 +59,9 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			/* SAME! send 304. */
 			http_send_reply(cmd->client, 304, "Not Modified", NULL, 0);
 		} else {
-			http_set_header(&cmd->client->out_content_type, cmd->mime?cmd->mime:content_type);
-			http_set_header(&cmd->client->out_etag, etag);
+			const char *ct = cmd->mime?cmd->mime:content_type;
+			http_set_header(&cmd->client->out_content_type, ct, strlen(ct));
+			http_set_header(&cmd->client->out_etag, etag, strlen(etag));
 			http_send_reply(cmd->client, 200, "OK", p, sz);
 		}
 #endif

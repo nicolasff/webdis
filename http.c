@@ -19,6 +19,7 @@ http_client_new(int fd, struct server *s) {
 	c->settings.on_message_complete = http_on_complete;
 	c->settings.on_header_field = http_on_header_name;
 	c->settings.on_header_value = http_on_header_value;
+	c->settings.on_query_string = http_on_query_string;
 
 	http_parser_init(&c->parser, HTTP_REQUEST);
 	c->parser.data = c;
@@ -81,6 +82,12 @@ http_client_cleanup(struct http_client *c) {
 
 	free(c->out_etag.s);
 	memset(&c->out_etag, 0, sizeof(str_t));
+
+	free(c->qs_type.s);
+	memset(&c->qs_type, 0, sizeof(str_t));
+
+	free(c->qs_jsonp.s);
+	memset(&c->qs_jsonp, 0, sizeof(str_t));
 
 	free(c->buffer);
 	c->buffer = NULL;
@@ -185,7 +192,7 @@ http_crossdomain(struct http_client *c) {
 	http_response_init(&resp, 200, "OK");
 
 	http_response_set_header(&resp, "Content-Type", "application/xml");
-	sprintf(content_length, "%zd", sizeof(content_length));
+	sprintf(content_length, "%zd", sizeof(out)-1);
 	http_response_set_header(&resp, "Content-Length", content_length);
 	http_response_set_body(&resp, out, sizeof(out)-1);
 
@@ -300,9 +307,8 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 }
 
 void
-http_set_header(str_t *h, const char *p) {
+http_set_header(str_t *h, const char *p, size_t sz) {
 
-	size_t sz = strlen(p);
 	h->s = calloc(1, 1+sz);
 	memcpy(h->s, p, sz);
 	h->sz = sz;
@@ -345,6 +351,50 @@ http_on_header_value(http_parser *p, const char *at, size_t length) {
 	c->last_header_name.s = NULL;
 	return 0;
 }
+/**
+ * Called when the query string is found
+ */
+int
+http_on_query_string(http_parser *parser, const char *at, size_t length) {
+
+	struct http_client *c = parser->data;
+	const char *p = at;
+
+	while(p < at + length) {
+
+		const char *key = p, *val;
+		int key_len, val_len;
+		char *eq = memchr(key, '=', length - (p-at));
+		if(!eq || eq > at + length) { /* last argument */
+			break;
+		} else { /* found an '=' */
+			char *and;
+			val = eq + 1;
+			key_len = eq - key;
+			p = eq + 1;
+
+			and = memchr(p, '&', length - (p-at));
+			if(!and || and > at + length) {
+				val_len = at + length - p; /* last arg */
+			} else {
+				val_len = and - val; /* cur arg */
+				p = and + 1;
+			}
+
+			if(key_len == 4 && strncmp(key, "type", 4) == 0) {
+				http_set_header(&c->qs_type, val, val_len);
+			} else if(key_len == 5 && strncmp(key, "jsonp", 5) == 0) {
+				http_set_header(&c->qs_jsonp, val, val_len);
+			}
+
+			if(!and) {
+				break;
+			}
+		}
+	}
+	return 0;
+}
+
 
 /* HTTP Response */
 void
@@ -413,11 +463,6 @@ http_response_send(struct http_response *r, int fd) {
 		memcpy(s + sz, r->body, r->body_len);
 		sz += r->body_len;
 	}
-	/*
-	printf("sz=%zd, s=["); fflush(stdout);
-	write(1, s, sz);
-	printf("]\n");
-	*/
 	
 	ret = write(fd, s, sz);
 	free(s);

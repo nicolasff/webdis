@@ -48,7 +48,8 @@ cmd_run(struct server *s, struct http_client *client,
 		const char *body, size_t body_len);
 
 int
-cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format);
+cmd_select_format(struct http_client *client, struct cmd *cmd,
+		const char *uri, size_t uri_len, formatting_fun *f_format);
 
 int
 cmd_is_subscribe(struct cmd *cmd);

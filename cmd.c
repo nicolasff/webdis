@@ -2,6 +2,7 @@
 #include "server.h"
 #include "conf.h"
 #include "acl.h"
+#include "http.h"
 
 #include "formats/json.h"
 #include "formats/raw.h"
@@ -114,11 +115,8 @@ cmd_run(struct server *s, struct http_client *client,
 
 	cmd = cmd_new(client, param_count);
 
-	/* FIXME: parse URI parameters */
-	/* evhttp_parse_query(uri, &cmd->uri_params); */
-
 	/* get output formatting function */
-	uri_len = cmd_select_format(cmd, uri, uri_len, &f_format);
+	uri_len = cmd_select_format(client, cmd, uri, uri_len, &f_format);
 
 	/* check if we only have one command or more. */
 	slash = memchr(uri, '/', uri_len);
@@ -197,9 +195,9 @@ cmd_run(struct server *s, struct http_client *client,
  * Select Content-Type and processing function.
  */
 int
-cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format) {
+cmd_select_format(struct http_client *client, struct cmd *cmd,
+		const char *uri, size_t uri_len, formatting_fun *f_format) {
 
-	struct evkeyval *kv;
 	const char *ext;
 	int ext_len = -1;
 	unsigned int i;
@@ -252,18 +250,12 @@ cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_f
 	}
 
 	/* FIXME:the user can force it with ?type=some/thing */
-	/*
-	TAILQ_FOREACH(kv, &cmd->uri_params, next) {
-		if(strcmp(kv->key, "type") == 0) {
-
-			*f_format = custom_type_reply;
-			cmd->mime = strdup(kv->value);
-			cmd->mime_free = 1;
-
-			break;
-		}
+	if(client->qs_type.s) {
+		*f_format = custom_type_reply;
+		cmd->mime = strdup(client->qs_type.s);
+		cmd->mime_free = 1;
 	}
-	*/
+
 	return uri_len - ext_len - 1;
 }
 
