@@ -19,10 +19,6 @@ struct http_client {
 	struct server *s;
 	int executing;
 
-	/* input buffer */
-	char *buffer;
-	size_t sz;
-
 	/* http parser */
 	http_parser_settings settings;
 	http_parser parser;
@@ -100,7 +96,7 @@ http_send_error(struct http_client *c, short code, const char *msg);
 
 /* HTTP response */
 void
-http_response_init(struct http_response *r, int code, const char *msg);
+http_response_init(struct http_client *c, struct http_response *r, int code, const char *msg);
 
 void
 http_response_set_header(struct http_response *r, const char *k, const char *v);
