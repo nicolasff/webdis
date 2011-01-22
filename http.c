@@ -56,16 +56,49 @@ http_client_read(int fd, short event, void *ctx) {
 		return;
 	}
 
-	http_client_serve(c);
+	if(!c->executing) {
+		http_client_serve(c);
+	}
 }
+
+static void
+http_client_cleanup(struct http_client *c) {
+
+	free(c->path.s);
+	memset(&c->path, 0, sizeof(str_t));
+
+	free(c->body.s);
+	memset(&c->body, 0, sizeof(str_t));
+
+	free(c->header_connection.s);
+	memset(&c->header_connection, 0, sizeof(str_t));
+
+	free(c->header_if_none_match.s);
+	memset(&c->header_if_none_match, 0, sizeof(str_t));
+
+	free(c->out_content_type.s);
+	memset(&c->out_content_type, 0, sizeof(str_t));
+
+	free(c->out_etag.s);
+	memset(&c->out_etag, 0, sizeof(str_t));
+
+	free(c->buffer);
+	c->buffer = NULL;
+	c->sz = 0;
+
+	memset(&c->verb, 0, sizeof(c->verb));
+
+	c->executing = 0;
+}
+
 
 void
 http_client_free(struct http_client *c) {
 
 	event_del(&c->ev);
 	close(c->fd);
-	free(c->buffer);
-	free((char*)c->out_content_type.s);
+
+	http_client_cleanup(c);
 	free(c);
 }
 
@@ -96,29 +129,7 @@ http_client_reset(struct http_client *c) {
 		return;
 	}
 
-
-	free(c->path.s);
-	memset(&c->path, 0, sizeof(str_t));
-
-	free(c->body.s);
-	memset(&c->body, 0, sizeof(str_t));
-
-	free(c->header_connection.s);
-	memset(&c->header_connection, 0, sizeof(str_t));
-
-	free(c->header_if_none_match.s);
-	memset(&c->header_if_none_match, 0, sizeof(str_t));
-
-	free(c->out_content_type.s);
-	memset(&c->out_content_type, 0, sizeof(str_t));
-	memset(&c->out_etag, 0, sizeof(str_t));
-
-	free(c->buffer);
-	c->buffer = NULL;
-	c->sz = 0;
-
-	memset(&c->verb, 0, sizeof(c->verb));
-
+	http_client_cleanup(c);
 	http_parser_init(&c->parser, HTTP_REQUEST);
 }
 
@@ -211,6 +222,7 @@ http_on_complete(http_parser *p) {
 	struct http_client *c = p->data;
 	int ret = -1;
 
+	c->executing = 1;
 	/* check that the command can be executed */
 	switch(c->verb) {
 		case HTTP_GET:
@@ -280,6 +292,7 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 	} else {
 		if(code == 200){
 			http_client_reset(c);
+			http_client_serve(c);
 		} else {
 			http_client_free(c);
 		}
@@ -408,6 +421,12 @@ http_response_send(struct http_response *r, int fd) {
 	
 	ret = write(fd, s, sz);
 	free(s);
+
+	/* cleanup response object */
+	for(i = 0; i < r->header_count; ++i) {
+		free(r->headers[i].s);
+	}
+	free(r->headers);
 
 	return ret == (int)sz ? 0 : 1;
 }

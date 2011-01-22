@@ -15,7 +15,7 @@ struct http_client {
 	int fd;
 	struct event ev;
 	struct server *s;
-	int needs_free;
+	int executing;
 
 	/* input buffer */
 	char *buffer;
