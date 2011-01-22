@@ -13,7 +13,10 @@ struct server {
 	struct conf *cfg;
 	struct event_base *base;
 	redisAsyncContext *ac;
-	struct evhttp *http;
+
+	/* server socket and event struct */
+	int fd;
+	struct event ev;
 
 	struct event ev_reconnect;
 	struct timeval tv_reconnect;
