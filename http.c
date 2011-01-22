@@ -77,6 +77,9 @@ http_client_cleanup(struct http_client *c) {
 	free(c->header_if_none_match.s);
 	memset(&c->header_if_none_match, 0, sizeof(str_t));
 
+	free(c->header_authorization.s);
+	memset(&c->header_authorization, 0, sizeof(str_t));
+
 	free(c->out_content_type.s);
 	memset(&c->out_content_type, 0, sizeof(str_t));
 
@@ -256,10 +259,21 @@ http_on_complete(http_parser *p) {
 
 		default:
 			slog(c->s, WEBDIS_DEBUG, "405");
-			/* evhttp_send_reply(rq, 405, "Method Not Allowed", NULL); */
+			http_send_error(c, 405, "Method Not Allowed");
 			return 0;
 	}
+
+	if(ret < 0) {
+		http_send_error(c, 403, "Forbidden");
+	}
+
 	return ret;
+}
+
+void
+http_send_error(struct http_client *c, short code, const char *msg) {
+
+	http_send_reply(c, code, msg, NULL, 0);
 }
 
 void
@@ -345,6 +359,10 @@ http_on_header_value(http_parser *p, const char *at, size_t length) {
 		c->header_if_none_match.s = calloc(length+1, 1);
 		memcpy(c->header_if_none_match.s, at, length);
 		c->header_if_none_match.sz = length;
+	} else if(strncmp("Authorization", c->last_header_name.s, c->last_header_name.sz) == 0) {
+		c->header_authorization.s = calloc(length+1, 1);
+		memcpy(c->header_authorization.s, at, length);
+		c->header_authorization.sz = length;
 	}
 
 	free(c->last_header_name.s);

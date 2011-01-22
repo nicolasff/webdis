@@ -1,6 +1,7 @@
 #include "acl.h"
 #include "cmd.h"
 #include "conf.h"
+#include "http.h"
 
 #include <string.h>
 #include <evhttp.h>
@@ -8,11 +9,11 @@
 #include <arpa/inet.h>
 
 int
-acl_match_client(struct acl *a, struct evhttp_request *rq, in_addr_t *ip) {
+acl_match_client(struct acl *a, struct http_client *client, in_addr_t *ip) {
 
 	/* check HTTP Basic Auth */
 	const char *auth;
-	auth = evhttp_find_header(rq->input_headers, "Authorization");
+	auth = client->header_authorization.s;
 	if(auth && a->http_basic_auth && strncasecmp(auth, "Basic ", 6) == 0) { /* sent auth */
 		if(strcmp(auth + 6, a->http_basic_auth) != 0) { /* wrong */
 			return 0;
@@ -31,7 +32,7 @@ acl_match_client(struct acl *a, struct evhttp_request *rq, in_addr_t *ip) {
 }
 
 int
-acl_allow_command(struct cmd *cmd, struct conf *cfg, struct evhttp_request *rq) {
+acl_allow_command(struct cmd *cmd, struct conf *cfg, struct http_client *client) {
 
 	char *always_off[] = {"MULTI", "EXEC", "WATCH", "DISCARD"};
 
@@ -39,8 +40,6 @@ acl_allow_command(struct cmd *cmd, struct conf *cfg, struct evhttp_request *rq) 
 	int authorized = 1;
 	struct acl *a;
 
-	char *client_ip;
-	u_short client_port;
 	in_addr_t client_addr;
 
 	const char *cmd_name = cmd->argv[0];
@@ -54,13 +53,12 @@ acl_allow_command(struct cmd *cmd, struct conf *cfg, struct evhttp_request *rq) 
 	}
 
 	/* find client's address */
-	evhttp_connection_get_peer(rq->evcon, &client_ip, &client_port);
-	client_addr = ntohl(inet_addr(client_ip));
+	client_addr = ntohl(client->addr);
 
 	/* go through permissions */
 	for(a = cfg->perms; a; a = a->next) {
 
-		if(!acl_match_client(a, rq, &client_addr)) continue; /* match client */
+		if(!acl_match_client(a, client, &client_addr)) continue; /* match client */
 
 		/* go through authorized commands */
 		for(i = 0; i < a->enabled.count; ++i) {

@@ -169,6 +169,7 @@ on_possible_accept(int fd, short event, void *ctx) {
 
 	client_fd = accept(fd, (struct sockaddr*)&addr, &addr_sz);
 	c = http_client_new(client_fd, s);
+	c->addr = addr.sin_addr.s_addr;
 	http_client_serve(c);
 }
 
@@ -188,11 +189,6 @@ server_start(struct server *s) {
 	event_set(&s->ev, s->fd, EV_READ | EV_PERSIST, on_possible_accept, s);
 	event_base_set(s->base, &s->ev);
 	event_add(&s->ev, NULL);
-
-	/*
-	evhttp_set_cb(s->http, "/crossdomain.xml", on_flash_request, s);
-	evhttp_set_gencb(s->http, on_request, s);
-	*/
 
 	/* drop privileges */
 	slog(s, WEBDIS_INFO, "Dropping Privileges");

@@ -131,12 +131,10 @@ cmd_run(struct server *s, struct http_client *client,
 	cmd->argv_len[0] = cmd_len;
 
 
-	/* FIXME: check that the client is able to run this command */
-	/*
-	if(!acl_allow_command(cmd, s->cfg, rq)) {
+	/* check that the client is able to run this command */
+	if(!acl_allow_command(cmd, s->cfg, client)) {
 		return -1;
 	}
-	*/
 
 	/* FIXME:check if we have to split the connection */
 	/*

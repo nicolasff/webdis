@@ -2,6 +2,7 @@
 #define HTTP_H
 
 #include <event.h>
+#include <arpa/inet.h>
 #include "http-parser/http_parser.h"
 
 typedef struct {
@@ -13,6 +14,7 @@ struct http_client {
 
 	/* socket and server reference */
 	int fd;
+	in_addr_t addr;
 	struct event ev;
 	struct server *s;
 	int executing;
@@ -31,6 +33,7 @@ struct http_client {
 	str_t body;
 	str_t header_connection;
 	str_t header_if_none_match;
+	str_t header_authorization;
 
 	/* response headers */
 	str_t out_content_type;
@@ -91,6 +94,9 @@ http_set_header(str_t *h, const char *p, size_t sz);
 void
 http_send_reply(struct http_client *c, short code, const char *msg,
 		const char *body, size_t body_len);
+
+void
+http_send_error(struct http_client *c, short code, const char *msg);
 
 /* HTTP response */
 void
