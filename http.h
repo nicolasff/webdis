@@ -29,6 +29,9 @@ struct http_client {
 
 	str_t path;
 	str_t body;
+
+	str_t out_content_type;
+	str_t out_etag;
 };
 
 struct http_client *
@@ -48,5 +51,11 @@ http_on_path(http_parser*, const char *at, size_t length);
 
 int
 http_on_body(http_parser*, const char *at, size_t length);
+
+int
+http_on_complete(http_parser*);
+
+void
+http_set_header(str_t *h, const char *p);
 
 #endif

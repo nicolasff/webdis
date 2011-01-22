@@ -16,7 +16,7 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	int int_len;
 
 	if(reply == NULL) {
-		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
+		/* FIXME: evhttp_send_reply(cmd->rq, 404, "Not Found", NULL); */
 		return;
 	}
 
@@ -39,7 +39,7 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 
 	/* couldn't make sense of what the client wanted. */
-	evhttp_send_reply(cmd->rq, 400, "Bad request", NULL);
+	/* FIXME: evhttp_send_reply(cmd->rq, 400, "Bad request", NULL); */
 	cmd_free(cmd);
 }
 

@@ -24,7 +24,7 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 
 	if (reply == NULL) {
-		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
+		http_send_reply(cmd->client, 404, "Not Found", NULL, 0);
 		return;
 	}
 
@@ -107,7 +107,8 @@ json_string_output(json_t *j, struct cmd *cmd) {
 
 	char *json_reply = json_dumps(j, JSON_COMPACT);
 
-	/* check for JSONP */
+	/* FIXME: check for JSONP */
+#if 0
 	TAILQ_FOREACH(kv, &cmd->uri_params, next) {
 		if(strcmp(kv->key, "jsonp") == 0) {
 			size_t json_len = strlen(json_reply);
@@ -124,7 +125,7 @@ json_string_output(json_t *j, struct cmd *cmd) {
 			return ret;
 		}
 	}
-
+#endif
 
 	return json_reply;
 }

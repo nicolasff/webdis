@@ -1,8 +1,8 @@
 #include "common.h"
 #include "cmd.h"
+#include "http.h"
 
 #include "md5/md5.h"
-#include <evhttp.h>
 #include <string.h>
 
 /* TODO: replace this with a faster hash function */
@@ -31,12 +31,7 @@ char *etag_new(const char *p, size_t sz) {
 void
 format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content_type) {
 
-	struct evbuffer *body;
 	int free_cmd = 1;
-
-	/* send reply */
-	body = evbuffer_new();
-	evbuffer_add(body, p, sz);
 
 
 	if(cmd_is_subscribe(cmd)) {
@@ -45,35 +40,36 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 		/* start streaming */
 		if(cmd->started_responding == 0) {
 			cmd->started_responding = 1;
-			evhttp_add_header(cmd->rq->output_headers, "Content-Type",
-					cmd->mime?cmd->mime:content_type);
+			http_set_header(&cmd->client->out_content_type, cmd->mime?cmd->mime:content_type);
+			/*FIXME:
 			evhttp_send_reply_start(cmd->rq, 200, "OK");
+			*/
 		}
-		evhttp_send_reply_chunk(cmd->rq, body);
+		/*FIXME: evhttp_send_reply_chunk(cmd->rq, body); */
 
 	} else {
 		/* compute ETag */
 		char *etag = etag_new(p, sz);
 		const char *if_none_match;
-
+		/* FIXME */
+#if 1
 		/* check If-None-Match */
-		if((if_none_match = evhttp_find_header(cmd->rq->input_headers, "If-None-Match")) 
-				&& strcmp(if_none_match, etag) == 0) {
+		if(0 /*FIXME:(if_none_match = evhttp_find_header(cmd->rq->input_headers, "If-None-Match")) 
+				&& strcmp(if_none_match, etag) == 0*/) {
 
 			/* SAME! send 304. */
-			evhttp_send_reply(cmd->rq, 304, "Not Modified", NULL);
+			/* evhttp_send_reply(cmd->rq, 304, "Not Modified", NULL); */
 		} else {
-			evhttp_add_header(cmd->rq->output_headers, "Content-Type",
-					cmd->mime?cmd->mime:content_type);
-			evhttp_add_header(cmd->rq->output_headers, "ETag", etag);
-			evhttp_send_reply(cmd->rq, 200, "OK", body);
+			http_set_header(&cmd->client->out_content_type, cmd->mime?cmd->mime:content_type);
+			http_set_header(&cmd->client->out_etag, etag);
+			http_send_reply(cmd->client, 200, "OK", p, sz);
 		}
+#endif
 		free(etag);
 	}
 	/* cleanup */
-	evbuffer_free(body);
 	if(free_cmd) {
-		evhttp_clear_headers(&cmd->uri_params);
+		/*FIXME: evhttp_clear_headers(&cmd->uri_params); */
 		cmd_free(cmd);
 	}
 }

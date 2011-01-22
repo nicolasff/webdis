@@ -6,7 +6,7 @@ HTTP_PARSER_OBJS=http-parser/http_parser.o
 DEPS=$(FORMAT_OBJS) $(HIREDIS_OBJ) $(JANSSON_OBJ) $(HTTP_PARSER_OBJS)
 OBJS=webdis.o conf.o cmd.o slog.o server.o libb64/cencode.o acl.o md5/md5.o http.o $(DEPS)
 
-CFLAGS=-O3 -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
+CFLAGS=-O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
 LDFLAGS=-levent
 
 all: $(OUT) Makefile

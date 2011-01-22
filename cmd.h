@@ -8,6 +8,7 @@
 #include <evhttp.h>
 
 struct evhttp_request;
+struct http_client;
 struct server;
 struct cmd;
 
@@ -18,9 +19,7 @@ struct cmd {
 	int count;
 	const char **argv;
 	size_t *argv_len;
-	struct evhttp_request *rq;
-
-	struct evkeyvalq uri_params;
+	struct http_client *client;
 
 	int started_responding;
 
@@ -38,13 +37,13 @@ struct pubsub_client {
 };
 
 struct cmd *
-cmd_new(struct evhttp_request *rq, int count);
+cmd_new(struct http_client *client, int count);
 
 void
 cmd_free(struct cmd *c);
 
 int
-cmd_run(struct server *s, struct evhttp_request *rq,
+cmd_run(struct server *s, struct http_client *client,
 		const char *uri, size_t uri_len,
 		const char *body, size_t body_len);
 

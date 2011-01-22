@@ -19,7 +19,9 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 	(void)c;
 
 	if (reply == NULL) {
+		/* FIXME
 		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
+		*/
 		return;
 	}
 

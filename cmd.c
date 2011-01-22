@@ -13,11 +13,11 @@
 #include <ctype.h>
 
 struct cmd *
-cmd_new(struct evhttp_request *rq, int count) {
+cmd_new(struct http_client *client, int count) {
 
 	struct cmd *c = calloc(1, sizeof(struct cmd));
 
-	c->rq = rq;
+	c->client = client;
 	c->count = count;
 
 	c->argv = calloc(count, sizeof(char*));
@@ -86,10 +86,11 @@ decode_uri(const char *uri, size_t length, size_t *out_len, int always_decode_pl
 
 
 int
-cmd_run(struct server *s, struct evhttp_request *rq,
-		const char *uri, size_t uri_len, const char *body, size_t body_len) {
+cmd_run(struct server *s, struct http_client *client,
+		const char *uri, size_t uri_len,
+		const char *body, size_t body_len) {
 
-	char *qmark = strchr(uri, '?');
+	char *qmark = memchr(uri, '?', uri_len);
 	char *slash;
 	const char *p;
 	int cmd_len;
@@ -104,17 +105,17 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		uri_len = qmark - uri;
 	}
 	for(p = uri; p && p < uri + uri_len; param_count++) {
-		p = strchr(p+1, '/');
+		p = memchr(p+1, '/', uri_len - (p+1-uri));
 	}
 
 	if(body && body_len) { /* PUT request */
 		param_count++;
 	}
 
-	cmd = cmd_new(rq, param_count);
+	cmd = cmd_new(client, param_count);
 
-	/* parse URI parameters */
-	evhttp_parse_query(uri, &cmd->uri_params);
+	/* FIXME: parse URI parameters */
+	/* evhttp_parse_query(uri, &cmd->uri_params); */
 
 	/* get output formatting function */
 	uri_len = cmd_select_format(cmd, uri, uri_len, &f_format);
@@ -132,12 +133,15 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	cmd->argv_len[0] = cmd_len;
 
 
-	/* check that the client is able to run this command */
+	/* FIXME: check that the client is able to run this command */
+	/*
 	if(!acl_allow_command(cmd, s->cfg, rq)) {
 		return -1;
 	}
+	*/
 
-	/* check if we have to split the connection */
+	/* FIXME:check if we have to split the connection */
+	/*
 	if(cmd_is_subscribe(cmd)) {
 		struct pubsub_client *ps;
 
@@ -147,6 +151,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		ps->rq = rq;
 		evhttp_connection_set_closecb(rq->evcon, on_http_disconnect, ps);
 	}
+	*/
 
 	/* no args (e.g. INFO command) */
 	if(!slash) {
@@ -158,7 +163,7 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 
 		const char *arg = p;
 		int arg_len;
-		char *next = strchr(arg, '/');
+		char *next = memchr(arg, '/', uri_len - (arg-p));
 		if(!next || next > uri + uri_len) { /* last argument */
 			p = uri + uri_len;
 			arg_len = p - arg;
@@ -246,7 +251,8 @@ cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_f
 		}
 	}
 
-	/* the user can force it with ?type=some/thing */
+	/* FIXME:the user can force it with ?type=some/thing */
+	/*
 	TAILQ_FOREACH(kv, &cmd->uri_params, next) {
 		if(strcmp(kv->key, "type") == 0) {
 
@@ -257,6 +263,7 @@ cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_f
 			break;
 		}
 	}
+	*/
 	return uri_len - ext_len - 1;
 }
 
