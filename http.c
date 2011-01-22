@@ -299,7 +299,7 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 	if(http_response_send(&resp, c->fd)) {
 		http_client_free(c);
 	} else {
-		if(code == 200){
+		if(code == 200 && http_client_keep_alive(c)) {
 			http_client_reset(c);
 			http_client_serve(c);
 		} else {

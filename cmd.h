@@ -26,8 +26,6 @@ struct cmd {
 	/* HTTP data */
 	char *mime;
 	int mime_free;
-
-	char *if_none_match;
 };
 
 struct pubsub_client {
