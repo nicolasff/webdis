@@ -108,29 +108,25 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 
 char *
 json_string_output(json_t *j, struct cmd *cmd) {
-	struct evkeyval *kv;
 
 	char *json_reply = json_dumps(j, JSON_COMPACT);
 
-	/* FIXME: check for JSONP */
-#if 0
-	TAILQ_FOREACH(kv, &cmd->uri_params, next) {
-		if(strcmp(kv->key, "jsonp") == 0) {
-			size_t json_len = strlen(json_reply);
-			size_t val_len = strlen(kv->value);
-			size_t ret_len = val_len + 1 + json_len + 3;
-			char *ret = calloc(1 + ret_len, 1);
+	/* check for JSONP */
+	if(cmd->client->qs_jsonp.s) {
 
-			memcpy(ret, kv->value, val_len);
-			ret[val_len]='(';
-			memcpy(ret + val_len + 1, json_reply, json_len);
-			memcpy(ret + val_len + 1 + json_len, ");\n", 3);
-			free(json_reply);
+		size_t json_len = strlen(json_reply);
+		size_t val_len = cmd->client->qs_jsonp.sz;
+		size_t ret_len = val_len + 1 + json_len + 3;
+		char *ret = calloc(1 + ret_len, 1);
 
-			return ret;
-		}
+		memcpy(ret, cmd->client->qs_jsonp.s, val_len);
+		ret[val_len]='(';
+		memcpy(ret + val_len + 1, json_reply, json_len);
+		memcpy(ret + val_len + 1 + json_len, ");\n", 3);
+		free(json_reply);
+
+		return ret;
 	}
-#endif
 
 	return json_reply;
 }
