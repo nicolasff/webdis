@@ -188,43 +188,44 @@ void
 http_send_reply(struct http_client *c, short code, const char *msg,
 		const char *body, size_t body_len) {
 
-	char *out = NULL;
-	size_t sz = 0;
-	int ret = 0, ok;
-
+	struct http_response resp;
+	char content_length[10];
 	const char *ct = c->out_content_type.s;
 	if(!ct) {
 		ct = "text/html";
 	}
 
-	while(1) {
-		ret = snprintf(out, sz, "HTTP/1.1 %d %s\r\n"
-			"Content-Type: %s\r\n"
-			"Content-Length: %zd\r\n"
-			"ETag: %s\r\n"
-			"Connection: %s\r\n"
-			"Server: Webdis\r\n"
-			"\r\n", code, msg, ct, body_len,
-			(c->out_etag.s ? c->out_etag.s : "\"\""),
-			(http_client_keep_alive(c) ? "Keep-Alive" : "Close")
-			);
+	/* respond */
+	http_response_init(&resp, code, msg);
 
-		if(!out) { /* first step: allocate space */
-			sz = ret + body_len;
-			out = malloc(sz);
-		} else { /* second step: copy body and leave loop */
-			if(body && body_len) memcpy(out + ret, body, body_len);
-			break;
+	http_response_set_header(&resp, "Server", "Webdis");
+	if(!http_client_keep_alive(c)) {
+		http_response_set_header(&resp, "Connection", "Close");
+	} else if(code == 200) {
+		http_response_set_header(&resp, "Connection", "Keep-Alive");
+	}
+
+	sprintf(content_length, "%zd", body_len);
+	http_response_set_header(&resp, "Content-Length", content_length);
+	if(body_len) {
+		http_response_set_header(&resp, "Content-Type", ct);
+	}
+
+	if(code == 200 && c->out_etag.s) {
+		http_response_set_header(&resp, "ETag", c->out_etag.s);
+	}
+
+	http_response_set_body(&resp, body, body_len);
+
+	if(http_response_send(&resp, c->fd)) {
+		http_client_free(c);
+	} else {
+		if(code == 200){
+			http_client_reset(c);
+		} else {
+			http_client_free(c);
 		}
 	}
-
-	ok = write(c->fd, out, sz);
-	if(ok != (int)sz) {
-		http_client_free(c);
-	}
-	free(out);
-
-	http_client_reset(c);
 }
 
 void
@@ -265,3 +266,81 @@ http_on_header_value(http_parser *p, const char *at, size_t length) {
 	}
 	return 0;
 }
+
+/* HTTP Response */
+void
+http_response_init(struct http_response *r, int code, const char *msg) {
+
+	memset(r, 0, sizeof(struct http_response));
+	r->code = code;
+	r->msg = msg;
+}
+
+void
+http_response_set_header(struct http_response *r, const char *k, const char *v) {
+
+	size_t sz;
+	char *s;
+
+	sz = strlen(k) + 2 + strlen(v) + 2;
+	s = calloc(sz + 1, 1);
+	sprintf(s, "%s: %s\r\n", k, v);
+
+	r->headers = realloc(r->headers, sizeof(str_t)*(r->header_count + 1));
+	r->headers[r->header_count].s = s;
+	r->headers[r->header_count].sz = sz;
+
+	r->header_count++;
+}
+
+void
+http_response_set_body(struct http_response *r, const char *body, size_t body_len) {
+
+	r->body = body;
+	r->body_len = body_len;
+}
+
+int
+http_response_send(struct http_response *r, int fd) {
+
+	char *s = NULL, *p;
+	size_t sz = 0;
+	int i, ret;
+
+	sz = sizeof("HTTP/1.x xxx ")-1 + strlen(r->msg) + 2;
+	s = calloc(sz + 1, 1);
+
+	ret = sprintf(s, "HTTP/1.1 %d %s\r\n", r->code, r->msg);
+	p = s; // + ret - 3;
+
+	for(i = 0; i < r->header_count; ++i) {
+		s = realloc(s, sz + r->headers[i].sz);
+		p = s + sz;
+		memcpy(p, r->headers[i].s, r->headers[i].sz);
+
+		p += r->headers[i].sz;
+		sz += r->headers[i].sz;
+	}
+	
+	/* end of headers */
+	s = realloc(s, sz + 2);
+	memcpy(s + sz, "\r\n", 2);
+	sz += 2;
+
+	if(r->body && r->body_len) {
+		s = realloc(s, sz + r->body_len);
+		memcpy(s + sz, r->body, r->body_len);
+		sz += r->body_len;
+	}
+	/*
+	printf("sz=%zd, s=["); fflush(stdout);
+	write(1, s, sz);
+	printf("]\n");
+	*/
+	
+	ret = write(fd, s, sz);
+	free(s);
+
+	return ret == (int)sz ? 0 : 1;
+}
+
