@@ -31,6 +31,7 @@ struct http_client {
 	str_t path;
 	str_t body;
 	str_t header_connection;
+	str_t header_if_none_match;
 
 	str_t out_content_type;
 	str_t out_etag;

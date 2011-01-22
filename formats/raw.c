@@ -1,6 +1,7 @@
 #include "raw.h"
 #include "cmd.h"
 #include "common.h"
+#include "http.h"
 
 #include <string.h>
 #include <hiredis/hiredis.h>
@@ -19,9 +20,7 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 	(void)c;
 
 	if (reply == NULL) {
-		/* FIXME
-		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
-		*/
+		http_send_reply(cmd->client, 404, "Not Found", NULL, 0);
 		return;
 	}
 

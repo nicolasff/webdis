@@ -1,6 +1,7 @@
 #include "custom-type.h"
 #include "cmd.h"
 #include "common.h"
+#include "http.h"
 
 #include <string.h>
 #include <hiredis/hiredis.h>
@@ -16,7 +17,7 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	int int_len;
 
 	if(reply == NULL) {
-		/* FIXME: evhttp_send_reply(cmd->rq, 404, "Not Found", NULL); */
+		http_send_reply(cmd->client, 404, "Not Found", NULL, 0);
 		return;
 	}
 
@@ -39,7 +40,7 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 
 	/* couldn't make sense of what the client wanted. */
-	/* FIXME: evhttp_send_reply(cmd->rq, 400, "Bad request", NULL); */
+	http_send_reply(cmd->client, 400, "Bad request", NULL, 0);
 	cmd_free(cmd);
 }
 

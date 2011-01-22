@@ -36,7 +36,6 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 
 	if(cmd_is_subscribe(cmd)) {
 		free_cmd = 0;
-		printf("wtf\n");
 
 		/* start streaming */
 		if(cmd->started_responding == 0) {
@@ -51,15 +50,13 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 	} else {
 		/* compute ETag */
 		char *etag = etag_new(p, sz);
-		const char *if_none_match;
+		const char *if_none_match = cmd->client->header_if_none_match.s;
 		/* FIXME */
 #if 1
 		/* check If-None-Match */
-		if(0 /*FIXME:(if_none_match = evhttp_find_header(cmd->rq->input_headers, "If-None-Match")) 
-				&& strcmp(if_none_match, etag) == 0*/) {
-
+		if(if_none_match && strncmp(if_none_match, etag, cmd->client->header_if_none_match.sz) == 0) {
 			/* SAME! send 304. */
-			/* evhttp_send_reply(cmd->rq, 304, "Not Modified", NULL); */
+			http_send_reply(cmd->client, 304, "Not Modified", NULL, 0);
 		} else {
 			http_set_header(&cmd->client->out_content_type, cmd->mime?cmd->mime:content_type);
 			http_set_header(&cmd->client->out_etag, etag);

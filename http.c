@@ -96,12 +96,14 @@ http_client_reset(struct http_client *c) {
 		return;
 	}
 
-	memset(&c->path, 0, sizeof(c->path));
-	memset(&c->body, 0, sizeof(c->body));
+	memset(&c->path, 0, sizeof(str_t));
+	memset(&c->body, 0, sizeof(str_t));
+	memset(&c->header_connection, 0, sizeof(str_t));
+	memset(&c->header_if_none_match, 0, sizeof(str_t));
 
 	free((char*)c->out_content_type.s);
-	memset(&c->out_content_type, 0, sizeof(c->out_content_type));
-	memset(&c->out_etag, 0, sizeof(c->out_etag));
+	memset(&c->out_content_type, 0, sizeof(str_t));
+	memset(&c->out_etag, 0, sizeof(str_t));
 
 	free(c->buffer);
 	c->buffer = NULL;
@@ -199,9 +201,11 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 		ret = snprintf(out, sz, "HTTP/1.1 %d %s\r\n"
 			"Content-Type: %s\r\n"
 			"Content-Length: %zd\r\n"
+			"ETag: %s\r\n"
 			"Connection: %s\r\n"
 			"Server: Webdis\r\n"
 			"\r\n", code, msg, ct, body_len,
+			(c->out_etag.s ? c->out_etag.s : "\"\""),
 			(http_client_keep_alive(c) ? "Keep-Alive" : "Close")
 			);
 
@@ -252,9 +256,12 @@ http_on_header_value(http_parser *p, const char *at, size_t length) {
 
 	struct http_client *c = p->data;
 
-	if(strncmp("Connection", c->last_header_name.s, length) == 0) {
+	if(strncmp("Connection", c->last_header_name.s, c->last_header_name.sz) == 0) {
 		c->header_connection.s = at;
 		c->header_connection.sz = length;
+	} else if(strncmp("If-None-Match", c->last_header_name.s, c->last_header_name.sz) == 0) {
+		c->header_if_none_match.s = at;
+		c->header_if_none_match.sz = length;
 	}
 	return 0;
 }
