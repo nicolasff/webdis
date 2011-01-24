@@ -1,6 +1,9 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
+#include <event.h>
+#include <arpa/inet.h>
+#include "http-parser/http_parser.h"
 #include "http.h"
 
 struct server;
@@ -43,6 +46,8 @@ struct http_client {
 	/* pub/sub */
 	struct subscription *sub;
 
+	struct http_response resp;
+
 	/* private, used in HTTP parser */
 	str_t last_header_name;
 };
@@ -81,11 +86,34 @@ http_on_complete(http_parser*);
 int
 http_on_query_string(http_parser*, const char *at, size_t length);
 
+int
+http_client_keep_alive(struct http_client *c);
+
+/* responses */
+
 void
 http_send_reply(struct http_client *c, short code, const char *msg,
 		const char *body, size_t body_len);
 
+/* Transfer-encoding: chunked */
+void
+http_send_reply_start(struct http_client *c, short code, const char *msg);
+
+void
+http_send_reply_chunk(struct http_client *c, const char *p, size_t sz);
+
+void
+http_send_reply_end(struct http_client *c);
+
+void
+http_send_error(struct http_client *c, short code, const char *msg);
+
+/* convenience functions */
 int
-http_client_keep_alive(struct http_client *c);
+http_crossdomain(struct http_client *c);
+
+/* reply to OPTIONS HTTP verb */
+int
+http_options(struct http_client *c);
 
 #endif

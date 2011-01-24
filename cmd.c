@@ -2,7 +2,6 @@
 #include "server.h"
 #include "conf.h"
 #include "acl.h"
-#include "http.h"
 #include "client.h"
 
 #include "formats/json.h"
