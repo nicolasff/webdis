@@ -124,7 +124,8 @@ on_timer_reconnect(int fd, short event, void *ctx) {
 	s->ac->data = s;
 
 	if(s->ac->err) {
-		slog(s, WEBDIS_ERROR, "Connection failed");
+		const char err[] = "Connection failed";
+		slog(s, WEBDIS_ERROR, err, sizeof(err)-1);
 		fprintf(stderr, "Error: %s\n", s->ac->errstr);
 	}
 
@@ -184,7 +185,7 @@ server_start(struct server *s) {
 #endif
 
 	/* start http server */
-	slog(s, WEBDIS_INFO, "Starting HTTP Server");
+	slog(s, WEBDIS_INFO, "Starting HTTP Server", sizeof("Starting HTTP Server")-1);
 
 	s->fd = socket_setup(s->cfg->http_host, s->cfg->http_port);
 	/* FIXME: check return value. */
@@ -193,7 +194,7 @@ server_start(struct server *s) {
 	event_add(&s->ev, NULL);
 
 	/* drop privileges */
-	slog(s, WEBDIS_INFO, "Dropping Privileges");
+	slog(s, WEBDIS_INFO, "Dropping Privileges", sizeof("Dropping Privileges")-1);
 	setuid(s->cfg->user);
 	setgid(s->cfg->group);
 

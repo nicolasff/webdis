@@ -18,6 +18,7 @@ http_client_new(int fd, struct server *s) {
 	c->fd = fd;
 	c->s = s;
 
+	/* initialize HTTP parser */
 	c->settings.on_path = http_on_path;
 	c->settings.on_body = http_on_body;
 	c->settings.on_message_complete = http_on_complete;
@@ -32,6 +33,9 @@ http_client_new(int fd, struct server *s) {
 }
 
 
+/**
+ * Called by libevent when read(2) is possible on fd without blocking.
+ */
 void
 http_client_read(int fd, short event, void *ctx) {
 
@@ -48,16 +52,15 @@ http_client_read(int fd, short event, void *ctx) {
 		return;
 	}
 
-	/* TODO: http parse. */
 	nparsed = http_parser_execute(&c->parser, &c->settings, buffer, ret);
 	if(c->parser.upgrade) {
-		/* TODO */
+		/* TODO: upgrade parser (WebSockets & cie) */
 	} else if(nparsed != ret) { /* invalid */
 		http_client_free(c);
 		return;
 	}
 
-	if(!c->executing) {
+	if(!c->executing) { /* if we're not waiting for Redis to reply, continue serving. */
 		http_client_serve(c);
 	}
 }
@@ -157,7 +160,7 @@ http_client_reset(struct http_client *c) {
 }
 
 /**
- * Add read event callback
+ * (Re-)add read event callback
  */
 void
 http_client_serve(struct http_client *c) {
@@ -260,17 +263,17 @@ http_on_complete(http_parser *p) {
 			if(c->path.sz == 16 && memcmp(c->path.s, "/crossdomain.xml", 16) == 0) {
 				return http_crossdomain(c);
 			}
-			/* slog(s, WEBDIS_DEBUG, uri); */
+			slog(c->s, WEBDIS_DEBUG, c->path.s, c->path.sz);
 			ret = cmd_run(c->s, c, 1+c->path.s, c->path.sz-1, NULL, 0);
 			break;
 
 		case HTTP_POST:
-			/*slog(s, WEBDIS_DEBUG, uri);*/
+			slog(c->s, WEBDIS_DEBUG, c->path.s, c->path.sz);
 			ret = cmd_run(c->s, c, 1+c->body.s, c->body.sz-1, NULL, 0);
 			break;
 
 		case HTTP_PUT:
-			/* slog(s, WEBDIS_DEBUG, uri); */
+			slog(c->s, WEBDIS_DEBUG, c->path.s, c->path.sz);
 			ret = cmd_run(c->s, c, 1+c->path.s, c->path.sz-1,
 					c->body.s, c->body.sz);
 			break;
@@ -279,7 +282,7 @@ http_on_complete(http_parser *p) {
 			return http_options(c);
 
 		default:
-			slog(c->s, WEBDIS_DEBUG, "405");
+			slog(c->s, WEBDIS_DEBUG, "405", 3);
 			http_send_error(c, 405, "Method Not Allowed");
 			return 0;
 	}

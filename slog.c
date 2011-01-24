@@ -10,7 +10,9 @@
 #include "server.h"
 #include "conf.h"
 
-void slog(const struct server *s, log_level level, const char *body) {
+void slog(const struct server *s, log_level level,
+		const char *body, size_t sz) {
+
 	const char *c = ".-*#";
 	time_t now = time(NULL);
 	static FILE *fp = NULL;
@@ -26,7 +28,7 @@ void slog(const struct server *s, log_level level, const char *body) {
 	if(!fp) return;
 
 	/* limit message size */
-	snprintf(msg, sizeof(msg), "%s", body);
+	snprintf(msg, sz + 1 > sizeof(msg) ? sizeof(msg) : sz + 1, "%s", body);
 
 	strftime(buf,sizeof(buf),"%d %b %H:%M:%S",localtime(&now));
 	fprintf(fp,"[%d] %s %c %s\n", (int)self, buf, c[level], msg);
