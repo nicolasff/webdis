@@ -188,7 +188,12 @@ server_start(struct server *s) {
 	slog(s, WEBDIS_INFO, "Starting HTTP Server", sizeof("Starting HTTP Server")-1);
 
 	s->fd = socket_setup(s->cfg->http_host, s->cfg->http_port);
-	/* FIXME: check return value. */
+	/* check return value. */
+	if(s->fd == -1) {
+		char err[] = "Failed to create socket.";
+		slog(s, WEBDIS_ERROR, err, sizeof(err)-1);
+		_exit(1);
+	}
 	event_set(&s->ev, s->fd, EV_READ | EV_PERSIST, on_possible_accept, s);
 	event_base_set(s->base, &s->ev);
 	event_add(&s->ev, NULL);
