@@ -2,6 +2,7 @@
 #include "cmd.h"
 #include "conf.h"
 #include "http.h"
+#include "client.h"
 
 #include <string.h>
 #include <evhttp.h>

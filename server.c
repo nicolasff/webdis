@@ -3,6 +3,7 @@
 #include "cmd.h"
 #include "slog.h"
 #include "http.h"
+#include "client.h"
 
 #include <hiredis/hiredis.h>
 #include <hiredis/adapters/libevent.h>
@@ -172,6 +173,7 @@ on_possible_accept(int fd, short event, void *ctx) {
 	c->addr = addr.sin_addr.s_addr;
 	http_client_serve(c);
 }
+
 
 void
 server_start(struct server *s) {

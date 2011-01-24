@@ -1,6 +1,7 @@
 #include "common.h"
 #include "cmd.h"
 #include "http.h"
+#include "client.h"
 
 #include "md5/md5.h"
 #include <string.h>

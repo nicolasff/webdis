@@ -4,7 +4,7 @@ JANSSON_OBJ=jansson/src/dump.o jansson/src/error.o jansson/src/hashtable.o janss
 FORMAT_OBJS=formats/json.o formats/raw.o formats/common.o formats/custom-type.o
 HTTP_PARSER_OBJS=http-parser/http_parser.o
 DEPS=$(FORMAT_OBJS) $(HIREDIS_OBJ) $(JANSSON_OBJ) $(HTTP_PARSER_OBJS)
-OBJS=webdis.o conf.o cmd.o slog.o server.o libb64/cencode.o acl.o md5/md5.o http.o $(DEPS)
+OBJS=webdis.o conf.o cmd.o slog.o server.o libb64/cencode.o acl.o md5/md5.o http.o client.o $(DEPS)
 
 CFLAGS=-O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
 LDFLAGS=-levent

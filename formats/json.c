@@ -2,6 +2,7 @@
 #include "common.h"
 #include "cmd.h"
 #include "http.h"
+#include "client.h"
 
 #include <string.h>
 #include <hiredis/hiredis.h>
