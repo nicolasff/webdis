@@ -6,8 +6,6 @@
 #include <sys/queue.h>
 #include <event.h>
 
-struct evhttp;
-
 struct server {
 
 	struct conf *cfg;

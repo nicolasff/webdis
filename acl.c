@@ -13,7 +13,7 @@ acl_match_client(struct acl *a, struct http_client *client, in_addr_t *ip) {
 
 	/* check HTTP Basic Auth */
 	const char *auth;
-	auth = client->header_authorization.s;
+	auth = client->input_headers.authorization.s;
 	if(auth && a->http_basic_auth && strncasecmp(auth, "Basic ", 6) == 0) { /* sent auth */
 		if(strcmp(auth + 6, a->http_basic_auth) != 0) { /* wrong */
 			return 0;

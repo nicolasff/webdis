@@ -27,18 +27,25 @@ struct http_client {
 	enum http_method verb;
 	str_t path;
 	str_t body;
-	str_t header_connection;
-	str_t header_if_none_match;
-	str_t header_authorization;
+
+	/* input headers from client */
+	struct {
+		str_t connection;
+		str_t if_none_match;
+		str_t authorization;
+	} input_headers;
 
 	/* response headers */
-	str_t out_content_type;
-	str_t out_etag;
+	struct input_headers {
+		str_t content_type;
+		str_t etag;
+	} output_headers;
 
 	/* query string */
 	str_t qs_type;
 	str_t qs_jsonp;
 
+	/* pub/sub */
 	struct subscription *sub;
 
 	/* private, used in HTTP parser */
@@ -118,6 +125,6 @@ void
 http_response_set_body(struct http_response *r, const char *body, size_t body_len);
 
 int
-http_response_send(struct http_response *r, int fd);
+http_response_write(struct http_response *r, int fd);
 
 #endif

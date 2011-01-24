@@ -71,20 +71,20 @@ http_client_cleanup(struct http_client *c) {
 	free(c->body.s);
 	memset(&c->body, 0, sizeof(str_t));
 
-	free(c->header_connection.s);
-	memset(&c->header_connection, 0, sizeof(str_t));
+	free(c->input_headers.connection.s);
+	memset(&c->input_headers.connection, 0, sizeof(str_t));
 
-	free(c->header_if_none_match.s);
-	memset(&c->header_if_none_match, 0, sizeof(str_t));
+	free(c->input_headers.if_none_match.s);
+	memset(&c->input_headers.if_none_match, 0, sizeof(str_t));
 
-	free(c->header_authorization.s);
-	memset(&c->header_authorization, 0, sizeof(str_t));
+	free(c->input_headers.authorization.s);
+	memset(&c->input_headers.authorization, 0, sizeof(str_t));
 
-	free(c->out_content_type.s);
-	memset(&c->out_content_type, 0, sizeof(str_t));
+	free(c->output_headers.content_type.s);
+	memset(&c->output_headers.content_type, 0, sizeof(str_t));
 
-	free(c->out_etag.s);
-	memset(&c->out_etag, 0, sizeof(str_t));
+	free(c->output_headers.etag.s);
+	memset(&c->output_headers.etag, 0, sizeof(str_t));
 
 	free(c->qs_type.s);
 	memset(&c->qs_type, 0, sizeof(str_t));
@@ -131,10 +131,10 @@ http_client_keep_alive(struct http_client *c) {
 	} else if(c->parser.http_major == 1 && c->parser.http_minor == 0) {
 		disconnect = 1; /* HTTP 1.0: disconnect by default */
 	}
-	if(c->header_connection.s) {
-		if(strncasecmp(c->header_connection.s, "Keep-Alive", 10) == 0) {
+	if(c->input_headers.connection.s) {
+		if(strncasecmp(c->input_headers.connection.s, "Keep-Alive", 10) == 0) {
 			disconnect = 0;
-		} else if(strncasecmp(c->header_connection.s, "Close", 5) == 0) {
+		} else if(strncasecmp(c->input_headers.connection.s, "Close", 5) == 0) {
 			disconnect = 1;
 		}
 	}
@@ -195,7 +195,6 @@ static int
 http_crossdomain(struct http_client *c) {
 
 	struct http_response resp;
-	char content_length[10];
 	char out[] = "<?xml version=\"1.0\"?>\n"
 "<!DOCTYPE cross-domain-policy SYSTEM \"http://www.macromedia.com/xml/dtds/cross-domain-policy.dtd\">\n"
 "<cross-domain-policy>\n"
@@ -203,13 +202,10 @@ http_crossdomain(struct http_client *c) {
 "</cross-domain-policy>\n";
 
 	http_response_init(c, &resp, 200, "OK");
-
 	http_response_set_header(&resp, "Content-Type", "application/xml");
-	sprintf(content_length, "%zd", sizeof(out)-1);
-	http_response_set_header(&resp, "Content-Length", content_length);
 	http_response_set_body(&resp, out, sizeof(out)-1);
 
-	http_response_send(&resp, c->fd);
+	http_response_write(&resp, c->fd);
 	http_client_reset(c);
 
 	return 0;
@@ -231,7 +227,7 @@ http_options(struct http_client *c) {
 	/* Cross-Origin Resource Sharing, CORS. */
 	http_response_set_header(&resp, "Access-Control-Allow-Origin", "*");
 
-	http_response_send(&resp, c->fd);
+	http_response_write(&resp, c->fd);
 	http_client_reset(c);
 	
 	return 0;
@@ -291,8 +287,7 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 		const char *body, size_t body_len) {
 
 	struct http_response resp;
-	char content_length[10];
-	const char *ct = c->out_content_type.s;
+	const char *ct = c->output_headers.content_type.s;
 	if(!ct) {
 		ct = "text/html";
 	}
@@ -300,10 +295,6 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 	/* respond */
 	http_response_init(c, &resp, code, msg);
 
-	sprintf(content_length, "%zd", body_len);
-	if(!c->sub) {
-		http_response_set_header(&resp, "Content-Length", content_length);
-	}
 	if(body_len) {
 		http_response_set_header(&resp, "Content-Type", ct);
 	}
@@ -312,14 +303,14 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 		http_response_set_header(&resp, "Transfer-Encoding", "chunked");
 	}
 
-	if(code == 200 && c->out_etag.s) {
-		http_response_set_header(&resp, "ETag", c->out_etag.s);
+	if(code == 200 && c->output_headers.etag.s) {
+		http_response_set_header(&resp, "ETag", c->output_headers.etag.s);
 	}
 
 	http_response_set_body(&resp, body, body_len);
 
 	/* flush response in the socket */
-	if(http_response_send(&resp, c->fd)) {
+	if(http_response_write(&resp, c->fd)) {
 		http_client_free(c);
 	} else {
 		if(c->sub) { /* don't free the client, but monitor fd. */
@@ -392,17 +383,11 @@ http_on_header_value(http_parser *p, const char *at, size_t length) {
 	struct http_client *c = p->data;
 
 	if(strncmp("Connection", c->last_header_name.s, c->last_header_name.sz) == 0) {
-		c->header_connection.s = calloc(length+1, 1);
-		memcpy(c->header_connection.s, at, length);
-		c->header_connection.sz = length;
+		http_set_header(&c->input_headers.connection, at, length);
 	} else if(strncmp("If-None-Match", c->last_header_name.s, c->last_header_name.sz) == 0) {
-		c->header_if_none_match.s = calloc(length+1, 1);
-		memcpy(c->header_if_none_match.s, at, length);
-		c->header_if_none_match.sz = length;
+		http_set_header(&c->input_headers.if_none_match, at, length);
 	} else if(strncmp("Authorization", c->last_header_name.s, c->last_header_name.sz) == 0) {
-		c->header_authorization.s = calloc(length+1, 1);
-		memcpy(c->header_authorization.s, at, length);
-		c->header_authorization.sz = length;
+		http_set_header(&c->input_headers.authorization, at, length);
 	} else if(strncmp("Expect", c->last_header_name.s, c->last_header_name.sz) == 0) {
 		if(length == 12 && memcmp(at, "100-continue", length) == 0) {
 			/* support HTTP file upload */
@@ -415,6 +400,7 @@ http_on_header_value(http_parser *p, const char *at, size_t length) {
 	c->last_header_name.s = NULL;
 	return 0;
 }
+
 /**
  * Called when the query string is found
  */
@@ -480,6 +466,7 @@ http_response_init(struct http_client *c, struct http_response *r, int code, con
 void
 http_response_set_header(struct http_response *r, const char *k, const char *v) {
 
+	int i, pos = r->header_count;
 	size_t sz;
 	char *s;
 
@@ -487,11 +474,22 @@ http_response_set_header(struct http_response *r, const char *k, const char *v) 
 	s = calloc(sz + 1, 1);
 	sprintf(s, "%s: %s\r\n", k, v);
 
-	r->headers = realloc(r->headers, sizeof(str_t)*(r->header_count + 1));
-	r->headers[r->header_count].s = s;
-	r->headers[r->header_count].sz = sz;
+	for(i = 0; i < r->header_count; ++i) {
+		size_t klen = strlen(k);
+		if(strncmp(r->headers[i].s, k, klen) == 0 && r->headers[i].s[klen] == ':') {
+			pos = i;
+			free(r->headers[i].s);
+			break;
+		}
+	}
 
-	r->header_count++;
+	if(pos == r->header_count) {
+		r->headers = realloc(r->headers, sizeof(str_t)*(r->header_count + 1));
+		r->header_count++;
+	}
+	r->headers[pos].s = s;
+	r->headers[pos].sz = sz;
+
 }
 
 void
@@ -502,7 +500,7 @@ http_response_set_body(struct http_response *r, const char *body, size_t body_le
 }
 
 int
-http_response_send(struct http_response *r, int fd) {
+http_response_write(struct http_response *r, int fd) {
 
 	char *s = NULL, *p;
 	size_t sz = 0;
@@ -513,6 +511,14 @@ http_response_send(struct http_response *r, int fd) {
 
 	ret = sprintf(s, "HTTP/1.1 %d %s\r\n", r->code, r->msg);
 	p = s; // + ret - 3;
+
+	if(r->code == 200 && r->body) {
+		char content_length[10];
+		sprintf(content_length, "%zd", r->body_len);
+		http_response_set_header(r, "Content-Length", content_length);
+		http_response_set_header(r, "Content-Length", content_length);
+		http_response_set_header(r, "Content-Length", content_length);
+	}
 
 	for(i = 0; i < r->header_count; ++i) {
 		s = realloc(s, sz + r->headers[i].sz);
