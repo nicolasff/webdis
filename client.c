@@ -29,6 +29,8 @@ http_client_new(int fd, struct server *s) {
 	http_parser_init(&c->parser, HTTP_REQUEST);
 	c->parser.data = c;
 
+	c->state = CLIENT_WAITING;
+
 	return c;
 }
 
@@ -46,6 +48,11 @@ http_client_read(int fd, short event, void *ctx) {
 	(void)fd;
 	(void)event;
 
+	if(c->state == CLIENT_BROKEN) {
+		http_client_free(c);
+		return;
+	}
+
 	ret = read(c->fd, buffer, sizeof(buffer));
 	if(ret <= 0) { /* broken connection, bye */
 		http_client_free(c);
@@ -56,12 +63,22 @@ http_client_read(int fd, short event, void *ctx) {
 	if(c->parser.upgrade) {
 		/* TODO: upgrade parser (WebSockets & cie) */
 	} else if(nparsed != ret) { /* invalid */
-		http_client_free(c);
+		c->state = CLIENT_BROKEN;
 		return;
 	}
 
-	if(!c->executing) { /* if we're not waiting for Redis to reply, continue serving. */
-		http_client_serve(c);
+	/* if we're not waiting for Redis to reply, continue serving. */
+	switch(c->state) {
+		case CLIENT_WAITING:
+			http_client_serve(c);
+			break;
+
+		case CLIENT_BROKEN:
+			http_client_free(c);
+			break;
+
+		default:
+			break;
 	}
 }
 
@@ -101,7 +118,7 @@ http_client_cleanup(struct http_client *c) {
 
 	memset(&c->verb, 0, sizeof(c->verb));
 
-	c->executing = 0;
+	c->state = CLIENT_WAITING;
 }
 
 void
@@ -151,7 +168,7 @@ void
 http_client_reset(struct http_client *c) {
 
 	if(!http_client_keep_alive(c) && !c->sub) {
-		http_client_free(c);
+		c->state = CLIENT_BROKEN;
 		return;
 	}
 
@@ -256,7 +273,8 @@ http_on_complete(http_parser *p) {
 	struct http_client *c = p->data;
 	int ret = -1;
 
-	c->executing = 1;
+	c->state = CLIENT_EXECUTING;
+
 	/* check that the command can be executed */
 	switch(c->verb) {
 		case HTTP_GET:
@@ -344,16 +362,18 @@ http_on_header_value(http_parser *p, const char *at, size_t length) {
 static void
 http_response_init(struct http_client *c, struct http_response *r, int code, const char *msg) {
 
+	/* remove any old data */
 	memset(r, 0, sizeof(struct http_response));
+
 	r->code = code;
 	r->msg = msg;
 
 	http_response_set_header(r, "Server", "Webdis");
 
-	if(!http_client_keep_alive(c)) {
-		http_response_set_header(r, "Connection", "Close");
-	} else if(code == 200) {
+	if(http_client_keep_alive(c)) {
 		http_response_set_header(r, "Connection", "Keep-Alive");
+	} else {
+		http_response_set_header(r, "Connection", "Close");
 	}
 }
 void
@@ -385,18 +405,16 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 
 	/* flush response in the socket */
 	if(http_response_write(&resp, c->fd)) { /* failure */
-		http_client_free(c);
+		c->state = CLIENT_BROKEN;
 	} else {
 		if(c->sub) { /* don't free the client, but monitor fd. */
-			http_client_serve(c);
-			return;
 		} else if(code == 200 && http_client_keep_alive(c)) { /* reset client */
 			http_client_reset(c);
-			http_client_serve(c);
 		} else {
-			http_client_free(c); /* error or HTTP < 1.1: close */
+			c->state = CLIENT_BROKEN; /* error or HTTP < 1.1: close */
 		}
 	}
+	http_client_serve(c);
 }
 
 void

@@ -72,8 +72,8 @@ http_response_write(struct http_response *r, int fd) {
 		char content_length[10];
 		sprintf(content_length, "%zd", r->body_len);
 		http_response_set_header(r, "Content-Length", content_length);
-		http_response_set_header(r, "Content-Length", content_length);
-		http_response_set_header(r, "Content-Length", content_length);
+	} else {
+		http_response_set_header(r, "Content-Length", "0");
 	}
 
 	for(i = 0; i < r->header_count; ++i) {
@@ -95,7 +95,7 @@ http_response_write(struct http_response *r, int fd) {
 		memcpy(s + sz, r->body, r->body_len);
 		sz += r->body_len;
 	}
-	
+
 	ret = write(fd, s, sz);
 	free(s);
 

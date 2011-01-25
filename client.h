@@ -8,6 +8,11 @@
 
 struct server;
 
+typedef enum {
+	CLIENT_WAITING,
+	CLIENT_EXECUTING,
+	CLIENT_BROKEN} client_state;
+
 struct http_client {
 
 	/* socket and server reference */
@@ -15,7 +20,7 @@ struct http_client {
 	in_addr_t addr;
 	struct event ev;
 	struct server *s;
-	int executing;
+	client_state state;
 
 	/* http parser */
 	http_parser_settings settings;
