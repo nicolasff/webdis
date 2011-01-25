@@ -15,12 +15,12 @@ void
 json_reply(redisAsyncContext *c, void *r, void *privdata) {
 
 	redisReply *reply = r;
-	struct cmd *cmd = privdata;
+	struct http_client *client = privdata;
 	json_t *j;
 	char *jstr;
 	(void)c;
 
-	if(cmd == NULL) {
+	if(client->cmd == NULL) {
 		/* broken connection */
 		return;
 	}
@@ -30,13 +30,15 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 
 	/* encode redis reply as JSON */
-	j = json_wrap_redis_reply(cmd, r);
+	j = json_wrap_redis_reply(client->cmd, r);
 
 	/* get JSON as string, possibly with JSONP wrapper */
-	jstr = json_string_output(j, cmd);
+	jstr = json_string_output(j,
+			client->query_string.jsonp.s,
+			client->query_string.jsonp.sz);
 
 	/* send reply */
-	format_send_reply(cmd, jstr, strlen(jstr), "application/json");
+	format_send_reply(client, jstr, strlen(jstr), "application/json");
 
 	/* cleanup */
 	json_decref(j);
@@ -107,22 +109,20 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 
 
 char *
-json_string_output(json_t *j, struct cmd *cmd) {
+json_string_output(json_t *j, const char *jsonp, size_t jsonp_len) {
 
 	char *json_reply = json_dumps(j, JSON_COMPACT);
 
 	/* check for JSONP */
-	if(cmd->client->query_string.jsonp.s) {
-
+	if(jsonp) {
 		size_t json_len = strlen(json_reply);
-		size_t val_len = cmd->client->query_string.jsonp.sz;
-		size_t ret_len = val_len + 1 + json_len + 3;
+		size_t ret_len = jsonp_len + 1 + json_len + 3;
 		char *ret = calloc(1 + ret_len, 1);
 
-		memcpy(ret, cmd->client->query_string.jsonp.s, val_len);
-		ret[val_len]='(';
-		memcpy(ret + val_len + 1, json_reply, json_len);
-		memcpy(ret + val_len + 1 + json_len, ");\n", 3);
+		memcpy(ret, jsonp, jsonp_len);
+		ret[jsonp_len]='(';
+		memcpy(ret + jsonp_len + 1, json_reply, json_len);
+		memcpy(ret + jsonp_len + 1 + json_len, ");\n", 3);
 		free(json_reply);
 
 		return ret;

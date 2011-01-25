@@ -14,11 +14,10 @@
 #include <ctype.h>
 
 struct cmd *
-cmd_new(struct http_client *client, int count) {
+cmd_new(int count) {
 
 	struct cmd *c = calloc(1, sizeof(struct cmd));
 
-	c->client = client;
 	c->count = count;
 
 	c->argv = calloc(count, sizeof(char*));
@@ -30,6 +29,8 @@ cmd_new(struct http_client *client, int count) {
 
 void
 cmd_free(struct cmd *c) {
+
+	if(!c) return;
 
 	free(c->argv);
 	free(c->argv_len);
@@ -95,7 +96,7 @@ cmd_run(struct server *s, struct http_client *client,
 		param_count++;
 	}
 
-	cmd = cmd_new(client, param_count);
+	client->cmd = cmd = cmd_new(param_count);
 
 	/* get output formatting function */
 	uri_len = cmd_select_format(client, cmd, uri, uri_len, &f_format);
@@ -128,7 +129,7 @@ cmd_run(struct server *s, struct http_client *client,
 
 	/* no args (e.g. INFO command) */
 	if(!slash) {
-		redisAsyncCommandArgv(s->ac, f_format, cmd, 1, cmd->argv, cmd->argv_len);
+		redisAsyncCommandArgv(s->ac, f_format, client, 1, cmd->argv, cmd->argv_len);
 		return 0;
 	}
 	p = slash + 1;
@@ -156,7 +157,7 @@ cmd_run(struct server *s, struct http_client *client,
 	}
 
 	/* push command to Redis. */
-	redisAsyncCommandArgv(s->ac, f_format, cmd, cmd->count, cmd->argv, cmd->argv_len);
+	redisAsyncCommandArgv(s->ac, f_format, client, cmd->count, cmd->argv, cmd->argv_len);
 
 	for(i = 1; i < cur_param; ++i) {
 		free((char*)cmd->argv[i]);

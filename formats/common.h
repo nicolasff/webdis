@@ -3,9 +3,11 @@
 
 #include <stdlib.h>
 
-struct cmd;
+struct http_client;
 
 void
-format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content_type);
+format_send_reply(struct http_client *client,
+		const char *p, size_t sz,
+		const char *content_type);
 
 #endif

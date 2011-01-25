@@ -11,6 +11,6 @@ void
 json_reply(redisAsyncContext *c, void *r, void *privdata);
 
 char *
-json_string_output(json_t *j, struct cmd *cmd);
+json_string_output(json_t *j, const char *jsonp, size_t jsonp_len);
 
 #endif

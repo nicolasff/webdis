@@ -118,6 +118,9 @@ http_client_cleanup(struct http_client *c) {
 
 	memset(&c->verb, 0, sizeof(c->verb));
 
+	cmd_free(c->cmd);
+	c->cmd = NULL;
+
 	c->state = CLIENT_WAITING;
 }
 

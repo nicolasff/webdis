@@ -18,7 +18,6 @@ struct cmd {
 	int count;
 	const char **argv;
 	size_t *argv_len;
-	struct http_client *client;
 
 	int started_responding;
 
@@ -33,7 +32,7 @@ struct subscription {
 };
 
 struct cmd *
-cmd_new(struct http_client *client, int count);
+cmd_new(int count);
 
 void
 cmd_free(struct cmd *c);

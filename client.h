@@ -7,6 +7,7 @@
 #include "http.h"
 
 struct server;
+struct cmd;
 
 typedef enum {
 	CLIENT_WAITING,
@@ -21,6 +22,7 @@ struct http_client {
 	struct event ev;
 	struct server *s;
 	client_state state;
+	struct cmd *cmd;
 
 	/* http parser */
 	http_parser_settings settings;
