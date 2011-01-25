@@ -93,11 +93,11 @@ http_client_cleanup(struct http_client *c) {
 	free(c->output_headers.etag.s);
 	memset(&c->output_headers.etag, 0, sizeof(str_t));
 
-	free(c->qs_type.s);
-	memset(&c->qs_type, 0, sizeof(str_t));
+	free(c->query_string.type.s);
+	memset(&c->query_string.type, 0, sizeof(str_t));
 
-	free(c->qs_jsonp.s);
-	memset(&c->qs_jsonp, 0, sizeof(str_t));
+	free(c->query_string.jsonp.s);
+	memset(&c->query_string.jsonp, 0, sizeof(str_t));
 
 	memset(&c->verb, 0, sizeof(c->verb));
 
@@ -235,9 +235,9 @@ http_on_query_string(http_parser *parser, const char *at, size_t length) {
 			}
 
 			if(key_len == 4 && strncmp(key, "type", 4) == 0) {
-				http_set_header(&c->qs_type, val, val_len);
+				http_set_header(&c->query_string.type, val, val_len);
 			} else if(key_len == 5 && strncmp(key, "jsonp", 5) == 0) {
-				http_set_header(&c->qs_jsonp, val, val_len);
+				http_set_header(&c->query_string.jsonp, val, val_len);
 			}
 
 			if(!and) {

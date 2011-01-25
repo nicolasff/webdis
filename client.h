@@ -40,8 +40,10 @@ struct http_client {
 	} output_headers;
 
 	/* query string */
-	str_t qs_type;
-	str_t qs_jsonp;
+	struct {
+		str_t type;
+		str_t jsonp;
+	} query_string;
 
 	/* pub/sub */
 	struct subscription *sub;

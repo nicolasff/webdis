@@ -225,9 +225,9 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 	}
 
 	/* the user can force it with ?type=some/thing */
-	if(client->qs_type.s) {
+	if(client->query_string.type.s) {
 		*f_format = custom_type_reply;
-		cmd->mime = strdup(client->qs_type.s);
+		cmd->mime = strdup(client->query_string.type.s);
 		cmd->mime_free = 1;
 	}
 

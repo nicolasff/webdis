@@ -112,14 +112,14 @@ json_string_output(json_t *j, struct cmd *cmd) {
 	char *json_reply = json_dumps(j, JSON_COMPACT);
 
 	/* check for JSONP */
-	if(cmd->client->qs_jsonp.s) {
+	if(cmd->client->query_string.jsonp.s) {
 
 		size_t json_len = strlen(json_reply);
-		size_t val_len = cmd->client->qs_jsonp.sz;
+		size_t val_len = cmd->client->query_string.jsonp.sz;
 		size_t ret_len = val_len + 1 + json_len + 3;
 		char *ret = calloc(1 + ret_len, 1);
 
-		memcpy(ret, cmd->client->qs_jsonp.s, val_len);
+		memcpy(ret, cmd->client->query_string.jsonp.s, val_len);
 		ret[val_len]='(';
 		memcpy(ret + val_len + 1, json_reply, json_len);
 		memcpy(ret + val_len + 1 + json_len, ");\n", 3);
