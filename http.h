@@ -17,6 +17,8 @@ struct http_response {
 
 	const char *body;
 	size_t body_len;
+
+	int chunked;
 };
 
 void
@@ -31,5 +33,6 @@ http_response_set_body(struct http_response *r, const char *body, size_t body_le
 
 int
 http_response_write(struct http_response *r, int fd);
+
 
 #endif

@@ -46,6 +46,10 @@ http_response_set_header(struct http_response *r, const char *k, const char *v) 
 	r->headers[pos].s = s;
 	r->headers[pos].sz = sz;
 
+	if(!strcmp(k, "Transfer-Encoding") && !strcmp(v, "chunked")) {
+		r->chunked = 1;
+	}
+
 }
 
 void
@@ -72,7 +76,7 @@ http_response_write(struct http_response *r, int fd) {
 		char content_length[10];
 		sprintf(content_length, "%zd", r->body_len);
 		http_response_set_header(r, "Content-Length", content_length);
-	} else {
+	} else if(!r->chunked) {
 		http_response_set_header(r, "Content-Length", "0");
 	}
 
