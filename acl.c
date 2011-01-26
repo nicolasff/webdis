@@ -43,8 +43,15 @@ acl_allow_command(struct cmd *cmd, struct conf *cfg, struct http_client *client)
 
 	in_addr_t client_addr;
 
-	const char *cmd_name = cmd->argv[0];
-	size_t cmd_len = cmd->argv_len[0];
+	const char *cmd_name;
+	size_t cmd_len;
+
+	if(cmd->count == 0) {
+		return 0;
+	}
+
+	cmd_name = cmd->argv[0];
+	cmd_len = cmd->argv_len[0];
 
 	/* some commands are always disabled, regardless of the config file. */
 	for(i = 0; i < sizeof(always_off) / sizeof(always_off[0]); ++i) {

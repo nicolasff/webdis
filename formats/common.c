@@ -40,9 +40,9 @@ format_send_reply(struct http_client *client, const char *p, size_t sz, const ch
 		free_cmd = 0;
 
 		/* start streaming */
-		if(cmd->started_responding == 0) {
+		if(client->started_responding == 0) {
 			const char *ct = cmd->mime?cmd->mime:content_type;
-			cmd->started_responding = 1;
+			client->started_responding = 1;
 			http_set_header(&client->output_headers.content_type, ct, strlen(ct));
 			http_send_reply_start(client, 200, "OK");
 		}

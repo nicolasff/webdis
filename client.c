@@ -122,6 +122,7 @@ http_client_cleanup(struct http_client *c) {
 	c->cmd = NULL;
 
 	c->state = CLIENT_WAITING;
+	c->started_responding = 0;
 }
 
 void

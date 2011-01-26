@@ -19,8 +19,6 @@ struct cmd {
 	const char **argv;
 	size_t *argv_len;
 
-	int started_responding;
-
 	/* HTTP data */
 	char *mime;
 	int mime_free;

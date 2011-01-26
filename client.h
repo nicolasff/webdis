@@ -54,6 +54,7 @@ struct http_client {
 
 	/* pub/sub */
 	struct subscription *sub;
+	int started_responding;
 
 	struct http_response resp;
 

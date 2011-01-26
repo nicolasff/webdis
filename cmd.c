@@ -95,6 +95,9 @@ cmd_run(struct server *s, struct http_client *client,
 	if(body && body_len) { /* PUT request */
 		param_count++;
 	}
+	if(param_count == 0) {
+		return -1;
+	}
 
 	client->cmd = cmd = cmd_new(param_count);
 
@@ -112,7 +115,6 @@ cmd_run(struct server *s, struct http_client *client,
 	/* there is always a first parameter, it's the command name */
 	cmd->argv[0] = uri;
 	cmd->argv_len[0] = cmd_len;
-
 
 	/* check that the client is able to run this command */
 	if(!acl_allow_command(cmd, s->cfg, client)) {
