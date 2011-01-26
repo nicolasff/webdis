@@ -77,7 +77,7 @@ http_client_read(int fd, short event, void *ctx) {
 			http_client_free(c);
 			break;
 
-		default:
+		default: /* CLIENT_EXECUTING */
 			break;
 	}
 }
@@ -129,8 +129,8 @@ http_client_free(struct http_client *c) {
 	close(c->fd);
 
 	if(c->sub) {
-		/* clean up redis object */
-		redisAsyncFree(c->sub->s->ac);
+		/* clean up Redis connection */
+		server_free(c->sub->s);
 
 		/* clean up command object */
 		if(c->sub->cmd) {

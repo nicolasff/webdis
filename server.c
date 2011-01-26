@@ -84,6 +84,18 @@ server_new(const char *filename) {
 	return s;
 }
 
+void
+server_free(struct server *s) {
+
+	/* cleanup Redis async object, _before_ the 2 struct event. */
+	redisAsyncFree(s->ac);
+
+	event_del(&s->ev);
+	event_del(&s->ev_reconnect);
+
+	free(s);
+}
+
 static void
 connectCallback(const redisAsyncContext *c) {
 	((void)c);

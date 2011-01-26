@@ -26,6 +26,9 @@ webdis_connect(struct server *s);
 struct server *
 server_new(const char *filename);
 
+void
+server_free(struct server *s);
+
 struct server *
 server_copy(const struct server *s);
 

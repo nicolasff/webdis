@@ -88,7 +88,7 @@ http_response_write(struct http_response *r, int fd) {
 		p += r->headers[i].sz;
 		sz += r->headers[i].sz;
 	}
-	
+
 	/* end of headers */
 	s = realloc(s, sz + 2);
 	memcpy(s + sz, "\r\n", 2);

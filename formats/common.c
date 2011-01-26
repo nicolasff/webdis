@@ -22,7 +22,7 @@ char *etag_new(const char *p, size_t sz) {
 	for(i = 0; i < 16; ++i) {
 		sprintf(etag + 1 + 2*i, "%.2x", (unsigned char)buf[i]);
 	}
-	
+
 	etag[0] = '"';
 	etag[33] = '"';
 
