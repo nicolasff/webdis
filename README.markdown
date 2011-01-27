@@ -33,6 +33,8 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Logs, with a configurable verbosity.
 * Cross-origin requests, usable with XMLHttpRequest2 (Cross-Origin Resource Sharing - CORS).
 * File upload with PUT.
+* With the JSON output, the return value of INFO is parsed and transformed into an object.
+* Optional daemonize.
 
 # Ideas, TODO...
 * Fix crash on ACL rejection.

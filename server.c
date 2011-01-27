@@ -187,9 +187,30 @@ on_possible_accept(int fd, short event, void *ctx) {
 	http_client_serve(c);
 }
 
+/* Taken from Redis. */
+void
+server_daemonize(void) {
+	int fd;
+
+	if (fork() != 0) exit(0); /* parent exits */
+	setsid(); /* create a new session */
+
+	/* Every output goes to /dev/null. */
+	if ((fd = open("/dev/null", O_RDWR, 0)) != -1) {
+		dup2(fd, STDIN_FILENO);
+		dup2(fd, STDOUT_FILENO);
+		dup2(fd, STDERR_FILENO);
+		if (fd > STDERR_FILENO) close(fd);
+	}
+}
 
 void
 server_start(struct server *s) {
+
+
+	if(s->cfg->daemonize) {
+		server_daemonize();
+	}
 
 	/* ignore sigpipe */
 #ifdef SIGPIPE
