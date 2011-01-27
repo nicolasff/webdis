@@ -7,6 +7,8 @@
 	"http_host":	"0.0.0.0",
 	"http_port":	7379,
 
+	"daemonize":	false,
+
 	"acl": [
 		{
 			"disabled":	["DEBUG"]

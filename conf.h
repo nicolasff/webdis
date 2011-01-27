@@ -15,6 +15,9 @@ struct conf {
 	char *http_host;
 	short http_port;
 
+	/* daemonize process, off by default */
+	int daemonize;
+
 	/* ACL */
 	struct acl *perms;
 

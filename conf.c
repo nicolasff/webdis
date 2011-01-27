@@ -34,6 +34,7 @@ conf_read(const char *filename) {
 	conf->group = getgid();
 	conf->logfile = "webdis.log";
 	conf->verbosity = WEBDIS_NOTICE;
+	conf->daemonize = 0;
 
 	j = json_load_file(filename, 0, &error);
 	if(!j) {
@@ -75,6 +76,8 @@ conf_read(const char *filename) {
 			if(tmp < 0) conf->verbosity = WEBDIS_ERROR;
 			else if(tmp > (int)WEBDIS_DEBUG) conf->verbosity = WEBDIS_DEBUG;
 			else conf->verbosity = (log_level)tmp;
+		} else if(strcmp(json_object_iter_key(kv), "daemonize") == 0 && json_typeof(jtmp) == JSON_TRUE) {
+			conf->daemonize = 1;
 		}
 	}
 
