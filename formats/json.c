@@ -42,6 +42,50 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	free(jstr);
 }
 
+/**
+ * Parse info message and return object.
+ */
+static json_t *
+json_info_reply(const char *s) {
+	const char *p = s;
+	size_t sz = strlen(s);
+
+	json_t *jroot = json_object();
+
+	/* TODO: handle new format */
+
+	while(p < s + sz) {
+		char *key, *val, *nl, *colon;
+
+		/* find key */
+		colon = strchr(p, ':');
+		if(!colon) {
+			break;
+		}
+		key = calloc(colon - p + 1, 1);
+		memcpy(key, p, colon - p);
+		p = colon + 1;
+
+		/* find value */
+		nl = strchr(p, '\r');
+		if(!nl) {
+			free(key);
+			break;
+		}
+		val = calloc(nl - p + 1, 1);
+		memcpy(val, p, nl - p);
+		p = nl + 1;
+		if(*p == '\n') p++;
+
+		/* add to object */
+		json_object_set_new(jroot, key, json_string(val));
+		free(key);
+		free(val);
+	}
+
+	return jroot;
+}
+
 static json_t *
 json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 
@@ -54,6 +98,7 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 	verb = calloc(cmd->argv_len[0]+1, 1);
 	memcpy(verb, cmd->argv[0], cmd->argv_len[0]);
 
+
 	switch(r->type) {
 		case REDIS_REPLY_STATUS:
 		case REDIS_REPLY_ERROR:
@@ -65,7 +110,11 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 			break;
 
 		case REDIS_REPLY_STRING:
-			json_object_set_new(jroot, verb, json_string(r->str));
+			if(strcasecmp(verb, "INFO") == 0) {
+				json_object_set_new(jroot, verb, json_info_reply(r->str));
+			} else {
+				json_object_set_new(jroot, verb, json_string(r->str));
+			}
 			break;
 
 		case REDIS_REPLY_INTEGER:

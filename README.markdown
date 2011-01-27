@@ -33,6 +33,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Logs, with a configurable verbosity.
 * Cross-origin XHR, if compiled with libevent2 (for `OPTIONS` support).
 * File upload with PUT, if compiled with libevent2 (for `PUT` support).
+* With the JSON output, the return value of INFO is parsed and transformed into an object.
 
 # Ideas, TODO...
 * Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands?
