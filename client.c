@@ -72,22 +72,6 @@ http_client_read(int fd, short event, void *ctx) {
 	} else if(c->state == CLIENT_WAITING) {
 		http_client_serve(c);
 	}
-#if 0
-
-	/* if we're not waiting for Redis to reply, continue serving. */
-	switch(c->state) {
-		case CLIENT_WAITING:
-			http_client_serve(c);
-			break;
-
-		case CLIENT_BROKEN:
-			http_client_free(c);
-			break;
-
-		default: /* CLIENT_EXECUTING */
-			break;
-	}
-#endif
 }
 
 static void
