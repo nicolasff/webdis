@@ -125,8 +125,12 @@ http_client_cleanup(struct http_client *c) {
 void
 http_client_free(struct http_client *c) {
 
+	printf("free\n");
+
 	event_del(&c->ev);
-	close(c->fd);
+	if(c->fd != -1) {
+		close(c->fd);
+	}
 
 	if(c->sub) {
 		/* clean up Redis connection */
@@ -148,21 +152,19 @@ int
 http_client_keep_alive(struct http_client *c) {
 
 	/* check disconnection */
-	int disconnect = 0;
+	int keep_alive = 0;
 
-	if(c->parser.http_major == 0) {
-		disconnect = 1; /* No version given. */
-	} else if(c->parser.http_major == 1 && c->parser.http_minor == 0) {
-		disconnect = 1; /* HTTP 1.0: disconnect by default */
+	if(c->parser.http_major == 1 && c->parser.http_minor == 1) {
+		keep_alive = 1; /* HTTP 1.1: keep-alive by default */
 	}
 	if(c->input_headers.connection.s) {
 		if(strncasecmp(c->input_headers.connection.s, "Keep-Alive", 10) == 0) {
-			disconnect = 0;
+			keep_alive = 1;
 		} else if(strncasecmp(c->input_headers.connection.s, "Close", 5) == 0) {
-			disconnect = 1;
+			keep_alive = 0;
 		}
 	}
-	return disconnect ? 0 : 1;
+	return keep_alive;
 }
 
 void
@@ -409,10 +411,10 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 		c->state = CLIENT_BROKEN;
 	} else {
 		if(c->sub) { /* don't free the client, but monitor fd. */
-		} else if(code == 200 && http_client_keep_alive(c)) { /* reset client */
-			http_client_reset(c);
-		} else {
+		} else if(code != 200 || !http_client_keep_alive(c)) { /* reset client */
 			c->state = CLIENT_BROKEN; /* error or HTTP < 1.1: close */
+			close(c->fd);
+			c->fd = -1;
 		}
 	}
 	http_client_serve(c);

@@ -37,13 +37,15 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Optional daemonize.
 
 # Ideas, TODO...
-* Fix crash on ACL rejection.
 * Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands?
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Support POST of raw Redis protocol data, and execute the whole thing. This could be useful for MULTI/EXEC transactions.
 * Enrich config file:
 	* Provide timeout (maybe for some commands only?). What should the response be? 504 Gateway Timeout? 503 Service Unavailable?
 * Multi-server support, using consistent hashing.
+* SSL?
+* Find a way to handle Redis disconnections properly for pub/sub clients. The current implementation leaves them hanging without any notification.
+* Refactor client.c
 * Add WebSocket support (with which protocol?).
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 
