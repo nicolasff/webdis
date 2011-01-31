@@ -131,6 +131,7 @@ cmd_run(struct server *s, struct http_client *client,
 
 	/* no args (e.g. INFO command) */
 	if(!slash) {
+		client->state = CLIENT_EXECUTING;
 		redisAsyncCommandArgv(s->ac, f_format, client, 1, cmd->argv, cmd->argv_len);
 		return 0;
 	}
@@ -159,6 +160,7 @@ cmd_run(struct server *s, struct http_client *client,
 	}
 
 	/* push command to Redis. */
+	client->state = CLIENT_EXECUTING;
 	redisAsyncCommandArgv(s->ac, f_format, client, cmd->count, cmd->argv, cmd->argv_len);
 
 	for(i = 1; i < cur_param; ++i) {

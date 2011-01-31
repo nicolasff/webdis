@@ -68,7 +68,7 @@ format_send_reply(struct http_client *client, const char *p, size_t sz, const ch
 	}
 	/* cleanup */
 	if(free_cmd) {
-		cmd_free(client->cmd);
+		cmd_free(cmd);
 	}
 }
 

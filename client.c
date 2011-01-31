@@ -266,8 +266,6 @@ http_on_complete(http_parser *p) {
 	struct http_client *c = p->data;
 	int ret = -1;
 
-	c->state = CLIENT_EXECUTING;
-
 	/* check that the command can be executed */
 	switch(c->verb) {
 		case HTTP_GET:
@@ -402,31 +400,17 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 	http_response_set_body(&resp, body, body_len);
 
 	/* flush response in the socket */
-	if(http_response_write(&resp, c->fd)) { /* failure */
-		http_client_free(c);
-	} else {
-		switch(c->state) {
-			case CLIENT_WAITING:
-				if(!http_client_keep_alive(c)) {
-					c->state = CLIENT_BROKEN;
-				}
-				http_client_reset(c);
-				http_client_serve(c);
-				break;
-
-			case CLIENT_EXECUTING:
-				if(!http_client_keep_alive(c)) {
-					http_client_free(c);
-				} else {
-					http_client_reset(c);
-					http_client_serve(c);
-				}
-				break;
-
-			default:
-				break;
+	if(http_response_write(&resp, c->fd) || !http_client_keep_alive(c)) { /* failure */
+		if(c->state == CLIENT_EXECUTING) {
+			http_client_free(c);
+			return;
+		} else if(c->state == CLIENT_WAITING) {
+			c->state = CLIENT_BROKEN;
 		}
+	} else {
+		http_client_reset(c);
 	}
+	http_client_serve(c);
 }
 
 void
