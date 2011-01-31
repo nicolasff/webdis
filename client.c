@@ -341,7 +341,10 @@ http_on_header_value(http_parser *p, const char *at, size_t length) {
 		if(length == 12 && memcmp(at, "100-continue", length) == 0) {
 			/* support HTTP file upload */
 			char http100[] = "HTTP/1.1 100 Continue\r\n\r\n";
-			write(c->fd, http100, sizeof(http100)-1);
+			int ret = write(c->fd, http100, sizeof(http100)-1);
+			if(ret != sizeof(http100)-1) {
+				c->state = CLIENT_BROKEN;
+			}
 		}
 	}
 
@@ -356,15 +359,7 @@ http_on_header_value(http_parser *p, const char *at, size_t length) {
 /**** HTTP Responses ****/
 
 static void
-http_response_init(struct http_client *c, struct http_response *r, int code, const char *msg) {
-
-	/* remove any old data */
-	memset(r, 0, sizeof(struct http_response));
-
-	r->code = code;
-	r->msg = msg;
-
-	http_response_set_header(r, "Server", "Webdis");
+http_response_set_connection_header(struct http_client *c, struct http_response *r) {
 
 	if(http_client_keep_alive(c)) {
 		http_response_set_header(r, "Connection", "Keep-Alive");
@@ -372,6 +367,7 @@ http_response_init(struct http_client *c, struct http_response *r, int code, con
 		http_response_set_header(r, "Connection", "Close");
 	}
 }
+
 void
 http_send_reply(struct http_client *c, short code, const char *msg,
 		const char *body, size_t body_len) {
@@ -383,7 +379,8 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 	}
 
 	/* respond */
-	http_response_init(c, &resp, code, msg);
+	http_response_init(&resp, code, msg);
+	http_response_set_connection_header(c, &resp);
 
 	if(body_len) {
 		http_response_set_header(&resp, "Content-Type", ct);
@@ -431,12 +428,15 @@ void
 http_send_reply_chunk(struct http_client *c, const char *p, size_t sz) {
 
 	char buf[64];
-	int ret;
+	int ret, chunk_size;
 
-	ret = sprintf(buf, "%x\r\n", (int)sz);
-	write(c->fd, buf, ret);
-	write(c->fd, p, sz);
-	write(c->fd, "\r\n", 2);
+	chunk_size = sprintf(buf, "%x\r\n", (int)sz);
+	ret = write(c->fd, buf, chunk_size);
+	ret = write(c->fd, p, sz);
+	ret = write(c->fd, "\r\n", 2);
+	if(ret != 2) {
+		c->state = CLIENT_BROKEN;
+	}
 }
 
 /* send nil chunk to mark the end of a stream. */
@@ -458,7 +458,8 @@ http_crossdomain(struct http_client *c) {
   "<allow-access-from domain=\"*\" />\n"
 "</cross-domain-policy>\n";
 
-	http_response_init(c, &resp, 200, "OK");
+	http_response_init(&resp, 200, "OK");
+	http_response_set_connection_header(c, &resp);
 	http_response_set_header(&resp, "Content-Type", "application/xml");
 	http_response_set_body(&resp, out, sizeof(out)-1);
 
@@ -474,7 +475,8 @@ http_options(struct http_client *c) {
 
 	struct http_response resp;
 
-	http_response_init(c, &resp, 200, "OK");
+	http_response_init(&resp, 200, "OK");
+	http_response_set_connection_header(c, &resp);
 
 	http_response_set_header(&resp, "Content-Type", "text/html");
 	http_response_set_header(&resp, "Allow", "GET,POST,PUT,OPTIONS");
