@@ -48,7 +48,7 @@ http_client_read(int fd, short event, void *ctx) {
 	(void)fd;
 	(void)event;
 
-	if(c->state == CLIENT_BROKEN) {
+	if(c->state != CLIENT_WAITING) { /* not expecting anything, fail. */
 		http_client_free(c);
 		return;
 	}
@@ -60,12 +60,19 @@ http_client_read(int fd, short event, void *ctx) {
 	}
 
 	nparsed = http_parser_execute(&c->parser, &c->settings, buffer, ret);
-	if(c->parser.upgrade) {
-		/* TODO: upgrade parser (WebSockets & cie) */
-	} else if(nparsed != ret) { /* invalid */
-		c->state = CLIENT_BROKEN;
+	if(c->state == CLIENT_BROKEN) {
+		http_client_free(c);
 		return;
 	}
+
+	if(c->parser.upgrade) {
+		/* TODO: upgrade parser (WebSockets & cie) */
+	} else if(nparsed != ret) { /* invalid data */
+		http_client_free(c);
+	} else if(c->state == CLIENT_WAITING) {
+		http_client_serve(c);
+	}
+#if 0
 
 	/* if we're not waiting for Redis to reply, continue serving. */
 	switch(c->state) {
@@ -80,6 +87,7 @@ http_client_read(int fd, short event, void *ctx) {
 		default: /* CLIENT_EXECUTING */
 			break;
 	}
+#endif
 }
 
 static void
@@ -124,8 +132,6 @@ http_client_cleanup(struct http_client *c) {
 
 void
 http_client_free(struct http_client *c) {
-
-	printf("free\n");
 
 	event_del(&c->ev);
 	if(c->fd != -1) {
@@ -309,6 +315,7 @@ http_on_complete(http_parser *p) {
 	}
 
 	if(ret < 0) {
+		c->state = CLIENT_WAITING;
 		http_send_error(c, 403, "Forbidden");
 	}
 
@@ -408,16 +415,30 @@ http_send_reply(struct http_client *c, short code, const char *msg,
 
 	/* flush response in the socket */
 	if(http_response_write(&resp, c->fd)) { /* failure */
-		c->state = CLIENT_BROKEN;
+		http_client_free(c);
 	} else {
-		if(c->sub) { /* don't free the client, but monitor fd. */
-		} else if(code != 200 || !http_client_keep_alive(c)) { /* reset client */
-			c->state = CLIENT_BROKEN; /* error or HTTP < 1.1: close */
-			close(c->fd);
-			c->fd = -1;
+		switch(c->state) {
+			case CLIENT_WAITING:
+				if(!http_client_keep_alive(c)) {
+					c->state = CLIENT_BROKEN;
+				}
+				http_client_reset(c);
+				http_client_serve(c);
+				break;
+
+			case CLIENT_EXECUTING:
+				if(!http_client_keep_alive(c)) {
+					http_client_free(c);
+				} else {
+					http_client_reset(c);
+					http_client_serve(c);
+				}
+				break;
+
+			default:
+				break;
 		}
 	}
-	http_client_serve(c);
 }
 
 void
@@ -483,7 +504,7 @@ http_options(struct http_client *c) {
 	http_response_init(c, &resp, 200, "OK");
 
 	http_response_set_header(&resp, "Content-Type", "text/html");
-	http_response_set_header(&resp, "Allow", "GET,POST,OPTIONS");
+	http_response_set_header(&resp, "Allow", "GET,POST,PUT,OPTIONS");
 	http_response_set_header(&resp, "Content-Length", "0");
 
 	/* Cross-Origin Resource Sharing, CORS. */
