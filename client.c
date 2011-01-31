@@ -316,6 +316,10 @@ http_on_complete(http_parser *p) {
 
 	if(ret < 0) {
 		c->state = CLIENT_WAITING;
+		if(c->cmd) {
+			cmd_free(c->cmd);
+			c->cmd = NULL;
+		}
 		http_send_error(c, 403, "Forbidden");
 	}
 
@@ -445,6 +449,7 @@ void
 http_send_error(struct http_client *c, short code, const char *msg) {
 
 	http_send_reply(c, code, msg, NULL, 0);
+	http_client_cleanup(c);
 }
 
 /* Transfer-encoding: chunked */
