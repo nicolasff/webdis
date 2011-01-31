@@ -15,8 +15,12 @@ acl_match_client(struct acl *a, struct http_client *client, in_addr_t *ip) {
 	/* check HTTP Basic Auth */
 	const char *auth;
 	auth = client->input_headers.authorization.s;
-	if(auth && a->http_basic_auth && strncasecmp(auth, "Basic ", 6) == 0) { /* sent auth */
-		if(strcmp(auth + 6, a->http_basic_auth) != 0) { /* wrong */
+	if(a->http_basic_auth) {
+		if(auth && strncasecmp(auth, "Basic ", 6) == 0) { /* sent auth */
+			if(strcmp(auth + 6, a->http_basic_auth) != 0) { /* bad password */
+				return 0;
+			}
+		} else { /* no auth sent, required to match this ACL */
 			return 0;
 		}
 	}
