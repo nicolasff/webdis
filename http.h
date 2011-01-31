@@ -25,6 +25,10 @@ void
 http_set_header(str_t *h, const char *p, size_t sz);
 
 /* HTTP response */
+
+void
+http_response_init(struct http_response *r, int code, const char *msg);
+
 void
 http_response_set_header(struct http_response *r, const char *k, const char *v);
 

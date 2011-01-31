@@ -18,6 +18,19 @@ http_set_header(str_t *h, const char *p, size_t sz) {
 /* HTTP Response */
 
 void
+http_response_init(struct http_response *r, int code, const char *msg) {
+
+	/* remove any old data */
+	memset(r, 0, sizeof(struct http_response));
+
+	r->code = code;
+	r->msg = msg;
+
+	http_response_set_header(r, "Server", "Webdis");
+}
+
+
+void
 http_response_set_header(struct http_response *r, const char *k, const char *v) {
 
 	int i, pos = r->header_count;
