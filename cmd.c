@@ -5,6 +5,7 @@
 #include "client.h"
 
 #include "formats/json.h"
+#include "formats/bson.h"
 #include "formats/raw.h"
 #include "formats/custom-type.h"
 
@@ -192,6 +193,7 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 	struct reply_format funs[] = {
 		{.s = "json", .sz = 4, .f = json_reply, .ct = "application/json"},
 		{.s = "raw", .sz = 3, .f = raw_reply, .ct = "binary/octet-stream"},
+		{.s = "bson", .sz = 4, .f = bson_reply, .ct = "application/bson"},
 
 		{.s = "bin", .sz = 3, .f = custom_type_reply, .ct = "binary/octet-stream"},
 		{.s = "txt", .sz = 3, .f = custom_type_reply, .ct = "text/plain"},
