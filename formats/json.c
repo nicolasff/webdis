@@ -26,6 +26,9 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 
 	if (reply == NULL) {
+		if(client->started_responding) { /* broken, close */
+			http_send_reply_end(client);
+		}
 		return;
 	}
 

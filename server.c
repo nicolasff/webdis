@@ -108,9 +108,9 @@ disconnectCallback(const redisAsyncContext *c, int status) {
 	}
 	s->ac = NULL;
 
-	/* wait 10 msec and reconnect */
+	/* wait 100 msec and reconnect */
 	s->tv_reconnect.tv_sec = 0;
-	s->tv_reconnect.tv_usec = 100000;
+	s->tv_reconnect.tv_usec = 100*1000;
 	webdis_connect(s);
 }
 
@@ -120,11 +120,6 @@ on_timer_reconnect(int fd, short event, void *ctx) {
 	(void)fd;
 	(void)event;
 	struct server *s = ctx;
-
-	if(s->ac) {
-		redisLibeventCleanup(s->ac->data);
-		redisFree((redisContext*)s->ac);
-	}
 
 	if(s->cfg->redis_host[0] == '/') { /* unix socket */
 		s->ac = redisAsyncConnectUnix(s->cfg->redis_host);
