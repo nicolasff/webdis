@@ -124,6 +124,7 @@ http_client_free(struct http_client *c) {
 
 	if(c->sub) {
 		/* clean up Redis connection */
+		c->sub->s->ac->onDisconnect = NULL;
 		server_free(c->sub->s);
 
 		/* clean up command object */
@@ -444,7 +445,6 @@ void
 http_send_reply_end(struct http_client *c) {
 
 	http_send_reply_chunk(c, "", 0);
-	http_client_free(c);
 }
 
 /* Adobe flash cross-domain request */
