@@ -1,3 +1,6 @@
 [submodule "hiredis"]
 	path = hiredis
 	url = https://github.com/antirez/hiredis.git
+[submodule "jansson"]
+	path = jansson
+	url = https://github.com/akheron/jansson.git
