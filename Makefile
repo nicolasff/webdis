@@ -1,3 +1,4 @@
+#!/usr/bin/make -f
 OUT=webdis
 HIREDIS_STATIC_LIB=hiredis/libhiredis.a
 JANSSON_STATIC_LIB=jansson/src/.libs/libjansson.a
