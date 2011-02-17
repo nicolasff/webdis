@@ -36,7 +36,7 @@ conf_read(const char *filename) {
 	conf->verbosity = WEBDIS_NOTICE;
 	conf->daemonize = 0;
 
-	j = json_load_file(filename, 0, &error);
+	j = json_load_file(filename, &error);
 	if(!j) {
 		fprintf(stderr, "Error: %s (line %d)\n", error.text, error.line);
 		return conf;
