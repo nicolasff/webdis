@@ -80,7 +80,7 @@ $(OUT): $(OBJS) $(LIBS) Makefile
 %.o: %.c %.h $(JANSSON_EMBEDDED_HEADERS) Makefile
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-%.o: %.c Makefile
+%.o: %.c $(JANSSON_EMBEDDED_HEADERS) Makefile
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 clean:
