@@ -45,6 +45,7 @@ ifeq ($(USE_EMBEDDED_JANSSON), true)
 	JANSSON_STATIC_LIB=jansson/src/.libs/libjansson.a
 	JANSSON_DYNAMIC_LIB=jansson/src/.libs/libjansson.so
 	JANSSON_LINK_DIR = jansson/src/.libs
+	JANSSON_EMBEDDED_HEADERS = jansson/src/jansson.h
 else
 	JANSSON_INCLUDE_DIR ?= /usr/include/
 	JANSSON_LINK_DIR ?= /usr/lib
@@ -70,13 +71,13 @@ $(HIREDIS_STATIC_LIB) $(HIREDIS_DYNAMIC_LIB): Makefile hiredis/Makefile
 $(JANSSON_STATIC_LIB) $(JANSSON_DYNAMIC_LIB): Makefile jansson/Makefile
 	cd jansson && $(MAKE)
 
-jansson/Makefile: jansson/Makefile.am jansson/jansson.pc.in jansson/configure.ac
+jansson/Makefile jansson/src/jansson.h: jansson/Makefile.am jansson/jansson.pc.in jansson/configure.ac jansson/src/jansson.h.in
 	cd jansson && autoreconf -i && ./configure
 
 $(OUT): $(OBJS) $(LIBS) Makefile
 	$(CC) $(LDFLAGS) -o $(OUT) $(OBJS)
 
-%.o: %.c %.h Makefile
+%.o: %.c %.h $(JANSSON_EMBEDDED_HEADERS) Makefile
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 %.o: %.c Makefile
