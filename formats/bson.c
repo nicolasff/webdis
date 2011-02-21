@@ -92,6 +92,31 @@ bson_info_reply(const char *s, size_t sz) {
 	return broot;
 }
 
+
+static bson_t *
+bson_hgetall_reply(const redisReply *r) {
+	/* zip keys and values together in a bson object */
+	bson_t *broot;
+	unsigned int i;
+
+	if(r->elements % 2 != 0) {
+		return NULL;
+	}
+
+	broot = bson_object();
+	for(i = 0; i < r->elements; i += 2) {
+		redisReply *k = r->element[i], *v = r->element[i+1];
+
+		/* keys and values need to be strings */
+		if(k->type != REDIS_REPLY_STRING || v->type != REDIS_REPLY_STRING) {
+			bson_free(broot);
+			return NULL;
+		}
+		bson_object_set_new(broot, k->str, k->len, bson_string(v->str, v->len));
+	}
+	return broot;
+}
+
 static bson_t *
 bson_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 
@@ -126,6 +151,13 @@ bson_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 			break;
 
 		case REDIS_REPLY_ARRAY:
+			if(strcasecmp(verb, "HGETALL") == 0) {
+				bson_t *bobj = bson_hgetall_reply(r);
+				if(bobj) {
+					bson_object_set_new(broot, verb, verb_sz, bobj);
+					break;
+				}
+			}
 			blist = bson_array();
 			for(i = 0; i < r->elements; ++i) {
 				redisReply *e = r->element[i];

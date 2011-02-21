@@ -87,6 +87,30 @@ json_info_reply(const char *s) {
 }
 
 static json_t *
+json_hgetall_reply(const redisReply *r) {
+	/* zip keys and values together in a json object */
+	json_t *jroot;
+	unsigned int i;
+
+	if(r->elements % 2 != 0) {
+		return NULL;
+	}
+
+	jroot = json_object();
+	for(i = 0; i < r->elements; i += 2) {
+		redisReply *k = r->element[i], *v = r->element[i+1];
+
+		/* keys and values need to be strings */
+		if(k->type != REDIS_REPLY_STRING || v->type != REDIS_REPLY_STRING) {
+			json_decref(jroot);
+			return NULL;
+		}
+		json_object_set_new(jroot, k->str, json_string(v->str));
+	}
+	return jroot;
+}
+
+static json_t *
 json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 
 	unsigned int i;
@@ -122,6 +146,13 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 			break;
 
 		case REDIS_REPLY_ARRAY:
+			if(strcasecmp(verb, "HGETALL") == 0) {
+				json_t *jobj = json_hgetall_reply(r);
+				if(jobj) {
+					json_object_set_new(jroot, verb, jobj);
+					break;
+				}
+			}
 			jlist = json_array();
 			for(i = 0; i < r->elements; ++i) {
 				redisReply *e = r->element[i];
