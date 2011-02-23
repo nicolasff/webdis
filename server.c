@@ -76,6 +76,9 @@ on_timer_reconnect(int fd, short event, void *ctx) {
 	if (s->cfg->redis_auth) { /* authenticate. */
 		redisAsyncCommand(s->ac, NULL, NULL, "AUTH %s", s->cfg->redis_auth);
 	}
+	if (s->cfg->database) { /* change database. */
+		redisAsyncCommand(s->ac, NULL, NULL, "SELECT %d", s->cfg->database);
+	}
 }
 
 void

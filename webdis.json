@@ -9,6 +9,8 @@
 
 	"daemonize":	false,
 
+	"database":	0,
+
 	"acl": [
 		{
 			"disabled":	["DEBUG"]
