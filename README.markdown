@@ -1,6 +1,6 @@
 # About
 
-A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson) and libevent.
+A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson), [libevent](http://monkey.org/~provos/libevent/), and [http-parser](https://github.com/ry/http-parser/).
 
 <pre>
 make clean all
@@ -203,7 +203,7 @@ curl -v "http://127.0.0.1:7379/GET/big-file?type=application/pdf"
 [...]
 </pre>
 
-# File upload (only with libevent 2)
+# File upload
 Webdis supports file upload using HTTP PUT. The command URI is slightly different, as the last argument is taken from the HTTP body.
 For example: instead of `/SET/key/value`, the URI becomes `/SET/key` and the value is the entirety of the body. This works for other commands such as LPUSH, etc.
 

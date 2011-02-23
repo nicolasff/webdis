@@ -208,9 +208,9 @@ int
 http_on_body(http_parser *p, const char *at, size_t length) {
 	struct http_client *c = p->data;
 
-	c->body.s = calloc(length+1, 1);
-	memcpy(c->body.s, at, length);
-	c->body.sz = length;
+	c->body.s = realloc(c->body.s, c->body.sz + length);
+	memcpy(c->body.s + c->body.sz, at, length);
+	c->body.sz += length;
 
 	return 0;
 }
