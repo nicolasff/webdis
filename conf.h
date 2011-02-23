@@ -18,6 +18,9 @@ struct conf {
 	/* daemonize process, off by default */
 	int daemonize;
 
+	/* database number */
+	int database;
+
 	/* ACL */
 	struct acl *perms;
 
