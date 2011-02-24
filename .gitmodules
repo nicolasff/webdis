@@ -4,3 +4,6 @@
 [submodule "jansson"]
 	path = jansson
 	url = https://github.com/akheron/jansson.git
+[submodule "debian"]
+	path = debian
+    url = https://github.com/jollyroger/debian-webdis.git
