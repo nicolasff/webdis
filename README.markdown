@@ -2,7 +2,7 @@
 
 A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson) and libevent.
 
-Webdis depends on libevent-dev. You can install it on Ubuntu by typing `sudo apt-get install libevent-dev`.
+Webdis depends on libevent-dev. You can install it on Ubuntu by typing `sudo apt-get install libevent-dev` or on OS X by typing `brew install libevent`.
 <pre>
 make clean all
 
