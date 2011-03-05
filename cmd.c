@@ -204,6 +204,9 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 		{.s = "png", .sz = 3, .f = custom_type_reply, .ct = "image/png"},
 		{.s = "jpg", .sz = 3, .f = custom_type_reply, .ct = "image/jpeg"},
 		{.s = "jpeg", .sz = 4, .f = custom_type_reply, .ct = "image/jpeg"},
+
+		{.s = "js", .sz = 2, .f = custom_type_reply, .ct = "application/javascript"},
+		{.s = "css", .sz = 3, .f = custom_type_reply, .ct = "text/css"},
 	};
 
 	/* default */

@@ -55,17 +55,17 @@ raw_array(const redisReply *r, size_t *sz) {
 
 	/* compute size */
 	*sz = 0;
-	*sz += 1 + integer_length(r->elements) + 1;
+	*sz += 1 + integer_length(r->elements) + 2;
 	for(i = 0; i < r->elements; ++i) {
 		redisReply *e = r->element[i];
 		switch(e->type) {
 			case REDIS_REPLY_STRING:
-				*sz += 1 + integer_length(e->len) + 1
-					+ e->len + 1;
+				*sz += 1 + integer_length(e->len) + 2
+					+ e->len + 2;
 				break;
 			case REDIS_REPLY_INTEGER:
-				*sz += 1 + integer_length(integer_length(e->integer)) + 1
-					+ integer_length(e->integer) + 1;
+				*sz += 1 + integer_length(integer_length(e->integer)) + 2
+					+ integer_length(e->integer) + 2;
 				break;
 
 		}
@@ -73,21 +73,23 @@ raw_array(const redisReply *r, size_t *sz) {
 
 	/* allocate */
 	p = ret = malloc(*sz);
-	p += sprintf(p, "*%zd\n", r->elements);
+	p += sprintf(p, "*%zd\r\n", r->elements);
 
 	/* copy */
 	for(i = 0; i < r->elements; ++i) {
 		redisReply *e = r->element[i];
 		switch(e->type) {
 			case REDIS_REPLY_STRING:
-				p += sprintf(p, "$%d\n", e->len);
+				p += sprintf(p, "$%d\r\n", e->len);
 				memcpy(p, e->str, e->len);
 				p += e->len;
+				*p = '\r';
+				p++;
 				*p = '\n';
 				p++;
 				break;
 			case REDIS_REPLY_INTEGER:
-				p += sprintf(p, "$%d\n%lld\n",
+				p += sprintf(p, "$%d\r\n%lld\r\n",
 					integer_length(e->integer), e->integer);
 				break;
 		}
@@ -104,34 +106,34 @@ raw_wrap(const redisReply *r, size_t *sz) {
 	switch(r->type) {
 		case REDIS_REPLY_STATUS:
 		case REDIS_REPLY_ERROR:
-			*sz = 2 + r->len;
+			*sz = 3 + r->len;
 			ret = malloc(*sz);
 			ret[0] = (r->type == REDIS_REPLY_STATUS?'+':'-');
-			memcpy(ret+1, r->str, *sz-2);
-			memcpy(ret+*sz - 1, "\n", 1);
+			memcpy(ret+1, r->str, *sz-3);
+			memcpy(ret+*sz - 2, "\r\n", 2);
 			return ret;
 
 		case REDIS_REPLY_STRING:
-			*sz = 1 + integer_length(r->len) + 1 + r->len + 1;
+			*sz = 1 + integer_length(r->len) + 2 + r->len + 2;
 			p = ret = malloc(*sz);
-			p += sprintf(p, "$%d\n", r->len);
-			memcpy(p, r->str, *sz - 1 - (p-ret));
-			memcpy(ret + *sz - 1, "\n", 1);
+			p += sprintf(p, "$%d\r\n", r->len);
+			memcpy(p, r->str, *sz - 2 - (p-ret));
+			memcpy(ret + *sz - 2, "\r\n", 2);
 			return ret;
 
 		case REDIS_REPLY_INTEGER:
-			*sz = 2 + integer_length(r->integer);
-			ret = malloc(3+*sz);
-			sprintf(ret, ":%lld\n", r->integer);
+			*sz = 3 + integer_length(r->integer);
+			ret = malloc(4+*sz);
+			sprintf(ret, ":%lld\r\n", r->integer);
 			return ret;
 
 		case REDIS_REPLY_ARRAY:
 			return raw_array(r, sz);
 
 		default:
-			*sz = 4;
+			*sz = 5;
 			ret = malloc(*sz);
-			memcpy(ret, "$-1\n", 4);
+			memcpy(ret, "$-1\r\n", 5);
 			return ret;
 	}
 }
