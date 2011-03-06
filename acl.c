@@ -77,11 +77,17 @@ acl_allow_command(struct cmd *cmd, struct conf *cfg, struct http_client *client)
 			if(strncasecmp(a->enabled.commands[i], cmd_name, cmd_len) == 0) {
 				authorized = 1;
 			}
+			if(strncasecmp(a->enabled.commands[i], "*", 1) == 0) {
+				authorized = 1;
+			}
 		}
 
 		/* go through unauthorized commands */
 		for(i = 0; i < a->disabled.count; ++i) {
 			if(strncasecmp(a->disabled.commands[i], cmd_name, cmd_len) == 0) {
+				authorized = 0;
+			}
+			if(strncasecmp(a->disabled.commands[i], "*", 1) == 0) {
 				authorized = 0;
 			}
 		}

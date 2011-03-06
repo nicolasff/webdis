@@ -99,7 +99,7 @@ Examples:
 	"enabled":	["SET", "DEL"]
 }
 </pre>
-ACLs are interpreted in order, later authorizations superseding earlier ones if a client matches several.
+ACLs are interpreted in order, later authorizations superseding earlier ones if a client matches several. The special value "*" matches all commands.
 
 # JSON output
 JSON is the default output format. Each command returns a JSON object with the command as a key and the result as a value.
