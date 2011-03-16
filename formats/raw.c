@@ -73,7 +73,7 @@ raw_array(const redisReply *r, size_t *sz) {
 	}
 
 	/* allocate */
-	p = ret = malloc(*sz);
+	p = ret = malloc(1+*sz);
 	p += sprintf(p, "*%zd\r\n", r->elements);
 
 	/* copy */
