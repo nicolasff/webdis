@@ -213,6 +213,11 @@ server_start(struct server *s) {
 
 	if(s->cfg->daemonize) {
 		server_daemonize();
+
+		/* sometimes event mech gets lost on fork */
+		if(event_reinit(s->base) != 0) {
+			fprintf(stderr, "Error: event_reinit failed after fork");
+		}
 	}
 
 	/* ignore sigpipe */
