@@ -2,11 +2,13 @@
 #include "cmd.h"
 #include "http.h"
 #include "client.h"
+#include "websocket.h"
 
 #include "md5/md5.h"
 #include <string.h>
+#include <unistd.h>
 
-/* TODO: replace this with a faster hash function */
+/* TODO: replace this with a faster hash function? */
 char *etag_new(const char *p, size_t sz) {
 
 	md5_byte_t buf[16];
@@ -30,42 +32,59 @@ char *etag_new(const char *p, size_t sz) {
 }
 
 void
-format_send_reply(struct http_client *client, const char *p, size_t sz, const char *content_type) {
+format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content_type) {
 
 	int free_cmd = 1;
+	struct http_response resp;
 
-	struct cmd *cmd = client->cmd;
+	if(cmd->is_websocket) {
+		ws_reply(cmd, p, sz);
+		cmd_free(cmd);
+		return;
+	}
 
 	if(cmd_is_subscribe(cmd)) {
 		free_cmd = 0;
 
 		/* start streaming */
-		if(client->started_responding == 0) {
+		if(cmd->started_responding == 0) {
 			const char *ct = cmd->mime?cmd->mime:content_type;
-			client->started_responding = 1;
-			http_set_header(&client->output_headers.content_type, ct, strlen(ct));
-			http_send_reply_start(client, 200, "OK");
+			cmd->started_responding = 1;
+			http_response_init(&resp, 200, "OK");
+			http_response_set_header(&resp, "Content-Type", ct);
+			http_response_set_header(&resp, "Connection", "Keep-Alive");
+			http_response_set_header(&resp, "Transfer-Encoding", "Chunked");
+			http_response_write(&resp, cmd->fd);
 		}
-		http_send_reply_chunk(client, p, sz);
+		http_response_write_chunk(cmd->fd, p, sz);
 
 	} else {
 		/* compute ETag */
 		char *etag = etag_new(p, sz);
-		const char *if_none_match = client->input_headers.if_none_match.s;
 
 		/* check If-None-Match */
-		if(if_none_match && strncmp(if_none_match, etag, client->input_headers.if_none_match.sz) == 0) {
+		if(cmd->if_none_match && strcmp(cmd->if_none_match, etag) == 0) {
 			/* SAME! send 304. */
-			http_send_reply(client, 304, "Not Modified", NULL, 0);
+			http_response_init(&resp, 304, "Not Modified");
 		} else {
 			const char *ct = cmd->mime?cmd->mime:content_type;
-			http_set_header(&client->output_headers.content_type, ct, strlen(ct));
-			http_set_header(&client->output_headers.etag, etag, strlen(etag));
-			http_send_reply(client, 200, "OK", p, sz);
+			http_response_init(&resp, 200, "OK");
+			http_response_set_header(&resp, "Content-Type", ct);
+			http_response_set_header(&resp, "ETag", etag);
+			http_response_set_body(&resp, p, sz);
 		}
-
+		if(cmd->keep_alive) {
+			http_response_set_header(&resp, "Connection", "Keep-Alive");
+		} else {
+			http_response_set_header(&resp, "Connection", "Close");
+		}
+		http_response_write(&resp, cmd->fd);
+		if(!cmd->keep_alive) {
+			close(cmd->fd);
+		}
 		free(etag);
 	}
+	
 	/* cleanup */
 	if(free_cmd) {
 		cmd_free(cmd);

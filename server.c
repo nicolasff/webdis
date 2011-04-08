@@ -1,14 +1,10 @@
 #include "server.h"
-#include "conf.h"
-#include "cmd.h"
-#include "slog.h"
-#include "http.h"
+#include "worker.h"
 #include "client.h"
+#include "conf.h"
 
-#include <hiredis/hiredis.h>
-#include <hiredis/adapters/libevent.h>
-#include <jansson.h>
-
+#include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
@@ -20,7 +16,7 @@
 /**
  * Sets up a non-blocking socket
  */
-int
+static int
 socket_setup(const char *ip, short port) {
 
 	int reuse = 1;
@@ -75,167 +71,74 @@ socket_setup(const char *ip, short port) {
 }
 
 struct server *
-server_new(const char *filename) {
+server_new(const char *cfg_file) {
+	
+	int i;
 	struct server *s = calloc(1, sizeof(struct server));
 
-	s->cfg = conf_read(filename);
-	s->base = event_base_new();
+	s->cfg = conf_read(cfg_file);
 
+	/* workers */
+	s->w = calloc(s->cfg->http_threads, sizeof(struct worker*));
+	for(i = 0; i < s->cfg->http_threads; ++i) {
+		s->w[i] = worker_new(s);
+	}
 	return s;
 }
 
-void
-server_free(struct server *s) {
-
-	/* cleanup Redis async object, _before_ the 2 struct event. */
-	redisAsyncFree(s->ac);
-
-	/* event_del(&s->ev); */
-	event_del(&s->ev_reconnect);
-	free(s);
-}
-
 static void
-connectCallback(const redisAsyncContext *c) {
-	((void)c);
-}
+server_can_accept(int fd, short event, void *ptr) {
 
-static void
-disconnectCallback(const redisAsyncContext *c, int status) {
-	struct server *s = c->data;
-	if (status != REDIS_OK) {
-		fprintf(stderr, "Error: %s\n", c->errstr);
-	}
-	s->ac = NULL;
-
-	/* wait 100 msec and reconnect */
-	s->tv_reconnect.tv_sec = 0;
-	s->tv_reconnect.tv_usec = 100*1000;
-	webdis_connect(s);
-}
-
-static void
-on_timer_reconnect(int fd, short event, void *ctx) {
-
-	(void)fd;
-	(void)event;
-	struct server *s = ctx;
-
-	if(s->cfg->redis_host[0] == '/') { /* unix socket */
-		s->ac = redisAsyncConnectUnix(s->cfg->redis_host);
-	} else {
-		s->ac = redisAsyncConnect(s->cfg->redis_host, s->cfg->redis_port);
-	}
-
-	s->ac->data = s;
-
-	if(s->ac->err) {
-		const char err[] = "Connection failed";
-		slog(s, WEBDIS_ERROR, err, sizeof(err)-1);
-		fprintf(stderr, "Error: %s\n", s->ac->errstr);
-	}
-
-	redisLibeventAttach(s->ac, s->base);
-	redisAsyncSetConnectCallback(s->ac, connectCallback);
-	redisAsyncSetDisconnectCallback(s->ac, disconnectCallback);
-
-	if (s->cfg->redis_auth) { /* authenticate. */
-		redisAsyncCommand(s->ac, NULL, NULL, "AUTH %s", s->cfg->redis_auth);
-	}
-	if (s->cfg->database) { /* change database. */
-		redisAsyncCommand(s->ac, NULL, NULL, "SELECT %d", s->cfg->database);
-	}
-}
-
-void
-webdis_connect(struct server *s) {
-	/* schedule reconnect */
-	evtimer_set(&s->ev_reconnect, on_timer_reconnect, s);
-	event_base_set(s->base, &s->ev_reconnect);
-	evtimer_add(&s->ev_reconnect, &s->tv_reconnect);
-}
-
-struct server *
-server_copy(const struct server *s) {
-	struct server *ret = calloc(1, sizeof(struct server));
-
-	*ret = *s;
-
-	/* create a new connection */
-	ret->ac = NULL;
-	on_timer_reconnect(0, 0, ret);
-
-	return ret;
-}
-
-static void
-on_possible_accept(int fd, short event, void *ctx) {
-
-	struct server *s = ctx;
+	struct server *s = ptr;
+	struct worker *w;
+	struct http_client *c;
 	int client_fd;
 	struct sockaddr_in addr;
 	socklen_t addr_sz = sizeof(addr);
 	(void)event;
-	struct http_client *c;
 
+	w = s->w[s->next_worker]; /* select worker to send the client to */
+
+	/* create client and send to worker. */
 	client_fd = accept(fd, (struct sockaddr*)&addr, &addr_sz);
-	c = http_client_new(client_fd, s);
-	c->addr = addr.sin_addr.s_addr;
-	http_client_serve(c);
+	/* printf("Just accepted fd=%d, sending to worker %p\n", client_fd, (void*)w); */
+	c = http_client_new(w, client_fd, addr.sin_addr.s_addr);
+	worker_add_client(w, c);
+
+	s->next_worker = (s->next_worker + 1) % s->cfg->http_threads; /* loop over ring of workers */
 }
 
-/* Taken from Redis. */
-void
-server_daemonize(void) {
-	int fd;
-
-	if (fork() != 0) exit(0); /* parent exits */
-	setsid(); /* create a new session */
-
-	/* Every output goes to /dev/null. */
-	if ((fd = open("/dev/null", O_RDWR, 0)) != -1) {
-		dup2(fd, STDIN_FILENO);
-		dup2(fd, STDOUT_FILENO);
-		dup2(fd, STDERR_FILENO);
-		if (fd > STDERR_FILENO) close(fd);
-	}
-}
-
-void
+int
 server_start(struct server *s) {
 
-
-	if(s->cfg->daemonize) {
-		server_daemonize();
-	}
+	int i;
 
 	/* ignore sigpipe */
 #ifdef SIGPIPE
 	signal(SIGPIPE, SIG_IGN);
 #endif
 
-	/* start http server */
-	slog(s, WEBDIS_INFO, "Starting HTTP Server", sizeof("Starting HTTP Server")-1);
-
-	s->fd = socket_setup(s->cfg->http_host, s->cfg->http_port);
-	/* check return value. */
-	if(s->fd == -1) {
-		char err[] = "Failed to create socket.";
-		slog(s, WEBDIS_ERROR, err, sizeof(err)-1);
-		_exit(1);
+	/* start worker threads */
+	for(i = 0; i < s->cfg->http_threads; ++i) {
+		worker_start(s->w[i]);
 	}
-	event_set(&s->ev, s->fd, EV_READ | EV_PERSIST, on_possible_accept, s);
+
+	/* create socket */
+	s->fd = socket_setup(s->cfg->http_host, s->cfg->http_port);
+	if(s->fd < 0) {
+		return -1;
+	}
+
+	/* initialize libevent */
+	s->base = event_base_new();
+
+	/* start http server */
+	event_set(&s->ev, s->fd, EV_READ | EV_PERSIST, server_can_accept, s);
 	event_base_set(s->base, &s->ev);
 	event_add(&s->ev, NULL);
 
-	/* drop privileges */
-	slog(s, WEBDIS_INFO, "Dropping Privileges", sizeof("Dropping Privileges")-1);
-	setuid(s->cfg->user);
-	setgid(s->cfg->group);
-
-	/* attach hiredis to libevent base */
-	webdis_connect(s);
-
-	/* loop */
 	event_base_dispatch(s->base);
+
+	return 0;
 }
+

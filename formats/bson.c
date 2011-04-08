@@ -1,7 +1,6 @@
 #include "bson.h"
 #include "common.h"
 #include "cmd.h"
-#include "client.h"
 #include "http.h"
 
 #include <string.h>
@@ -18,30 +17,33 @@ void
 bson_reply(redisAsyncContext *c, void *r, void *privdata) {
 
 	redisReply *reply = r;
-	struct http_client *client = privdata;
+	struct cmd *cmd = privdata;
 	bson_t *b;
 	char *bstr = NULL;
 	size_t bsz;
 	(void)c;
 
-	if(client->cmd == NULL) {
+	if(cmd == NULL) {
 		/* broken connection */
 		return;
 	}
 
 	if (reply == NULL) {
+		/* FIXME */
+		/*
 		http_send_reply(client, 404, "Not Found", NULL, 0);
+		*/
 		return;
 	}
 
 	/* encode redis reply as BSON */
-	b = bson_wrap_redis_reply(client->cmd, reply);
+	b = bson_wrap_redis_reply(cmd, reply);
 
 	/* get BSON as string */
 	bstr = bson_string_output(b, &bsz);
 
 	/* send reply */
-	format_send_reply(client, bstr, bsz, "application/bson");
+	format_send_reply(cmd, bstr, bsz, "application/bson");
 
 	/* cleanup */
 	free(bstr);

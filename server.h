@@ -1,42 +1,30 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include <hiredis/async.h>
-#include <time.h>
-#include <sys/queue.h>
 #include <event.h>
+#include <hiredis/async.h>
+
+struct worker;
+struct conf;
 
 struct server {
 
-	struct conf *cfg;
-	struct event_base *base;
-	redisAsyncContext *ac;
-
-	/* server socket and event struct */
 	int fd;
 	struct event ev;
+	struct event_base *base;
 
-	struct event ev_reconnect;
-	struct timeval tv_reconnect;
+	struct conf *cfg;
+
+	/* worker threads */
+	struct worker **w;
+	int next_worker;
 };
 
-void
-webdis_connect(struct server *s);
-
 struct server *
-server_new(const char *filename);
+server_new(const char *cfg_file);
 
-void
-server_free(struct server *s);
-
-struct server *
-server_copy(const struct server *s);
-
-void
+int
 server_start(struct server *s);
-
-void 
-webdis_log(struct server *s, int level, const char *body);
 
 #endif
 

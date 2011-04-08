@@ -10,18 +10,28 @@
 struct evhttp_request;
 struct http_client;
 struct server;
+struct worker;
 struct cmd;
 
 typedef void (*formatting_fun)(redisAsyncContext *, void *, void *);
 
 struct cmd {
+	int fd;
+
 	int count;
-	const char **argv;
+	char **argv;
 	size_t *argv_len;
 
 	/* HTTP data */
-	char *mime;
+	char *mime; /* forced output content-type */
 	int mime_free;
+	char *if_none_match; /* used with ETags */
+	char *jsonp; /* jsonp wrapper */
+	int keep_alive;
+
+	/* various flags */
+	int started_responding;
+	int is_websocket;
 };
 
 struct subscription {
@@ -36,7 +46,7 @@ void
 cmd_free(struct cmd *c);
 
 int
-cmd_run(struct server *s, struct http_client *client,
+cmd_run(struct worker *w, struct http_client *client,
 		const char *uri, size_t uri_len,
 		const char *body, size_t body_len);
 
@@ -46,5 +56,8 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 
 int
 cmd_is_subscribe(struct cmd *cmd);
+
+void
+cmd_send(redisAsyncContext *ac, formatting_fun f_format, struct cmd *cmd);
 
 #endif

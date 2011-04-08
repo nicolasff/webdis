@@ -30,6 +30,7 @@ conf_read(const char *filename) {
 	conf->redis_port = 6379;
 	conf->http_host = strdup("0.0.0.0");
 	conf->http_port = 7379;
+	conf->http_threads = 4;
 	conf->user = getuid();
 	conf->group = getgid();
 	conf->logfile = "webdis.log";
@@ -58,6 +59,8 @@ conf_read(const char *filename) {
 			conf->http_host = strdup(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "http_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->http_port = (short)json_integer_value(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "threads") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
+			conf->http_threads = (short)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "acl") == 0 && json_typeof(jtmp) == JSON_ARRAY) {
 			conf->perms = conf_parse_acls(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "user") == 0 && json_typeof(jtmp) == JSON_STRING) {

@@ -1,8 +1,11 @@
 #include "cmd.h"
-#include "server.h"
 #include "conf.h"
 #include "acl.h"
 #include "client.h"
+#include "pool.h"
+#include "worker.h"
+#include "http.h"
+#include "server.h"
 
 #include "formats/json.h"
 #include "formats/bson.h"
@@ -12,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <hiredis/hiredis.h>
+#include <hiredis/async.h>
 #include <ctype.h>
 
 struct cmd *
@@ -31,12 +35,19 @@ cmd_new(int count) {
 void
 cmd_free(struct cmd *c) {
 
+	int i;
 	if(!c) return;
 
+	for(i = 0; i < c->count; ++i) {
+		free((char*)c->argv[i]);
+	}
 	free(c->argv);
 	free(c->argv_len);
 
+	free(c->jsonp);
+	free(c->if_none_match);
 	if(c->mime_free) free(c->mime);
+
 
 	free(c);
 }
@@ -69,9 +80,39 @@ decode_uri(const char *uri, size_t length, size_t *out_len, int always_decode_pl
 	return ret;
 }
 
+/* setup headers */
+static void
+cmd_setup(struct cmd *cmd, struct http_client *client) {
+
+	int i;
+	cmd->keep_alive = client->keep_alive;
+
+	for(i = 0; i < client->header_count; ++i) {
+		if(strcasecmp(client->headers[i].key, "If-None-Match") == 0) {
+			cmd->if_none_match = calloc(1+client->headers[i].val_sz, 1);
+			memcpy(cmd->if_none_match, client->headers[i].val,
+					client->headers[i].val_sz);
+		} else if(strcasecmp(client->headers[i].key, "Connection") == 0 &&
+				strcasecmp(client->headers[i].val, "Keep-Alive") == 0) {
+			cmd->keep_alive = 1;
+		}
+	}
+
+	if(client->type) {	/* transfer pointer ownership */
+		cmd->mime = client->type;
+		cmd->mime_free = 1;
+		client->type = NULL;
+	}
+
+	if(client->jsonp) {	/* transfer pointer ownership */
+		cmd->jsonp = client->jsonp;
+		client->jsonp = NULL;
+	}
+}
+
 
 int
-cmd_run(struct server *s, struct http_client *client,
+cmd_run(struct worker *w, struct http_client *client,
 		const char *uri, size_t uri_len,
 		const char *body, size_t body_len) {
 
@@ -79,10 +120,10 @@ cmd_run(struct server *s, struct http_client *client,
 	char *slash;
 	const char *p;
 	int cmd_len;
-	int param_count = 0, cur_param = 1, i;
+	int param_count = 0, cur_param = 1;
 
 	struct cmd *cmd;
-
+	redisAsyncContext *ac = NULL;
 	formatting_fun f_format;
 
 	/* count arguments */
@@ -100,10 +141,14 @@ cmd_run(struct server *s, struct http_client *client,
 		return -1;
 	}
 
-	client->cmd = cmd = cmd_new(param_count);
+	cmd = cmd_new(param_count);
+	cmd->fd = client->fd;
 
 	/* get output formatting function */
 	uri_len = cmd_select_format(client, cmd, uri, uri_len, &f_format);
+
+	/* add HTTP info */
+	cmd_setup(cmd, client);
 
 	/* check if we only have one command or more. */
 	slash = memchr(uri, '/', uri_len);
@@ -114,26 +159,25 @@ cmd_run(struct server *s, struct http_client *client,
 	}
 
 	/* there is always a first parameter, it's the command name */
-	cmd->argv[0] = uri;
+	cmd->argv[0] = malloc(cmd_len);
+	memcpy(cmd->argv[0], uri, cmd_len);
 	cmd->argv_len[0] = cmd_len;
 
 	/* check that the client is able to run this command */
-	if(!acl_allow_command(cmd, s->cfg, client)) {
+	if(!acl_allow_command(cmd, w->s->cfg, client)) {
 		return -1;
 	}
 
 	/* check if we have to split the connection */
 	if(cmd_is_subscribe(cmd)) {
-
-		client->sub = malloc(sizeof(struct subscription));
-		client->sub->s = s = server_copy(s);
-		client->sub->cmd = cmd;
+		ac = (redisAsyncContext*)pool_connect(w->pool, 0);
 	}
 
 	/* no args (e.g. INFO command) */
 	if(!slash) {
-		client->state = CLIENT_EXECUTING;
-		redisAsyncCommandArgv(s->ac, f_format, client, 1, cmd->argv, cmd->argv_len);
+		ac = (redisAsyncContext*)pool_get_context(w->pool);
+		redisAsyncCommandArgv(ac, f_format, cmd, 1,
+				(const char **)cmd->argv, cmd->argv_len);
 		return 0;
 	}
 	p = slash + 1;
@@ -156,21 +200,25 @@ cmd_run(struct server *s, struct http_client *client,
 	}
 
 	if(body && body_len) { /* PUT request */
-		cmd->argv[cur_param] = body;
+		cmd->argv[cur_param] = malloc(body_len);
+		memcpy(cmd->argv[cur_param], body, body_len);
 		cmd->argv_len[cur_param] = body_len;
 	}
 
-	/* push command to Redis. */
-	client->state = CLIENT_EXECUTING;
-	redisAsyncCommandArgv(s->ac, f_format, client, cmd->count, cmd->argv, cmd->argv_len);
-
-	for(i = 1; i < cur_param; ++i) {
-		free((char*)cmd->argv[i]);
+	/* send it off! */
+	if(!ac) {
+		ac = (redisAsyncContext*)pool_get_context(w->pool);
 	}
+	cmd_send(ac, f_format, cmd);
 
 	return 0;
 }
 
+void
+cmd_send(redisAsyncContext *ac, formatting_fun f_format, struct cmd *cmd) {
+	redisAsyncCommandArgv(ac, f_format, cmd, cmd->count,
+		(const char **)cmd->argv, cmd->argv_len);
+}
 
 /**
  * Select Content-Type and processing function.
@@ -235,9 +283,9 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 	}
 
 	/* the user can force it with ?type=some/thing */
-	if(client->query_string.type.s) {
+	if(client->type) {
 		*f_format = custom_type_reply;
-		cmd->mime = strdup(client->query_string.type.s);
+		cmd->mime = strdup(client->type);
 		cmd->mime_free = 1;
 	}
 

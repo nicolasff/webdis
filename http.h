@@ -3,16 +3,22 @@
 
 #include <sys/types.h>
 
-typedef struct {
-	char *s;
-	size_t sz;
-} str_t;
+struct http_client;
+
+struct http_header {
+	char *key;
+	size_t key_sz;
+
+	char *val;
+	size_t val_sz;
+};
+
 
 struct http_response {
 	short code;
 	const char *msg;
 
-	str_t *headers;
+	struct http_header *headers;
 	int header_count;
 
 	const char *body;
@@ -20,9 +26,6 @@ struct http_response {
 
 	int chunked;
 };
-
-void
-http_set_header(str_t *h, const char *p, size_t sz);
 
 /* HTTP response */
 
@@ -38,5 +41,19 @@ http_response_set_body(struct http_response *r, const char *body, size_t body_le
 int
 http_response_write(struct http_response *r, int fd);
 
+void
+http_crossdomain(struct http_client *c);
+
+void
+http_send_error(struct http_client *c, short code, const char *msg);
+
+void
+http_send_options(struct http_client *c);
+
+void
+http_response_set_connection_header(struct http_client *c, struct http_response *r);
+
+void
+http_response_write_chunk(int fd, const char *p, size_t sz);
 
 #endif

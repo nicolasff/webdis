@@ -13,7 +13,7 @@ void
 raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 
 	redisReply *reply = r;
-	struct http_client *client = privdata;
+	struct cmd *cmd = privdata;
 	char *raw_out;
 	size_t sz;
 	(void)c;
@@ -25,7 +25,7 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 	raw_out = raw_wrap(r, &sz);
 
 	/* send reply */
-	format_send_reply(client, raw_out, sz, "binary/octet-stream");
+	format_send_reply(cmd, raw_out, sz, "binary/octet-stream");
 
 	/* cleanup */
 	free(raw_out);

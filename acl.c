@@ -14,7 +14,7 @@ acl_match_client(struct acl *a, struct http_client *client, in_addr_t *ip) {
 
 	/* check HTTP Basic Auth */
 	const char *auth;
-	auth = client->input_headers.authorization.s;
+	auth = client_get_header(client, "Authorization");
 	if(a->http_basic_auth) {
 		if(auth && strncasecmp(auth, "Basic ", 6) == 0) { /* sent auth */
 			if(strcmp(auth + 6, a->http_basic_auth) != 0) { /* bad password */
@@ -39,6 +39,7 @@ acl_match_client(struct acl *a, struct http_client *client, in_addr_t *ip) {
 int
 acl_allow_command(struct cmd *cmd, struct conf *cfg, struct http_client *client) {
 
+	 /* FIXME */
 	char *always_off[] = {"MULTI", "EXEC", "WATCH", "DISCARD"};
 
 	unsigned int i;

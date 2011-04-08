@@ -1,19 +1,12 @@
 #include "http.h"
 #include "server.h"
-#include "slog.h"
-#include "cmd.h"
+#include "worker.h"
+#include "client.h"
 
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-void
-http_set_header(str_t *h, const char *p, size_t sz) {
-
-	h->s = calloc(1, 1+sz);
-	memcpy(h->s, p, sz);
-	h->sz = sz;
-}
+#include <stdio.h>
 
 /* HTTP Response */
 
@@ -34,35 +27,39 @@ void
 http_response_set_header(struct http_response *r, const char *k, const char *v) {
 
 	int i, pos = r->header_count;
-	size_t sz;
-	char *s;
-
-	sz = strlen(k) + 2 + strlen(v) + 2;
-	s = calloc(sz + 1, 1);
-	sprintf(s, "%s: %s\r\n", k, v);
+	size_t key_sz = strlen(k);
+	size_t val_sz = strlen(v);
 
 	for(i = 0; i < r->header_count; ++i) {
-		size_t klen = strlen(k);
-		if(strncmp(r->headers[i].s, k, klen) == 0 && r->headers[i].s[klen] == ':') {
+		if(strncmp(r->headers[i].key, k, key_sz) == 0) {
 			pos = i;
 			/* free old value before replacing it. */
-			free(r->headers[i].s);
+			free(r->headers[i].key);
+			free(r->headers[i].val);
 			break;
 		}
 	}
 
 	/* extend array */
 	if(pos == r->header_count) {
-		r->headers = realloc(r->headers, sizeof(str_t)*(r->header_count + 1));
+		r->headers = realloc(r->headers,
+				sizeof(struct http_header)*(r->header_count + 1));
 		r->header_count++;
 	}
-	r->headers[pos].s = s;
-	r->headers[pos].sz = sz;
 
-	if(!strcmp(k, "Transfer-Encoding") && !strcmp(v, "chunked")) {
+	/* copy key */
+	r->headers[pos].key = calloc(key_sz + 1, 1);
+	memcpy(r->headers[pos].key, k, key_sz);
+	r->headers[pos].key_sz = key_sz;
+
+	/* copy val */
+	r->headers[pos].val = calloc(val_sz + 1, 1);
+	memcpy(r->headers[pos].val, v, val_sz);
+	r->headers[pos].val_sz = val_sz;
+
+	if(!strcmp(k, "Transfer-Encoding") && !strcmp(v, "Chunked")) {
 		r->chunked = 1;
 	}
-
 }
 
 void
@@ -77,13 +74,13 @@ http_response_write(struct http_response *r, int fd) {
 
 	char *s = NULL, *p;
 	size_t sz = 0;
-	int i, ret;
+	int i, ret, keep_alive = 0;
 
 	sz = sizeof("HTTP/1.x xxx ")-1 + strlen(r->msg) + 2;
 	s = calloc(sz + 1, 1);
 
 	ret = sprintf(s, "HTTP/1.1 %d %s\r\n", r->code, r->msg);
-	p = s; // + ret - 3;
+	p = s;
 
 	if(r->code == 200 && r->body) {
 		char content_length[10];
@@ -94,12 +91,33 @@ http_response_write(struct http_response *r, int fd) {
 	}
 
 	for(i = 0; i < r->header_count; ++i) {
-		s = realloc(s, sz + r->headers[i].sz);
+		/* "Key: Value\r\n" */
+		size_t header_sz = r->headers[i].key_sz + 2 + r->headers[i].val_sz + 2;
+		s = realloc(s, sz + header_sz);
 		p = s + sz;
-		memcpy(p, r->headers[i].s, r->headers[i].sz);
 
-		p += r->headers[i].sz;
-		sz += r->headers[i].sz;
+		/* add key */
+		memcpy(p, r->headers[i].key, r->headers[i].key_sz);
+		p += r->headers[i].key_sz;
+
+		/* add ": " */
+		memcpy(p, ": ", 2);
+		p += 2;
+
+		/* add value */
+		memcpy(p, r->headers[i].val, r->headers[i].val_sz);
+		p += r->headers[i].val_sz;
+
+		/* add "\r\n" */
+		memcpy(p, "\r\n", 2);
+		p += 2;
+
+		sz += header_sz;
+
+		if(strncasecmp("Connection", r->headers[i].key, r->headers[i].key_sz) == 0 &&
+			strncasecmp("Keep-Alive", r->headers[i].val, r->headers[i].val_sz) == 0) {
+			keep_alive = 1;
+		}
 	}
 
 	/* end of headers */
@@ -114,14 +132,98 @@ http_response_write(struct http_response *r, int fd) {
 	}
 
 	ret = write(fd, s, sz);
+	if(!keep_alive) {
+		/* printf("response write, close fd=%d\n", fd); */
+		close(fd);
+	}
+	/*
+	write(1, "response: [", 11);
+	write(1, s, sz);
+	write(1, "]\n", 2);
+	*/
 	free(s);
 
 	/* cleanup response object */
 	for(i = 0; i < r->header_count; ++i) {
-		free(r->headers[i].s);
+		free(r->headers[i].key);
+		free(r->headers[i].val);
 	}
 	free(r->headers);
 
 	return ret == (int)sz ? 0 : 1;
+}
+
+/* Adobe flash cross-domain request */
+void
+http_crossdomain(struct http_client *c) {
+
+	struct http_response resp;
+	char out[] = "<?xml version=\"1.0\"?>\n"
+"<!DOCTYPE cross-domain-policy SYSTEM \"http://www.macromedia.com/xml/dtds/cross-domain-policy.dtd\">\n"
+"<cross-domain-policy>\n"
+  "<allow-access-from domain=\"*\" />\n"
+"</cross-domain-policy>\n";
+
+	http_response_init(&resp, 200, "OK");
+	http_response_set_connection_header(c, &resp);
+	http_response_set_header(&resp, "Content-Type", "application/xml");
+	http_response_set_body(&resp, out, sizeof(out)-1);
+
+	http_response_write(&resp, c->fd);
+	http_client_reset(c);
+}
+
+/* Simple error response */
+void
+http_send_error(struct http_client *c, short code, const char *msg) {
+
+	struct http_response resp;
+	http_response_init(&resp, code, msg);
+	http_response_set_connection_header(c, &resp);
+	http_response_set_body(&resp, NULL, 0);
+
+	http_response_write(&resp, c->fd);
+	http_client_reset(c);
+}
+
+void
+http_response_set_connection_header(struct http_client *c, struct http_response *r) {
+	if(c->keep_alive) {
+		http_response_set_header(r, "Connection", "Keep-Alive");
+	} else {
+		http_response_set_header(r, "Connection", "Close");
+	}
+}
+
+/* Response to HTTP OPTIONS */
+void
+http_send_options(struct http_client *c) {
+
+	struct http_response resp;
+	http_response_init(&resp, 200, "OK");
+	http_response_set_connection_header(c, &resp);
+
+	http_response_set_header(&resp, "Content-Type", "text/html");
+	http_response_set_header(&resp, "Allow", "GET,POST,PUT,OPTIONS");
+	http_response_set_header(&resp, "Content-Length", "0");
+
+	/* Cross-Origin Resource Sharing, CORS. */
+	http_response_set_header(&resp, "Access-Control-Allow-Origin", "*");
+
+	http_response_write(&resp, c->fd);
+	http_client_reset(c);
+}
+
+void
+http_response_write_chunk(int fd, const char *p, size_t sz) {
+
+	char buf[64];
+	int ret, chunk_size;
+
+	chunk_size = sprintf(buf, "%x\r\n", (int)sz);
+	ret = write(fd, buf, chunk_size);
+	ret = write(fd, p, sz);
+	ret = write(fd, "\r\n", 2);
+	(void)ret;
 }
 

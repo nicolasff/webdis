@@ -3,10 +3,10 @@
 
 #include <stdlib.h>
 
-struct http_client;
+struct cmd;
 
 void
-format_send_reply(struct http_client *client,
+format_send_reply(struct cmd *cmd,
 		const char *p, size_t sz,
 		const char *content_type);
 

@@ -14,6 +14,7 @@ struct conf {
 	/* HTTP server interface */
 	char *http_host;
 	short http_port;
+	short http_threads;
 
 	/* daemonize process, off by default */
 	int daemonize;
