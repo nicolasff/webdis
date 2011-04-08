@@ -40,7 +40,7 @@ worker_can_read(int fd, short event, void *p) {
 
 	ret = http_client_read(c);
 	if(ret <= 0) {
-		printf("client disconnected\n");
+		/* printf("client %d disconnected\n", fd); */
 		return;
 	}
 

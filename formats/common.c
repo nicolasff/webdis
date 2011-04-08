@@ -81,9 +81,6 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			http_response_set_header(&resp, "Connection", "Close");
 		}
 		http_response_write(&resp, cmd->fd);
-		if(!cmd->keep_alive) {
-			close(cmd->fd);
-		}
 		free(etag);
 	}
 	

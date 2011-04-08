@@ -132,7 +132,7 @@ http_response_write(struct http_response *r, int fd) {
 	}
 
 	ret = write(fd, s, sz);
-	if(!keep_alive) {
+	if(!keep_alive && ret == sz) {
 		/* printf("response write, close fd=%d\n", fd); */
 		close(fd);
 	}

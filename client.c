@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 static int
 http_client_on_url(struct http_parser *p, const char *at, size_t sz) {
@@ -238,8 +239,8 @@ http_client_read(struct http_client *c) {
 
 	ret = read(c->fd, buffer, sizeof(buffer));
 	if(ret <= 0) {
-		/* printf("Broken read on c=%p, fd=%d.\n", (void*)c, c->fd); */
-		close(c->fd);
+		/* printf("Broken read on c=%p, fd=%d. (%s)\n", (void*)c, c->fd, strerror(errno)); */
+		/* close(c->fd); */
 		http_client_free(c);
 		return -1;
 	}
