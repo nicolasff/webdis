@@ -51,6 +51,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			const char *ct = cmd->mime?cmd->mime:content_type;
 			cmd->started_responding = 1;
 			http_response_init(&resp, 200, "OK");
+			resp.http_version = cmd->http_version;
 			http_response_set_header(&resp, "Content-Type", ct);
 			http_response_set_header(&resp, "Connection", "Keep-Alive");
 			http_response_set_header(&resp, "Transfer-Encoding", "Chunked");
@@ -73,6 +74,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			http_response_set_header(&resp, "ETag", etag);
 			http_response_set_body(&resp, p, sz);
 		}
+		resp.http_version = cmd->http_version;
 		if(cmd->keep_alive) {
 			http_response_set_header(&resp, "Connection", "Keep-Alive");
 		} else {

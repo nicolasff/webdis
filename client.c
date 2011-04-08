@@ -146,6 +146,7 @@ http_client_on_message_complete(struct http_parser *p) {
 	if(c->parser.http_major == 1 && c->parser.http_minor == 1) { /* 1.1 */
 		c->keep_alive = 1;
 	}
+	c->http_version = c->parser.http_minor;
 
 	if(p->upgrade) { /* WebSocket, don't execute just yet */
 		c->is_websocket = 1;

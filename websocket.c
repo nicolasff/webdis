@@ -154,11 +154,14 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 	if(fun_extract) {
 		struct cmd *cmd = fun_extract(c, frame, frame_len);
 		if(cmd) {
+			/* copy client info into cmd. */
+			cmd_setup(cmd, c);
 			cmd->is_websocket = 1;
-			cmd->fd = c->fd;
 
-			/* TODO: clean this mess */
+			/* get redis connection from pool */
 			redisAsyncContext *ac = (redisAsyncContext*)pool_get_context(c->w->pool);
+
+			/* send it off */
 			cmd_send(ac, json_reply, cmd);
 			return 0;
 		}

@@ -79,7 +79,7 @@ http_response_write(struct http_response *r, int fd) {
 	sz = sizeof("HTTP/1.x xxx ")-1 + strlen(r->msg) + 2;
 	s = calloc(sz + 1, 1);
 
-	ret = sprintf(s, "HTTP/1.1 %d %s\r\n", r->code, r->msg);
+	ret = sprintf(s, "HTTP/1.%d %d %s\r\n", (r->http_version?1:0), r->code, r->msg);
 	p = s;
 
 	if(r->code == 200 && r->body) {
@@ -165,6 +165,7 @@ http_crossdomain(struct http_client *c) {
 "</cross-domain-policy>\n";
 
 	http_response_init(&resp, 200, "OK");
+	resp.http_version = c->http_version;
 	http_response_set_connection_header(c, &resp);
 	http_response_set_header(&resp, "Content-Type", "application/xml");
 	http_response_set_body(&resp, out, sizeof(out)-1);
@@ -179,6 +180,7 @@ http_send_error(struct http_client *c, short code, const char *msg) {
 
 	struct http_response resp;
 	http_response_init(&resp, code, msg);
+	resp.http_version = c->http_version;
 	http_response_set_connection_header(c, &resp);
 	http_response_set_body(&resp, NULL, 0);
 
@@ -201,6 +203,7 @@ http_send_options(struct http_client *c) {
 
 	struct http_response resp;
 	http_response_init(&resp, 200, "OK");
+	resp.http_version = c->http_version;
 	http_response_set_connection_header(c, &resp);
 
 	http_response_set_header(&resp, "Content-Type", "text/html");

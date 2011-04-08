@@ -24,14 +24,15 @@ struct cmd {
 
 	/* HTTP data */
 	char *mime; /* forced output content-type */
-	int mime_free;
 	char *if_none_match; /* used with ETags */
 	char *jsonp; /* jsonp wrapper */
-	int keep_alive;
+	int keep_alive:1;
+	int mime_free:1; /* need to free mime buffer */
 
 	/* various flags */
-	int started_responding;
-	int is_websocket;
+	int started_responding:1;
+	int is_websocket:1;
+	int http_version:1;
 };
 
 struct subscription {
@@ -59,5 +60,8 @@ cmd_is_subscribe(struct cmd *cmd);
 
 void
 cmd_send(redisAsyncContext *ac, formatting_fun f_format, struct cmd *cmd);
+
+void
+cmd_setup(struct cmd *cmd, struct http_client *client);
 
 #endif

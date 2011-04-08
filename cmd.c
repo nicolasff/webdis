@@ -81,7 +81,7 @@ decode_uri(const char *uri, size_t length, size_t *out_len, int always_decode_pl
 }
 
 /* setup headers */
-static void
+void
 cmd_setup(struct cmd *cmd, struct http_client *client) {
 
 	int i;
@@ -108,6 +108,9 @@ cmd_setup(struct cmd *cmd, struct http_client *client) {
 		cmd->jsonp = client->jsonp;
 		client->jsonp = NULL;
 	}
+
+	cmd->fd = client->fd;
+	cmd->http_version = client->http_version;
 }
 
 
