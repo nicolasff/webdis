@@ -30,13 +30,13 @@ struct cmd {
 	char *mime; /* forced output content-type */
 	char *if_none_match; /* used with ETags */
 	char *jsonp; /* jsonp wrapper */
-	int keep_alive:1;
-	int mime_free:1; /* need to free mime buffer */
+	int keep_alive;
+	int mime_free; /* need to free mime buffer */
 
 	/* various flags */
-	int started_responding:1;
-	int is_websocket:1;
-	int http_version:1;
+	int started_responding;
+	int is_websocket;
+	int http_version;
 };
 
 struct subscription {

@@ -31,10 +31,10 @@ struct http_client {
 	last_cb_t last_cb;
 
 	/* various flags. */
-	int keep_alive:1;
-	int broken:1;
-	int is_websocket:1;
-	int http_version:1;
+	int keep_alive;
+	int broken;
+	int is_websocket;
+	int http_version;
 
 	/* HTTP data */
 	char *path;

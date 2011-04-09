@@ -24,8 +24,8 @@ struct http_response {
 	const char *body;
 	size_t body_len;
 
-	int chunked:1;
-	int http_version:1;
+	int chunked;
+	int http_version;
 };
 
 /* HTTP response */
