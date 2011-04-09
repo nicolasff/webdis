@@ -105,11 +105,13 @@ server_can_accept(int fd, short event, void *ptr) {
 	client_fd = accept(fd, (struct sockaddr*)&addr, &addr_sz);
 
 	/* create client and send to worker. */
-	c = http_client_new(w, client_fd, addr.sin_addr.s_addr);
-	worker_add_client(w, c);
+	if(client_fd > 0) {
+		c = http_client_new(w, client_fd, addr.sin_addr.s_addr);
+		worker_add_client(w, c);
 
-	/* loop over ring of workers */
-	s->next_worker = (s->next_worker + 1) % s->cfg->http_threads;
+		/* loop over ring of workers */
+		s->next_worker = (s->next_worker + 1) % s->cfg->http_threads;
+	}
 }
 
 /**

@@ -245,6 +245,7 @@ http_client_read(struct http_client *c) {
 	ret = read(c->fd, buffer, sizeof(buffer));
 	if(ret <= 0) {
 		/* broken link, free buffer and client object */
+		close(c->fd);
 		http_client_free(c);
 		return -1;
 	}
