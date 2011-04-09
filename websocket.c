@@ -1,10 +1,13 @@
 #include "md5/md5.h"
 #include "websocket.h"
 #include "client.h"
-#include "formats/json.h"
 #include "cmd.h"
 #include "worker.h"
 #include "pool.h"
+
+/* message parsers */
+#include "formats/json.h"
+#include "formats/raw.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -148,23 +151,33 @@ static int
 ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 
 	struct cmd*(*fun_extract)(struct http_client *, const char *, size_t) = NULL;
+	formatting_fun fun_reply = NULL;
 
-	if(strncmp(c->path, "/.json", 6) == 0) {
+	if((c->path_sz == 1 && strncmp(c->path, "/", 1) == 0) ||
+	   strncmp(c->path, "/.json", 6) == 0) {
 		fun_extract = json_ws_extract;
+		fun_reply = json_reply;
+	} else if(strncmp(c->path, "/.raw", 5) == 0) {
+		fun_extract = raw_ws_extract;
+		fun_reply = raw_reply;
 	}
 
 	if(fun_extract) {
+
+		/* Parse websocket frame into a cmd object. */
 		struct cmd *cmd = fun_extract(c, frame, frame_len);
+
 		if(cmd) {
 			/* copy client info into cmd. */
 			cmd_setup(cmd, c);
 			cmd->is_websocket = 1;
 
-			/* get redis connection from pool */
+			/* get Redis connection from pool */
 			redisAsyncContext *ac = (redisAsyncContext*)pool_get_context(c->w->pool);
 
 			/* send it off */
-			cmd_send(ac, json_reply, cmd);
+			cmd_send(ac, fun_reply, cmd);
+
 			return 0;
 		}
 	}

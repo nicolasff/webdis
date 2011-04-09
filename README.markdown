@@ -26,6 +26,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Raw Redis 2.0 protocol output with `.raw` suffix
 * BSON support for compact responses and MongoDB compatibility.
 * HTTP 1.1 pipelining (70,000 http requests per second on a desktop Linux machine.)
+* WebSocket support.
 * Connects to Redis using a TCP or UNIX socket.
 * Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Possible Redis authentication in the config file.
@@ -48,7 +49,6 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Multi-server support, using consistent hashing.
 * Database selection in the URL? e.g. `/7/GET/key` to run the command on DB 7.
 * SSL?
-* Add WebSocket support (with which protocol?).
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 
 # HTTP error codes
@@ -252,3 +252,34 @@ $ md5sum redis-logo.png out.png
 </pre>
 
 The file was uploaded and re-downloaded properly: it has the same hash and the content-type was set properly thanks to the `.png` extension.
+
+# WebSockets
+Webdis supports WebSocket clients implementing [dixie-76](http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76).  
+Web Sockets are supported with the following formats, selected by the connection URL:
+
+* JSON (on `/` or `/.json`)
+* Raw Redis wire protocol (on `/.raw`)
+
+**Example**:
+<pre>
+function testJSON() {
+	var jsonSocket = new WebSocket("ws://127.0.0.1:7379/.json");
+	jsonSocket.onopen = function() {
+
+		console.log("JSON socket connected!");
+		jsonSocket.send(JSON.stringify(["SET", "hello", "world"]));
+		jsonSocket.send(JSON.stringify(["GET", "hello"]));
+	};
+	jsonSocket.onmessage = function(messageEvent) {
+		console.log("JSON received:", messageEvent.data);
+	};
+}
+testJSON();
+</pre>
+
+This produces the following output:
+<pre>
+JSON socket connected!
+JSON received: {"SET":[true,"OK"]}
+JSON received: {"GET":"world"}
+</pre>

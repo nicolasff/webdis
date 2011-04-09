@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+	<head><title>WebSocket example</title></head>
+	<body>
+		<script type="text/javascript">
+
+function testJSON() {
+	var jsonSocket = new WebSocket("ws://127.0.0.1:7379/.json");
+	jsonSocket.onopen = function() {
+
+		console.log("JSON socket connected!");
+		jsonSocket.send(JSON.stringify(["SET", "hello", "world"]));
+		jsonSocket.send(JSON.stringify(["GET", "hello"]));
+	};
+	jsonSocket.onmessage = function(messageEvent) {
+		console.log("JSON received:", messageEvent.data);
+	};
+}
+
+function testRAW() {
+	var rawSocket = new WebSocket("ws://127.0.0.1:7379/.raw");
+	rawSocket.onopen = function() {
+
+		console.log("raw socket connected!");
+		rawSocket.send("*3\r\n$3\r\nSET\r\n$5\r\nhello\r\n$5\r\nworld\r\n");
+		rawSocket.send("*2\r\n$3\r\nGET\r\n$5\r\nhello\r\n");
+	};
+	rawSocket.onmessage = function(messageEvent) {
+		console.log("Raw received:", messageEvent.data);
+	};
+}
+
+addEventListener("DOMContentLoaded", function(){
+	testJSON();
+	testRAW();
+}, null);
+
+		</script>
+	</body>
+</html>
