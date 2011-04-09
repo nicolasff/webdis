@@ -16,11 +16,13 @@
 struct worker *
 worker_new(struct server *s) {
 
+	int ret;
 	struct worker *w = calloc(1, sizeof(struct worker));
 	w->s = s;
 
 	/* setup communication link */
-	pipe(w->link);
+	ret = pipe(w->link);
+	(void)ret;
 
 	/* Redis connection pool */
 	w->pool = pool_new(w, 8);	/* FIXME: change the number? use conf? */
