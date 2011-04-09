@@ -181,6 +181,9 @@ cmd_run(struct worker *w, struct http_client *client,
 
 	/* no args (e.g. INFO command) */
 	if(!slash) {
+		if(!ac) {
+			return CMD_REDIS_UNAVAIL;
+		}
 		redisAsyncCommandArgv(ac, f_format, cmd, 1,
 				(const char **)cmd->argv, cmd->argv_len);
 		return CMD_SENT;
