@@ -22,31 +22,31 @@ pool_new(struct worker *w, int count) {
 }
 
 static void
-pool_on_connect(const redisAsyncContext *c) {
-	struct pool *p = c->data;
+pool_on_connect(const redisAsyncContext *ac) {
+	struct pool *p = ac->data;
 	int i = 0;
 
-	printf("Connected to redis\n");
-	if(!p) {
+	if(!p || ac->err) {
 		return;
 	}
+	/* printf("Connected to redis\n"); */
 
 	/* add to pool */
 	for(i = 0; i < p->count; ++i) {
 		if(p->ac[i] == NULL) {
-			p->ac[i] = c;
+			p->ac[i] = ac;
 			return;
 		}
 	}
 }
 
 static void
-pool_on_disconnect(const redisAsyncContext *c, int status) {
+pool_on_disconnect(const redisAsyncContext *ac, int status) {
 
-	struct pool *p = c->data;
+	struct pool *p = ac->data;
 	int i = 0;
 	if (status != REDIS_OK) {
-		fprintf(stderr, "Error: %s\n", c->errstr);
+		/* fprintf(stderr, "Error: %s\n", ac->errstr); */
 	}
 
 	if(p == NULL) { /* no need to clean anything here. */
@@ -55,13 +55,14 @@ pool_on_disconnect(const redisAsyncContext *c, int status) {
 
 	/* remove from the pool */
 	for(i = 0; i < p->count; ++i) {
-		if(p->ac[i] == c) {
+		if(p->ac[i] == ac) {
 			p->ac[i] = NULL;
 			break;
 		}
 	}
 
 	/* reconnect */
+	/* FIXME: schedule reconnect */
 	pool_connect(p, 1);
 }
 
@@ -89,7 +90,7 @@ pool_connect(struct pool *p, int attach) {
 		const char err[] = "Connection failed";
 		slog(s, WEBDIS_ERROR, err, sizeof(err)-1);
 		*/
-		fprintf(stderr, "Error: %s\n", ac->errstr);
+		/* fprintf(stderr, "Error: %s\n", ac->errstr); */
 		redisAsyncFree(ac);
 		return NULL;
 	}

@@ -32,6 +32,21 @@ char *etag_new(const char *p, size_t sz) {
 }
 
 void
+format_send_error(struct cmd *cmd, short code, const char *msg) {
+
+	struct http_response resp;
+
+	http_response_init(&resp, code, msg);
+	resp.http_version = cmd->http_version;
+	if(cmd->keep_alive) {
+		http_response_set_header(&resp, "Connection", "Keep-Alive");
+	} else {
+		http_response_set_header(&resp, "Connection", "Close");
+	}
+	http_response_write(&resp, cmd->fd);
+}
+
+void
 format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content_type) {
 
 	int free_cmd = 1;

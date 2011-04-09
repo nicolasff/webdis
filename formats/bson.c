@@ -28,11 +28,8 @@ bson_reply(redisAsyncContext *c, void *r, void *privdata) {
 		return;
 	}
 
-	if (reply == NULL) {
-		/* FIXME */
-		/*
-		http_send_reply(client, 404, "Not Found", NULL, 0);
-		*/
+	if (reply == NULL) { /* broken Redis link */
+		format_send_error(cmd, 503, "Service Unavailable");
 		return;
 	}
 

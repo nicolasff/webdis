@@ -114,7 +114,7 @@ cmd_setup(struct cmd *cmd, struct http_client *client) {
 }
 
 
-int
+cmd_response_t
 cmd_run(struct worker *w, struct http_client *client,
 		const char *uri, size_t uri_len,
 		const char *body, size_t body_len) {
@@ -141,7 +141,7 @@ cmd_run(struct worker *w, struct http_client *client,
 		param_count++;
 	}
 	if(param_count == 0) {
-		return -1;
+		return CMD_PARAM_ERROR;
 	}
 
 	cmd = cmd_new(param_count);
@@ -168,20 +168,22 @@ cmd_run(struct worker *w, struct http_client *client,
 
 	/* check that the client is able to run this command */
 	if(!acl_allow_command(cmd, w->s->cfg, client)) {
-		return -1;
+		return CMD_ACL_FAIL;
 	}
 
-	/* check if we have to split the connection */
 	if(cmd_is_subscribe(cmd)) {
+		/* create a new connection to Redis */
 		ac = (redisAsyncContext*)pool_connect(w->pool, 0);
+	} else {
+		/* get a connection from the pool */
+		ac = (redisAsyncContext*)pool_get_context(w->pool);
 	}
 
 	/* no args (e.g. INFO command) */
 	if(!slash) {
-		ac = (redisAsyncContext*)pool_get_context(w->pool);
 		redisAsyncCommandArgv(ac, f_format, cmd, 1,
 				(const char **)cmd->argv, cmd->argv_len);
-		return 0;
+		return CMD_SENT;
 	}
 	p = slash + 1;
 	while(p < uri + uri_len) {
@@ -209,12 +211,12 @@ cmd_run(struct worker *w, struct http_client *client,
 	}
 
 	/* send it off! */
-	if(!ac) {
-		ac = (redisAsyncContext*)pool_get_context(w->pool);
+	if(ac) {
+		cmd_send(ac, f_format, cmd);
+		return CMD_SENT;
 	}
-	cmd_send(ac, f_format, cmd);
-
-	return 0;
+	/* failed to find a suitable connection to Redis. */
+	return CMD_REDIS_UNAVAIL;
 }
 
 void

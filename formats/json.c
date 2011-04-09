@@ -25,13 +25,8 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 		return;
 	}
 
-	if (reply == NULL) {
-/* FIXME */
-#if 0
-		if(client->started_responding) { /* broken, close */
-			http_send_reply_end(client);
-		}
-#endif
+	if (reply == NULL) { /* broken Redis link */
+		format_send_error(cmd, 503, "Service Unavailable");
 		return;
 	}
 

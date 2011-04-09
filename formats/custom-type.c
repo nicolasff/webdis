@@ -17,7 +17,8 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	int int_len;
 	struct http_response resp;
 
-	if(reply == NULL) {
+	if (reply == NULL) { /* broken Redis link */
+		format_send_error(cmd, 503, "Service Unavailable");
 		return;
 	}
 

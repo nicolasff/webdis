@@ -14,6 +14,10 @@ struct worker;
 struct cmd;
 
 typedef void (*formatting_fun)(redisAsyncContext *, void *, void *);
+typedef enum {CMD_SENT,
+	CMD_PARAM_ERROR,
+	CMD_ACL_FAIL,
+	CMD_REDIS_UNAVAIL} cmd_response_t;
 
 struct cmd {
 	int fd;
@@ -46,7 +50,7 @@ cmd_new(int count);
 void
 cmd_free(struct cmd *c);
 
-int
+cmd_response_t
 cmd_run(struct worker *w, struct http_client *client,
 		const char *uri, size_t uri_len,
 		const char *body, size_t body_len);

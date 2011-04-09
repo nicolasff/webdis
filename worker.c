@@ -161,7 +161,7 @@ worker_process_client(struct http_client *c) {
 	/* printf("worker_process_client\n"); */
 	/* check that the command can be executed */
 	struct worker *w = c->w;
-	int ret = -1;
+	cmd_response_t ret = -1;
 	switch(c->parser.method) {
 		case HTTP_GET:
 			if(c->path_sz == 16 && memcmp(c->path, "/crossdomain.xml", 16) == 0) {
@@ -192,8 +192,17 @@ worker_process_client(struct http_client *c) {
 			return;
 	}
 
-	if(ret < 0) {
-		http_send_error(c, 403, "Forbidden");
+	switch(ret) {
+		case CMD_ACL_FAIL:
+		case CMD_PARAM_ERROR:
+			http_send_error(c, 403, "Forbidden");
+			break;
+
+		case CMD_REDIS_UNAVAIL:
+			http_send_error(c, 503, "Service Unavailable");
+			break;
+		default:
+			break;
 	}
 
 }
