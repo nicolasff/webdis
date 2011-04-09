@@ -8,40 +8,59 @@ info() {
 	echo "Testing on $HOST:$PORT with $CLIENTS clients in parallel, for a total of $REQUESTS requests per benchmark."
 }
 
+once() {
+	curl -q http://$HOST:$PORT/$1 1> /dev/null 2> /dev/null
+}
+
+bench() {
+	NUM=`ab -k -c $CLIENTS -n $REQUESTS http://$HOST:$PORT/$1 2>/dev/null | grep "#/sec" | sed -e "s/[^0-9.]//g"`
+	echo -ne $NUM
+}
+
 test_ping() {
 	echo -en "PING: "
-	NUM=`ab -k -c $CLIENTS -n $REQUESTS http://$HOST:$PORT/PING 2>/dev/null | grep "#/sec" | sed -e "s/[^0-9.]//g"`
-	echo "$NUM requests/sec."
+	bench "PING"
+	echo " requests/sec."
 }
 
 test_set() {
 	echo -en "SET(hello,world): "
-	NUM=`ab -k -c $CLIENTS -n $REQUESTS http://$HOST:$PORT/SET/hello/world 2>/dev/null | grep "#/sec" | sed -e "s/[^0-9.]//g"`
-	echo "$NUM requests/sec."
+	bench "SET/hello/world"
+	echo " requests/sec."
 }
 
 test_get() {
 	echo -en "GET(hello): "
-	NUM=`ab -k -c $CLIENTS -n $REQUESTS http://$HOST:$PORT/GET/hello 2>/dev/null | grep "#/sec" | sed -e "s/[^0-9.]//g"`
-	echo "$NUM requests/sec."
+	bench "GET/hello"
+	echo " requests/sec."
+}
+
+test_incr() {
+	once "DEL/hello"
+
+	echo -en "INCR(hello): "
+	bench "INCR/hello"
+	echo " requests/sec."
 }
 
 test_lpush() {
+
 	echo -en "LPUSH(hello,abc): "
-	curl -q http://$HOST:$PORT/DEL/hello 1> /dev/null 2> /dev/null
-	NUM=`ab -k -c $CLIENTS -n $REQUESTS http://$HOST:$PORT/LPUSH/hello/abc 2>/dev/null | grep "#/sec" | sed -e "s/[^0-9.]//g"`
-	echo "$NUM requests/sec."
+	bench "LPUSH/hello/abc"
+	echo " requests/sec."
 }
 
 test_lrange() {
-	echo -en "LRANGE(hello,0,100): "
-	NUM=`ab -k -c $CLIENTS -n $REQUESTS http://$HOST:$PORT/LRANGE/hello/0/100 2>/dev/null | grep "#/sec" | sed -e "s/[^0-9.]//g"`
-	echo "$NUM requests/sec."
+	echo -en "LRANGE(hello,$1,$2): "
+	bench "LRANGE/hello/$1/$2"
+	echo " requests/sec."
 }
 
 info
 test_ping
 test_set
 test_get
+test_incr
 test_lpush
-test_lrange
+test_lrange 0 10
+test_lrange 0 100
