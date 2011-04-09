@@ -39,7 +39,6 @@ acl_match_client(struct acl *a, struct http_client *client, in_addr_t *ip) {
 int
 acl_allow_command(struct cmd *cmd, struct conf *cfg, struct http_client *client) {
 
-	 /* FIXME */
 	char *always_off[] = {"MULTI", "EXEC", "WATCH", "DISCARD"};
 
 	unsigned int i;

@@ -30,7 +30,7 @@ struct http_client {
 	size_t sz;
 	last_cb_t last_cb;
 
-	/* various flags. TODO: bit map */
+	/* various flags. */
 	int keep_alive:1;
 	int broken:1;
 	int is_websocket:1;
