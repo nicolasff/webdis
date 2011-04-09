@@ -37,6 +37,7 @@ conf_read(const char *filename) {
 	conf->verbosity = WEBDIS_NOTICE;
 	conf->daemonize = 0;
 	conf->database = 0;
+	conf->pool_size_per_thread = 2;
 
 	j = json_load_file(filename, 0, &error);
 	if(!j) {
@@ -84,6 +85,8 @@ conf_read(const char *filename) {
 			conf->daemonize = 1;
 		} else if(strcmp(json_object_iter_key(kv), "database") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->database = json_integer_value(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "pool_size") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
+			conf->pool_size_per_thread = json_integer_value(jtmp);
 		}
 	}
 

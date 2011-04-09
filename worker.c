@@ -5,6 +5,8 @@
 #include "pool.h"
 #include "slog.h"
 #include "websocket.h"
+#include "conf.h"
+#include "server.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,7 +27,7 @@ worker_new(struct server *s) {
 	(void)ret;
 
 	/* Redis connection pool */
-	w->pool = pool_new(w, 8);	/* FIXME: change the number? use conf? */
+	w->pool = pool_new(w, s->cfg->pool_size_per_thread);
 
 	return w;
 
