@@ -11,7 +11,7 @@ typedef enum {
 
 struct server;
 
-void slog(const struct server *s, log_level level,
+void slog(struct server *s, log_level level,
 		const char *body, size_t sz);
 
 #endif

@@ -3,6 +3,7 @@
 
 #include <event.h>
 #include <hiredis/async.h>
+#include <pthread.h>
 
 struct worker;
 struct conf;
@@ -18,6 +19,9 @@ struct server {
 	/* worker threads */
 	struct worker **w;
 	int next_worker;
+
+	/* log lock */
+	pthread_spinlock_t log_lock;
 };
 
 struct server *

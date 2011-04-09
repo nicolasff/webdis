@@ -77,6 +77,7 @@ server_new(const char *cfg_file) {
 	struct server *s = calloc(1, sizeof(struct server));
 
 	s->cfg = conf_read(cfg_file);
+	pthread_spin_init(&s->log_lock, PTHREAD_PROCESS_SHARED);
 
 	/* workers */
 	s->w = calloc(s->cfg->http_threads, sizeof(struct worker*));

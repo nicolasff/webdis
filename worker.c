@@ -204,10 +204,12 @@ worker_process_client(struct http_client *c) {
 	switch(ret) {
 		case CMD_ACL_FAIL:
 		case CMD_PARAM_ERROR:
+			slog(w->s, WEBDIS_DEBUG, "403", 3);
 			http_send_error(c, 403, "Forbidden");
 			break;
 
 		case CMD_REDIS_UNAVAIL:
+			slog(w->s, WEBDIS_DEBUG, "503", 3);
 			http_send_error(c, 503, "Service Unavailable");
 			break;
 		default:
