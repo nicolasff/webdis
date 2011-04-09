@@ -23,15 +23,18 @@ http_client_on_url(struct http_parser *p, const char *at, size_t sz) {
 	return 0;
 }
 
+/*
+ * Called when the body is parsed.
+ */
 static int
 http_client_on_body(struct http_parser *p, const char *at, size_t sz) {
 
 	struct http_client *c = p->data;
-	return http_client_set_body(c, at, sz);
+	return http_client_add_to_body(c, at, sz);
 }
 
 int
-http_client_set_body(struct http_client *c, const char *at, size_t sz) {
+http_client_add_to_body(struct http_client *c, const char *at, size_t sz) {
 
 	c->body = realloc(c->body, c->body_sz + sz + 1);
 	memcpy(c->body + c->body_sz, at, sz);
@@ -47,12 +50,14 @@ http_client_on_header_name(struct http_parser *p, const char *at, size_t sz) {
 	struct http_client *c = p->data;
 	size_t n = c->header_count;
 
+	/* if we're not adding to the same header name as last time, realloc to add one field. */
 	if(c->last_cb != LAST_CB_KEY) {
 		n = ++c->header_count;
 		c->headers = realloc(c->headers, n * sizeof(struct http_header));
 		memset(&c->headers[n-1], 0, sizeof(struct http_header));
 	}
 
+	/* Add data to the current header name. */
 	c->headers[n-1].key = realloc(c->headers[n-1].key,
 			c->headers[n-1].key_sz + sz + 1);
 	memcpy(c->headers[n-1].key + c->headers[n-1].key_sz, at, sz);
@@ -64,6 +69,9 @@ http_client_on_header_name(struct http_parser *p, const char *at, size_t sz) {
 	return 0;
 }
 
+/*
+ * Split query string into key/value pairs, process some of them.
+ */
 static int
 http_client_on_query_string(struct http_parser *parser, const char *at, size_t sz) {
 
@@ -113,6 +121,7 @@ http_client_on_header_value(struct http_parser *p, const char *at, size_t sz) {
 	struct http_client *c = p->data;
 	size_t n = c->header_count;
 
+	/* Add data to the current header value. */
 	c->headers[n-1].val = realloc(c->headers[n-1].val,
 			c->headers[n-1].val_sz + sz + 1);
 	memcpy(c->headers[n-1].val + c->headers[n-1].val_sz, at, sz);
@@ -122,6 +131,7 @@ http_client_on_header_value(struct http_parser *p, const char *at, size_t sz) {
 	c->last_cb = LAST_CB_VAL;
 
 
+	/* react to some values. */
 	if(strncmp("Expect", c->headers[n-1].key, c->headers[n-1].key_sz) == 0) {
 		if(sz == 12 && strncasecmp(at, "100-continue", sz) == 0) {
 			/* support HTTP file upload */
@@ -221,13 +231,8 @@ http_client_reset(struct http_client *c) {
 void
 http_client_free(struct http_client *c) {
 
-	/* printf("client free: %p\n", (void*)c); */
-
 	http_client_reset(c);
 	free(c->buffer);
-
-	/* close(c->fd); */
-
 	free(c);
 }
 
@@ -239,22 +244,15 @@ http_client_read(struct http_client *c) {
 
 	ret = read(c->fd, buffer, sizeof(buffer));
 	if(ret <= 0) {
-		/* printf("Broken read on c=%p, fd=%d. (%s)\n", (void*)c, c->fd, strerror(errno)); */
-		/* close(c->fd); */
+		/* broken link, free buffer and client object */
 		http_client_free(c);
 		return -1;
 	}
 
+	/* save what we've just read */
 	c->buffer = realloc(c->buffer, c->sz + ret);
 	memcpy(c->buffer + c->sz, buffer, ret);
 	c->sz += ret;
-
-#if 0
-	printf("read %d bytes\n", ret);
-	write(1, "\n[", 2);
-	write(1, buffer, ret);
-	write(1, "]\n", 2);
-#endif
 
 	return ret;
 }
@@ -263,10 +261,9 @@ int
 http_client_execute(struct http_client *c) {
 
 	int nparsed = http_parser_execute(&c->parser, &c->settings, c->buffer, c->sz);
-	/* printf("nparsed=%d\n", nparsed); */
 
 	if(!c->is_websocket) {
-		/* removed consumed data */
+		/* removed consumed data, all has been copied already. */
 		free(c->buffer);
 		c->buffer = NULL;
 		c->sz = 0;
@@ -274,6 +271,9 @@ http_client_execute(struct http_client *c) {
 	return nparsed;
 }
 
+/*
+ * Find header value, returns NULL if not found.
+ */
 const char *
 client_get_header(struct http_client *c, const char *key) {
 

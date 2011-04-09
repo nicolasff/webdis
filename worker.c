@@ -44,12 +44,12 @@ worker_can_read(int fd, short event, void *p) {
 
 	ret = http_client_read(c);
 	if(ret <= 0) {
-		/* printf("client %d disconnected\n", fd); */
+		/* client disconnected */
 		return;
 	}
 
 	if(c->is_websocket) {
-		/* printf("Got websocket data! (%d bytes)\n", ret); */
+		/* Got websocket data */
 		ws_add_data(c);
 	} else {
 		/* run parser */
@@ -58,7 +58,7 @@ worker_can_read(int fd, short event, void *p) {
 		if(c->is_websocket) {
 			/* we need to use the remaining (unparsed) data as the body. */
 			if(nparsed < ret) {
-				http_client_set_body(c, c->buffer + nparsed + 1, c->sz - nparsed - 1);
+				http_client_add_to_body(c, c->buffer + nparsed + 1, c->sz - nparsed - 1);
 				ws_handshake_reply(c);
 			} else {
 				c->broken = 1;
@@ -70,14 +70,16 @@ worker_can_read(int fd, short event, void *p) {
 	}
 
 	if(c->broken) { /* terminate client */
-		/* printf("terminate client\n"); */
 		http_client_free(c);
 	} else {
-		/* printf("start monitoring input again.\n"); */
+		/* start monitoring input again */
 		worker_monitor_input(c);
 	}
 }
 
+/**
+ * Monitor client FD for possible reads.
+ */
 void
 worker_monitor_input(struct http_client *c) {
 
@@ -86,8 +88,11 @@ worker_monitor_input(struct http_client *c) {
 	event_add(&c->ev, NULL);
 }
 
+/**
+ * Called when a client is sent to this worker.
+ */
 static void
-worker_can_accept(int pipefd, short event, void *ptr) {
+worker_on_new_client(int pipefd, short event, void *ptr) {
 
 	struct http_client *c;
 	unsigned long addr;
@@ -95,10 +100,12 @@ worker_can_accept(int pipefd, short event, void *ptr) {
 	(void)event;
 	(void)ptr;
 
+	/* Get client from messaging pipe */
 	int ret = read(pipefd, &addr, sizeof(addr));
 	if(ret == sizeof(addr)) {
 		c = (struct http_client*)addr;
-		/* create client, monitor fd for input */
+
+		/* monitor client for input */
 		worker_monitor_input(c);
 	}
 }
@@ -124,7 +131,7 @@ worker_main(void *p) {
 	w->base = event_base_new();
 
 	/* monitor pipe link */
-	event_set(&ev, w->link[0], EV_READ | EV_PERSIST, worker_can_accept, w);
+	event_set(&ev, w->link[0], EV_READ | EV_PERSIST, worker_on_new_client, w);
 	event_base_set(w->base, &ev);
 	event_add(&ev, NULL);
 
@@ -143,7 +150,9 @@ worker_start(struct worker *w) {
 	pthread_create(&w->thread, NULL, worker_main, w);
 }
 
-/* queue new client to process */
+/**
+ * Queue new client to process
+ */
 void
 worker_add_client(struct worker *w, struct http_client *c) {
 
@@ -151,17 +160,17 @@ worker_add_client(struct worker *w, struct http_client *c) {
 	unsigned long addr = (unsigned long)c;
 	int ret = write(w->link[1], &addr, sizeof(addr));
 	(void)ret;
-	/* printf("[for worker %p] write: %lu, c=%p (ret=%d)\n", (void*)w, addr, (void*)c, ret); */
 }
 
-/* Called when a client has finished reading input and is ready to be executed. */
+/**
+ * Called when a client has finished reading input and can create a cmd
+ */
 void
 worker_process_client(struct http_client *c) {
 
-	/* printf("worker_process_client\n"); */
 	/* check that the command can be executed */
 	struct worker *w = c->w;
-	cmd_response_t ret = -1;
+	cmd_response_t ret = CMD_PARAM_ERROR;
 	switch(c->parser.method) {
 		case HTTP_GET:
 			if(c->path_sz == 16 && memcmp(c->path, "/crossdomain.xml", 16) == 0) {

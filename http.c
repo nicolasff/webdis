@@ -125,23 +125,22 @@ http_response_write(struct http_response *r, int fd) {
 	memcpy(s + sz, "\r\n", 2);
 	sz += 2;
 
+	/* append body if there is one. */
 	if(r->body && r->body_len) {
 		s = realloc(s, sz + r->body_len);
 		memcpy(s + sz, r->body, r->body_len);
 		sz += r->body_len;
 	}
 
+	/* send buffer to client */
 	ret = write(fd, s, sz);
+
+	/* cleanup buffer */
+	free(s);
 	if(!keep_alive && (size_t)ret == sz) {
-		/* printf("response write, close fd=%d\n", fd); */
+		/* Close fd is client doesn't support Keep-Alive. */
 		close(fd);
 	}
-	/*
-	write(1, "response: [", 11);
-	write(1, s, sz);
-	write(1, "]\n", 2);
-	*/
-	free(s);
 
 	/* cleanup response object */
 	for(i = 0; i < r->header_count; ++i) {
@@ -217,6 +216,9 @@ http_send_options(struct http_client *c) {
 	http_client_reset(c);
 }
 
+/**
+ * Write HTTP chunk.
+ */
 void
 http_response_write_chunk(int fd, const char *p, size_t sz) {
 

@@ -29,7 +29,7 @@ pool_on_connect(const redisAsyncContext *ac) {
 	if(!p || ac->err) {
 		return;
 	}
-	/* printf("Connected to redis\n"); */
+	/* connected to redis! */
 
 	/* add to pool */
 	for(i = 0; i < p->count; ++i) {

@@ -97,15 +97,18 @@ server_can_accept(int fd, short event, void *ptr) {
 	socklen_t addr_sz = sizeof(addr);
 	(void)event;
 
-	w = s->w[s->next_worker]; /* select worker to send the client to */
+	/* select worker to send the client to */
+	w = s->w[s->next_worker];
+
+	/* accept client */
+	client_fd = accept(fd, (struct sockaddr*)&addr, &addr_sz);
 
 	/* create client and send to worker. */
-	client_fd = accept(fd, (struct sockaddr*)&addr, &addr_sz);
-	/* printf("Just accepted fd=%d, sending to worker %p\n", client_fd, (void*)w); */
 	c = http_client_new(w, client_fd, addr.sin_addr.s_addr);
 	worker_add_client(w, c);
 
-	s->next_worker = (s->next_worker + 1) % s->cfg->http_threads; /* loop over ring of workers */
+	/* loop over ring of workers */
+	s->next_worker = (s->next_worker + 1) % s->cfg->http_threads;
 }
 
 int

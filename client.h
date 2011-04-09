@@ -67,7 +67,7 @@ int
 http_client_execute(struct http_client *c);
 
 int
-http_client_set_body(struct http_client *c, const char *at, size_t sz);
+http_client_add_to_body(struct http_client *c, const char *at, size_t sz);
 
 const char *
 client_get_header(struct http_client *c, const char *key);

@@ -12,6 +12,10 @@
 #include <unistd.h>
 #include <errno.h>
 
+/**
+ * This code uses the WebSocket specification from May 23, 2010.
+ * The latest copy is available at http://www.whatwg.org/specs/web-socket-protocol/
+ */
 static uint32_t
 ws_read_key(const char *s) {
 	
@@ -50,10 +54,12 @@ ws_compute_handshake(struct http_client *c, unsigned char *out) {
 		return -1;
 	}
 
-	memcpy(buffer, &number_1, sizeof(uint32_t));
-	memcpy(buffer + sizeof(uint32_t), &number_2, sizeof(uint32_t));
-	memcpy(buffer + 2 * sizeof(uint32_t), c->body + c->body_sz - 8, 8); /* last 8 bytes */
+	/* copy number_1, number_2, and last 8 bytes of the body. */
+	memcpy(buffer, &number_1, 4);
+	memcpy(buffer + 4, &number_2, 4);
+	memcpy(buffer + 8, c->body + c->body_sz - 8, 8);
 	
+	/* hash that buffer, that creates the handshake signature. */
 	md5_init(&ctx);
 	md5_append(&ctx, (const md5_byte_t *)buffer, sizeof(buffer));
 	md5_finish(&ctx, out);
@@ -93,13 +99,9 @@ ws_handshake_reply(struct http_client *c) {
 	}
 
 	if(ws_compute_handshake(c, &md5_handshake[0]) != 0) {
-		printf("failed to compute handshake.\n");
+		/* failed to compute handshake. */
 		return -1;
 	}
-
-	/* This code uses the WebSocket specification from May 23, 2010.
-	 * The latest copy is available at http://www.whatwg.org/specs/web-socket-protocol/
-	 */
 
 	sz = sizeof(template0)-1 + origin_sz
 		+ sizeof(template1)-1 + host_sz + c->path_sz
@@ -181,7 +183,7 @@ ws_add_data(struct http_client *c) {
 	while(1) {
 		/* look for frame start */
 		if(!c->sz || c->buffer[0] != '\x00') {
-			/* printf("frame start fail\n"); */
+			/* can't find frame start */
 			return WS_READ_FAIL;
 		}
 
@@ -200,6 +202,7 @@ ws_add_data(struct http_client *c) {
 
 		ret = ws_execute(c, frame_start + 1, frame_len);
 		if(ret != 0) {
+			/* can't process frame. */
 			return WS_READ_FAIL;
 		}
 
@@ -218,7 +221,7 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 	int ret;
 	char *buffer = malloc(sz + 2);
 
-	/* create frame */
+	/* create frame by prepending 0x00 and appending 0xff */
 	buffer[0] = '\x00';
 	memcpy(buffer + 1, p, sz);
 	buffer[sz + 1] = '\xff';
@@ -228,10 +231,10 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 	free(buffer);
 
 	if(ret == (int)sz + 2) {
-		/* http_client_serve(c); */
+		/* success */
 		return 0;
 	}
-	/* printf("WRITE FAIL on fd=%d, ret=%d (%s)\n", c->fd, ret, strerror(errno)); */
 
+	/* write fail */
 	return -1;
 }
