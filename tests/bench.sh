@@ -44,6 +44,7 @@ test_incr() {
 }
 
 test_lpush() {
+	once "DEL/hello"
 
 	echo -en "LPUSH(hello,abc): "
 	bench "LPUSH/hello/abc"
