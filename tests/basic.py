@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import urllib2, unittest, json
+import urllib2, unittest, json, hashlib
 from functools import wraps
 try:
 	import bson
@@ -15,8 +15,8 @@ class TestWebdis(unittest.TestCase):
 	def wrap(self,url):
 		return 'http://%s:%d/%s' % (host, port, url)
 
-	def query(self, url):
-		r = urllib2.Request(self.wrap(url))
+	def query(self, url, data = None, headers={}):
+		r = urllib2.Request(self.wrap(url), data, headers)
 		return urllib2.urlopen(r)
 
 class TestBasics(TestWebdis):
@@ -176,6 +176,22 @@ class TestBSon(TestWebdis):
 		self.assertTrue(isinstance(obj[0][u'UNKNOWN'], list))
 		self.assertTrue(obj[0]['UNKNOWN'][0] == False)
 		self.assertTrue(isinstance(obj[0]['UNKNOWN'][1], bson.Binary))
+
+class TestETag(TestWebdis):
+
+	def test_etag_match(self):
+		self.query('SET/hello/world')
+		h = hashlib.md5("world").hexdigest()	# match Etag
+		try:
+			f = self.query('GET/hello.txt', None, {'If-None-Match': '"'+ h +'"'})
+		except urllib2.HTTPError as e:
+			self.assertTrue(e.code == 304)
+
+	def test_etag_fail(self):
+		self.query('SET/hello/world')
+		h = hashlib.md5("nonsense").hexdigest()	# non-matching Etag
+		f = self.query('GET/hello.txt', None, {'If-None-Match': '"'+ h +'"'})
+		self.assertTrue(f.read() == 'world')
 
 if __name__ == '__main__':
 	unittest.main()
