@@ -44,6 +44,8 @@ format_send_error(struct cmd *cmd, short code, const char *msg) {
 		http_response_set_header(&resp, "Connection", "Close");
 	}
 	http_response_write(&resp, cmd->fd);
+
+	cmd_free(cmd);
 }
 
 void

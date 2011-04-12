@@ -40,6 +40,41 @@ pool_on_connect(const redisAsyncContext *ac) {
 	}
 }
 
+struct pool_reconnect {
+	struct event ev;
+	struct pool *p;
+
+	struct timeval tv;
+};
+
+static void
+pool_can_connect(int fd, short event, void *ptr) {
+	struct pool_reconnect *pr = ptr;
+	struct pool *p = pr->p;
+
+	(void)fd;
+	(void)event;
+
+	free(pr);
+
+	pool_connect(p, 1);
+}
+static void
+pool_schedule_reconnect(struct pool *p) {
+
+	struct pool_reconnect *pr = malloc(sizeof(struct pool_reconnect));
+	pr->p = p;
+
+	pr->tv.tv_sec = 0;
+	pr->tv.tv_usec = 100*1000; /* 0.1 sec*/
+
+	evtimer_set(&pr->ev, pool_can_connect, pr);
+	event_base_set(p->w->base, &pr->ev);
+	evtimer_add(&pr->ev, &pr->tv);
+}
+
+
+
 static void
 pool_on_disconnect(const redisAsyncContext *ac, int status) {
 
@@ -61,9 +96,8 @@ pool_on_disconnect(const redisAsyncContext *ac, int status) {
 		}
 	}
 
-	/* reconnect */
-	/* FIXME: schedule reconnect */
-	pool_connect(p, 1);
+	/* schedule reconnect */
+	pool_schedule_reconnect(p);
 }
 
 /**

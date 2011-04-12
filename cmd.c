@@ -168,6 +168,7 @@ cmd_run(struct worker *w, struct http_client *client,
 
 	/* check that the client is able to run this command */
 	if(!acl_allow_command(cmd, w->s->cfg, client)) {
+		cmd_free(cmd);
 		return CMD_ACL_FAIL;
 	}
 
@@ -182,6 +183,7 @@ cmd_run(struct worker *w, struct http_client *client,
 	/* no args (e.g. INFO command) */
 	if(!slash) {
 		if(!ac) {
+			cmd_free(cmd);
 			return CMD_REDIS_UNAVAIL;
 		}
 		redisAsyncCommandArgv(ac, f_format, cmd, 1,
@@ -219,6 +221,7 @@ cmd_run(struct worker *w, struct http_client *client,
 		return CMD_SENT;
 	}
 	/* failed to find a suitable connection to Redis. */
+	cmd_free(cmd);
 	return CMD_REDIS_UNAVAIL;
 }
 
