@@ -20,13 +20,13 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 </pre>
 
 # Features
-* Multi-threaded server.
 * GET and POST are supported.
 * JSON output by default, optional JSONP parameter (`?jsonp=myFunction`).
 * Raw Redis 2.0 protocol output with `.raw` suffix
 * BSON support for compact responses and MongoDB compatibility.
 * HTTP 1.1 pipelining (70,000 http requests per second on a desktop Linux machine.)
-* WebSocket support.
+* Multi-threaded server, configurable number of worker threads.
+* WebSocket support (Currently using the “hixie-76” specification).
 * Connects to Redis using a TCP or UNIX socket.
 * Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Possible Redis authentication in the config file.
@@ -42,13 +42,17 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 
 # Ideas, TODO...
 * Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands? Implement a strict mode, mapping verbs to commands? How would webdis know of new commands?
+	* This could be done using a “strict mode” with a table of commands and the verbs that can/must be used with each command. Strict mode would be optional, configurable.
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Support POST of raw Redis protocol data, and execute the whole thing. This could be useful for MULTI/EXEC transactions.
 * Enrich config file:
 	* Provide timeout (maybe for some commands only?). What should the response be? 504 Gateway Timeout? 503 Service Unavailable?
 * Multi-server support, using consistent hashing.
 * Database selection in the URL? e.g. `/7/GET/key` to run the command on DB 7.
+	* This might not be very useful, databases will be deprecated from Redis at some point.
 * SSL?
+	* Not sure if this is such a good idea.
+* SPDY?
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 
 # HTTP error codes
