@@ -1,4 +1,4 @@
-OUT=websocket
+OUT=websocket pubsub
 CFLAGS=-O3 -Wall -Wextra
 LDFLAGS=-levent -lpthread
 
