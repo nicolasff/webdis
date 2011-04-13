@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <string.h>
 
 #include "slog.h"
 #include "server.h"
@@ -33,6 +34,7 @@ slog(struct server *s, log_level level,
 	if(!fp) goto end;
 
 	/* limit message size */
+	sz = sz ? sz:strlen(body);
 	snprintf(msg, sz + 1 > sizeof(msg) ? sizeof(msg) : sz + 1, "%s", body);
 
 	strftime(buf,sizeof(buf),"%d %b %H:%M:%S",localtime(&now));

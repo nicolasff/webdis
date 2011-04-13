@@ -111,6 +111,8 @@ server_can_accept(int fd, short event, void *ptr) {
 
 		/* loop over ring of workers */
 		s->next_worker = (s->next_worker + 1) % s->cfg->http_threads;
+	} else { /* too many connections */
+		slog(s, WEBDIS_NOTICE, "Too many connections", 0);
 	}
 }
 
