@@ -1,32 +1,133 @@
 <!DOCTYPE html>
 <html>
-	<head><title>WebSocket example</title></head>
+	<head>
+		<title>WebSocket example</title>
+		<meta charset="utf-8" />
+		<style type="text/css">
+
+			body {
+				width: 800px;
+				margin: auto;
+			}
+
+			header {
+				font-size: 36pt;
+				width: 100%;
+				text-align: center;
+				margin-bottom: 1em;
+				color: #541F14;
+			}
+
+			section.proto {
+				float: left;
+				/*background-color: #f8f8f8;*/
+			}
+
+			section#json {
+				width: 380px;
+				margin-right: 20px;
+			}
+
+			section#raw {
+				width: 380px;
+				padding-left: 16px;
+				border-left: 4px solid #626266;
+			}
+
+			div.desc {
+				margin: 0px;
+			}
+			pre.sent, pre.received {
+				margin-top: 0px;
+				border-radius: 4px;
+				padding: 5px;
+			}
+			pre.sent {
+				border: 1px solid #938172;
+				background-color: white;
+			}
+			pre.received {
+				border: 1px solid #CC9E61;
+				text-align: right;
+			}
+
+		</style>
+	</head>
+
 	<body>
+		<header>Webdis with HTML5 WebSockets</header>
+
+		<section class="proto" id="json">
+			<h3>JSON</h3>
+			<div class="log" id="json-log">
+				Connecting...
+			</div>
+		</section>
+		<section class="proto" id="raw">
+			<h3>Raw</h3>
+			<div class="log" id="raw-log">
+				Connecting...
+			</div>
+		</section>
+
+
 		<script type="text/javascript">
 
-function testJSON() {
-	var jsonSocket = new WebSocket("ws://127.0.0.1:7379/.json");
-	jsonSocket.onopen = function() {
+$ = function(id) {return document.getElementById(id);};
+var host = "127.0.0.1";
+var port = 7379;
 
-		console.log("JSON socket connected!");
-		jsonSocket.send(JSON.stringify(["SET", "hello", "world"]));
-		jsonSocket.send(JSON.stringify(["GET", "hello"]));
+function log(id, dir, msg) {
+
+	var desc = document.createElement("div");
+	desc.setAttribute("class", "desc");
+	desc.innerHTML = dir;
+	$(id).appendChild(desc);
+
+	var e = document.createElement("pre");
+	e.setAttribute("class", dir);
+	e.innerHTML = msg;
+	$(id).appendChild(e);
+}
+
+function testJSON() {
+	var jsonSocket = new WebSocket("ws://"+host+":"+port+"/.json");
+	var self = this;
+
+	send = function(j) {
+		var json = JSON.stringify(j);
+		jsonSocket.send(json);
+		log("json-log", "sent", json);
 	};
+
+	jsonSocket.onopen = function() {
+		$("json-log").innerHTML = "";
+		self.send(["SET", "hello", "world"]);
+		self.send(["GET", "hello"]);
+	};
+
 	jsonSocket.onmessage = function(messageEvent) {
-		console.log("JSON received:", messageEvent.data);
+		log("json-log", "received", messageEvent.data);
 	};
 }
 
 function testRAW() {
-	var rawSocket = new WebSocket("ws://127.0.0.1:7379/.raw");
-	rawSocket.onopen = function() {
+	var rawSocket = new WebSocket("ws://"+host+":"+port+"/.raw");
+	var self = this;
 
-		console.log("raw socket connected!");
-		rawSocket.send("*3\r\n$3\r\nSET\r\n$5\r\nhello\r\n$5\r\nworld\r\n");
-		rawSocket.send("*2\r\n$3\r\nGET\r\n$5\r\nhello\r\n");
+	sendRaw = function(raw) {
+		rawSocket.send(raw);
+		log("raw-log", "sent", raw);
 	};
+
+	rawSocket.onopen = function() {
+		$("raw-log").innerHTML = "";
+		self.sendRaw("*3\r\n$3\r\nSET\r\n$5\r\nhello\r\n$5\r\nworld\r\n");
+		self.sendRaw("*2\r\n$3\r\nGET\r\n$5\r\nhello\r\n");
+	};
+
 	rawSocket.onmessage = function(messageEvent) {
-		console.log("Raw received:", messageEvent.data);
+		log("raw-log", "received", messageEvent.data);
 	};
 }
 
