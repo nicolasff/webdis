@@ -52,9 +52,9 @@ void
 http_send_options(struct http_client *c);
 
 void
-http_response_set_connection_header(struct http_client *c, struct http_response *r);
+http_response_write_chunk(int fd, const char *p, size_t sz);
 
 void
-http_response_write_chunk(int fd, const char *p, size_t sz);
+http_response_set_keep_alive(struct http_response *r, int enabled);
 
 #endif

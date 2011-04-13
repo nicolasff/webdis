@@ -38,11 +38,7 @@ format_send_error(struct cmd *cmd, short code, const char *msg) {
 
 	http_response_init(&resp, code, msg);
 	resp.http_version = cmd->http_version;
-	if(cmd->keep_alive) {
-		http_response_set_header(&resp, "Connection", "Keep-Alive");
-	} else {
-		http_response_set_header(&resp, "Connection", "Close");
-	}
+	http_response_set_keep_alive(&resp, cmd->keep_alive);
 	http_response_write(&resp, cmd->fd);
 
 	cmd_free(cmd);
@@ -70,7 +66,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			http_response_init(&resp, 200, "OK");
 			resp.http_version = cmd->http_version;
 			http_response_set_header(&resp, "Content-Type", ct);
-			http_response_set_header(&resp, "Connection", "Keep-Alive");
+			http_response_set_keep_alive(&resp, 1);
 			http_response_set_header(&resp, "Transfer-Encoding", "Chunked");
 			http_response_write(&resp, cmd->fd);
 		}
@@ -92,11 +88,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			http_response_set_body(&resp, p, sz);
 		}
 		resp.http_version = cmd->http_version;
-		if(cmd->keep_alive) {
-			http_response_set_header(&resp, "Connection", "Keep-Alive");
-		} else {
-			http_response_set_header(&resp, "Connection", "Close");
-		}
+		http_response_set_keep_alive(&resp, cmd->keep_alive);
 		http_response_write(&resp, cmd->fd);
 		free(etag);
 	}

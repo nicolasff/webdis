@@ -152,6 +152,13 @@ http_response_write(struct http_response *r, int fd) {
 	return ret == (int)sz ? 0 : 1;
 }
 
+static void
+http_response_set_connection_header(struct http_client *c, struct http_response *r) {
+	http_response_set_keep_alive(r, c->keep_alive);
+}
+
+
+
 /* Adobe flash cross-domain request */
 void
 http_crossdomain(struct http_client *c) {
@@ -187,9 +194,12 @@ http_send_error(struct http_client *c, short code, const char *msg) {
 	http_client_reset(c);
 }
 
+/**
+ * Set Connection field, either Keep-Alive or Close.
+ */
 void
-http_response_set_connection_header(struct http_client *c, struct http_response *r) {
-	if(c->keep_alive) {
+http_response_set_keep_alive(struct http_response *r, int enabled) {
+	if(enabled) {
 		http_response_set_header(r, "Connection", "Keep-Alive");
 	} else {
 		http_response_set_header(r, "Connection", "Close");
