@@ -9,10 +9,8 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-
 #include <sys/types.h>
 #include <sys/socket.h>
-
 
 #include <event.h>
 
@@ -319,16 +317,16 @@ main(int argc, char *argv[]) {
 	float mili1 = t1.tv_sec * 1000 + t1.tv_nsec / 1000000;
 
 	if(total != 0) {
-	printf("Read %ld messages in %0.2f sec: %0.2f msg/sec (%d MB/sec, %d KB/sec)\n",
+		printf("Read %ld messages in %0.2f sec: %0.2f msg/sec (%d MB/sec, %d KB/sec)\n",
 			(long)total, 
 			(mili1-mili0)/1000.0,
 			1000*total/(mili1-mili0),
 			(int)(total_bytes / (1000*(mili1-mili0))),
 			(int)(total_bytes / (mili1-mili0)));
+		return EXIT_SUCCESS;
 	} else {
 		printf("No message was read.\n");
+		return EXIT_FAILURE;
 	}
-
-	return EXIT_SUCCESS;
 }
 
