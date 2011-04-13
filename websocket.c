@@ -173,10 +173,10 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 			cmd->is_websocket = 1;
 
 			/* get Redis connection from pool */
-			redisAsyncContext *ac = (redisAsyncContext*)pool_get_context(c->w->pool);
+			cmd->ac = (redisAsyncContext*)pool_get_context(c->w->pool);
 
 			/* send it off */
-			cmd_send(ac, fun_reply, cmd);
+			cmd_send(cmd, fun_reply);
 
 			return 0;
 		}

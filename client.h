@@ -7,6 +7,7 @@
 
 struct http_header;
 struct server;
+struct cmd;
 
 typedef enum {
 	LAST_CB_NONE = 0,
@@ -49,6 +50,8 @@ struct http_client {
 
 	char *type; /* forced output content-type */
 	char *jsonp; /* jsonp wrapper */
+
+	struct cmd *pub_sub;
 };
 
 struct http_client *

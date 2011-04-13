@@ -37,6 +37,8 @@ struct cmd {
 	int started_responding;
 	int is_websocket;
 	int http_version;
+
+	redisAsyncContext *ac;
 };
 
 struct subscription {
@@ -63,7 +65,7 @@ int
 cmd_is_subscribe(struct cmd *cmd);
 
 void
-cmd_send(redisAsyncContext *ac, formatting_fun f_format, struct cmd *cmd);
+cmd_send(struct cmd *cmd, formatting_fun f_format);
 
 void
 cmd_setup(struct cmd *cmd, struct http_client *client);

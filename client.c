@@ -4,11 +4,14 @@
 #include "server.h"
 #include "worker.h"
 #include "websocket.h"
+#include "cmd.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <hiredis/hiredis.h>
+#include <hiredis/async.h>
 
 static int
 http_client_on_url(struct http_parser *p, const char *at, size_t sz) {
@@ -245,7 +248,14 @@ http_client_read(struct http_client *c) {
 	ret = read(c->fd, buffer, sizeof(buffer));
 	if(ret <= 0) {
 		/* broken link, free buffer and client object */
+
+		/* disconnect pub/sub client if there is one. */
+		if(c->pub_sub) {
+			redisAsyncDisconnect(c->pub_sub->ac);
+		}
+
 		close(c->fd);
+
 		http_client_free(c);
 		return -1;
 	}

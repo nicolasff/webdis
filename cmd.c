@@ -126,7 +126,6 @@ cmd_run(struct worker *w, struct http_client *client,
 	int param_count = 0, cur_param = 1;
 
 	struct cmd *cmd;
-	redisAsyncContext *ac = NULL;
 	formatting_fun f_format;
 
 	/* count arguments */
@@ -174,19 +173,22 @@ cmd_run(struct worker *w, struct http_client *client,
 
 	if(cmd_is_subscribe(cmd)) {
 		/* create a new connection to Redis */
-		ac = (redisAsyncContext*)pool_connect(w->pool, 0);
+		cmd->ac = (redisAsyncContext*)pool_connect(w->pool, 0);
+
+		/* register with the client, used upon disconnection */
+		client->pub_sub = cmd;
 	} else {
 		/* get a connection from the pool */
-		ac = (redisAsyncContext*)pool_get_context(w->pool);
+		cmd->ac = (redisAsyncContext*)pool_get_context(w->pool);
 	}
 
 	/* no args (e.g. INFO command) */
 	if(!slash) {
-		if(!ac) {
+		if(!cmd->ac) {
 			cmd_free(cmd);
 			return CMD_REDIS_UNAVAIL;
 		}
-		redisAsyncCommandArgv(ac, f_format, cmd, 1,
+		redisAsyncCommandArgv(cmd->ac, f_format, cmd, 1,
 				(const char **)cmd->argv, cmd->argv_len);
 		return CMD_SENT;
 	}
@@ -216,8 +218,8 @@ cmd_run(struct worker *w, struct http_client *client,
 	}
 
 	/* send it off! */
-	if(ac) {
-		cmd_send(ac, f_format, cmd);
+	if(cmd->ac) {
+		cmd_send(cmd, f_format);
 		return CMD_SENT;
 	}
 	/* failed to find a suitable connection to Redis. */
@@ -226,8 +228,8 @@ cmd_run(struct worker *w, struct http_client *client,
 }
 
 void
-cmd_send(redisAsyncContext *ac, formatting_fun f_format, struct cmd *cmd) {
-	redisAsyncCommandArgv(ac, f_format, cmd, cmd->count,
+cmd_send(struct cmd *cmd, formatting_fun f_format) {
+	redisAsyncCommandArgv(cmd->ac, f_format, cmd, cmd->count,
 		(const char **)cmd->argv, cmd->argv_len);
 }
 
