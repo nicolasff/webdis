@@ -36,11 +36,17 @@ format_send_error(struct cmd *cmd, short code, const char *msg) {
 
 	struct http_response resp;
 
-	http_response_init(&resp, code, msg);
-	resp.http_version = cmd->http_version;
-	http_response_set_keep_alive(&resp, cmd->keep_alive);
-	http_response_write(&resp, cmd->fd);
+	if(!cmd->is_websocket && !cmd->pub_sub_client) {
+		http_response_init(&resp, code, msg);
+		resp.http_version = cmd->http_version;
+		http_response_set_keep_alive(&resp, cmd->keep_alive);
+		http_response_write(&resp, cmd->fd);
+	}
 
+	/* for pub/sub, remove command from client */
+	if(cmd->pub_sub_client) {
+		cmd->pub_sub_client->pub_sub = NULL;
+	}
 	cmd_free(cmd);
 }
 

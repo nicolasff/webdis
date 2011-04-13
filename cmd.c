@@ -177,6 +177,7 @@ cmd_run(struct worker *w, struct http_client *client,
 
 		/* register with the client, used upon disconnection */
 		client->pub_sub = cmd;
+		cmd->pub_sub_client = client;
 	} else {
 		/* get a connection from the pool */
 		cmd->ac = (redisAsyncContext*)pool_get_context(w->pool);
@@ -224,6 +225,7 @@ cmd_run(struct worker *w, struct http_client *client,
 	}
 	/* failed to find a suitable connection to Redis. */
 	cmd_free(cmd);
+	client->pub_sub = NULL;
 	return CMD_REDIS_UNAVAIL;
 }
 

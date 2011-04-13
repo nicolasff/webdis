@@ -250,8 +250,14 @@ http_client_read(struct http_client *c) {
 		/* broken link, free buffer and client object */
 
 		/* disconnect pub/sub client if there is one. */
-		if(c->pub_sub) {
+		if(c->pub_sub && c->pub_sub->ac) {
+			/*
+			printf("client disconnected (cmd=%p), ac=%p\n",
+				(void*)c->pub_sub, (void*)c->pub_sub->ac);
+			*/
 			redisAsyncDisconnect(c->pub_sub->ac);
+			if(c->pub_sub) c->pub_sub->ac = NULL;
+			c->pub_sub = NULL;
 		}
 
 		close(c->fd);
