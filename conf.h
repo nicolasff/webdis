@@ -14,6 +14,10 @@ struct conf {
 	/* HTTP server interface */
 	char *http_host;
 	short http_port;
+	short http_threads;
+
+	/* pool size, one pool per worker thread */
+	int pool_size_per_thread;
 
 	/* daemonize process, off by default */
 	int daemonize;

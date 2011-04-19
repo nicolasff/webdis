@@ -1,6 +1,7 @@
 #include "custom-type.h"
 #include "cmd.h"
 #include "common.h"
+#include "http.h"
 
 #include <string.h>
 #include <hiredis/hiredis.h>
@@ -14,9 +15,10 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	(void)c;
 	char int_buffer[50];
 	int int_len;
+	struct http_response resp;
 
-	if(reply == NULL) {
-		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
+	if (reply == NULL) { /* broken Redis link */
+		format_send_error(cmd, 503, "Service Unavailable");
 		return;
 	}
 
@@ -39,7 +41,10 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 
 	/* couldn't make sense of what the client wanted. */
-	evhttp_send_reply(cmd->rq, 400, "Bad request", NULL);
+	http_response_init(&resp, 400, "Bad Request");
+	http_response_set_header(&resp, "Content-Length", "0");
+	http_response_set_keep_alive(&resp, cmd->keep_alive);
+	http_response_write(&resp, cmd->fd);
 	cmd_free(cmd);
 }
 

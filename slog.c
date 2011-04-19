@@ -5,30 +5,42 @@
 #include <time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <string.h>
 
 #include "slog.h"
 #include "server.h"
 #include "conf.h"
 
-void slog(const struct server *s, log_level level, const char *body) {
+void
+slog(struct server *s, log_level level,
+		const char *body, size_t sz) {
+
 	const char *c = ".-*#";
 	time_t now = time(NULL);
 	static FILE *fp = NULL;
 	char buf[64];
 	char msg[124];
 
+
 	static pid_t self = 0;
 	if(!self) self = getpid();
 
 	if(level > s->cfg->verbosity) return; /* too verbose */
 
+	pthread_spin_lock(&s->log_lock);
+
 	if(!fp) fp = (s->cfg->logfile == NULL) ? stdout : fopen(s->cfg->logfile, "a");
-	if(!fp) return;
+	if(!fp) goto end;
 
 	/* limit message size */
-	snprintf(msg, sizeof(msg), "%s", body);
+	sz = sz ? sz:strlen(body);
+	snprintf(msg, sz + 1 > sizeof(msg) ? sizeof(msg) : sz + 1, "%s", body);
 
 	strftime(buf,sizeof(buf),"%d %b %H:%M:%S",localtime(&now));
 	fprintf(fp,"[%d] %s %c %s\n", (int)self, buf, c[level], msg);
 	fflush(fp);
+
+end:
+	pthread_spin_unlock(&s->log_lock);
 }

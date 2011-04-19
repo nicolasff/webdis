@@ -1,0 +1,6 @@
+This directory contains a few test programs for Webdis:
+
+* basic.py:	Unit tests.
+* bench.sh:	Benchmark of several functions.
+* pubsub (run `make' to compile): Tests pub/sub channels; run `./pubsub -h` for options.
+* websocket (run `make' to compile): Tests HTML5 WebSockets; run `./websocket -h` for options.

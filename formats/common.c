@@ -1,11 +1,14 @@
 #include "common.h"
 #include "cmd.h"
+#include "http.h"
+#include "client.h"
+#include "websocket.h"
 
 #include "md5/md5.h"
-#include <evhttp.h>
 #include <string.h>
+#include <unistd.h>
 
-/* TODO: replace this with a faster hash function */
+/* TODO: replace this with a faster hash function? */
 char *etag_new(const char *p, size_t sz) {
 
 	md5_byte_t buf[16];
@@ -21,7 +24,7 @@ char *etag_new(const char *p, size_t sz) {
 	for(i = 0; i < 16; ++i) {
 		sprintf(etag + 1 + 2*i, "%.2x", (unsigned char)buf[i]);
 	}
-	
+
 	etag[0] = '"';
 	etag[33] = '"';
 
@@ -29,51 +32,75 @@ char *etag_new(const char *p, size_t sz) {
 }
 
 void
+format_send_error(struct cmd *cmd, short code, const char *msg) {
+
+	struct http_response resp;
+
+	if(!cmd->is_websocket && !cmd->pub_sub_client) {
+		http_response_init(&resp, code, msg);
+		resp.http_version = cmd->http_version;
+		http_response_set_keep_alive(&resp, cmd->keep_alive);
+		http_response_write(&resp, cmd->fd);
+	}
+
+	/* for pub/sub, remove command from client */
+	if(cmd->pub_sub_client) {
+		cmd->pub_sub_client->pub_sub = NULL;
+	}
+	cmd_free(cmd);
+}
+
+void
 format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content_type) {
 
-	struct evbuffer *body;
 	int free_cmd = 1;
+	struct http_response resp;
 
-	/* send reply */
-	body = evbuffer_new();
-	evbuffer_add(body, p, sz);
-
+	if(cmd->is_websocket) {
+		ws_reply(cmd, p, sz);
+		cmd_free(cmd);
+		return;
+	}
 
 	if(cmd_is_subscribe(cmd)) {
 		free_cmd = 0;
 
 		/* start streaming */
 		if(cmd->started_responding == 0) {
+			const char *ct = cmd->mime?cmd->mime:content_type;
 			cmd->started_responding = 1;
-			evhttp_add_header(cmd->rq->output_headers, "Content-Type",
-					cmd->mime?cmd->mime:content_type);
-			evhttp_send_reply_start(cmd->rq, 200, "OK");
+			http_response_init(&resp, 200, "OK");
+			resp.http_version = cmd->http_version;
+			http_response_set_header(&resp, "Content-Type", ct);
+			http_response_set_keep_alive(&resp, 1);
+			http_response_set_header(&resp, "Transfer-Encoding", "Chunked");
+			http_response_write(&resp, cmd->fd);
 		}
-		evhttp_send_reply_chunk(cmd->rq, body);
+		http_response_write_chunk(cmd->fd, p, sz);
 
 	} else {
 		/* compute ETag */
 		char *etag = etag_new(p, sz);
-		const char *if_none_match;
 
 		/* check If-None-Match */
-		if((if_none_match = evhttp_find_header(cmd->rq->input_headers, "If-None-Match")) 
-				&& strcmp(if_none_match, etag) == 0) {
-
+		if(cmd->if_none_match && strcmp(cmd->if_none_match, etag) == 0) {
 			/* SAME! send 304. */
-			evhttp_send_reply(cmd->rq, 304, "Not Modified", NULL);
+			http_response_init(&resp, 304, "Not Modified");
 		} else {
-			evhttp_add_header(cmd->rq->output_headers, "Content-Type",
-					cmd->mime?cmd->mime:content_type);
-			evhttp_add_header(cmd->rq->output_headers, "ETag", etag);
-			evhttp_send_reply(cmd->rq, 200, "OK", body);
+			const char *ct = cmd->mime?cmd->mime:content_type;
+			http_response_init(&resp, 200, "OK");
+			http_response_set_header(&resp, "Content-Type", ct);
+			http_response_set_header(&resp, "ETag", etag);
+			http_response_set_body(&resp, p, sz);
 		}
+		resp.http_version = cmd->http_version;
+		http_response_set_keep_alive(&resp, cmd->keep_alive);
+		http_response_write(&resp, cmd->fd);
 		free(etag);
 	}
+	
 	/* cleanup */
-	evbuffer_free(body);
 	if(free_cmd) {
-		evhttp_clear_headers(&cmd->uri_params);
 		cmd_free(cmd);
 	}
 }

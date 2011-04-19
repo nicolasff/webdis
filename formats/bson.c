@@ -1,6 +1,7 @@
 #include "bson.h"
 #include "common.h"
 #include "cmd.h"
+#include "http.h"
 
 #include <string.h>
 #include <hiredis/hiredis.h>
@@ -27,8 +28,8 @@ bson_reply(redisAsyncContext *c, void *r, void *privdata) {
 		return;
 	}
 
-	if (reply == NULL) {
-		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
+	if (reply == NULL) { /* broken Redis link */
+		format_send_error(cmd, 503, "Service Unavailable");
 		return;
 	}
 

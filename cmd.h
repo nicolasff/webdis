@@ -8,50 +8,67 @@
 #include <evhttp.h>
 
 struct evhttp_request;
+struct http_client;
 struct server;
+struct worker;
 struct cmd;
 
 typedef void (*formatting_fun)(redisAsyncContext *, void *, void *);
+typedef enum {CMD_SENT,
+	CMD_PARAM_ERROR,
+	CMD_ACL_FAIL,
+	CMD_REDIS_UNAVAIL} cmd_response_t;
 
 struct cmd {
+	int fd;
 
 	int count;
-	const char **argv;
+	char **argv;
 	size_t *argv_len;
-	struct evhttp_request *rq;
-
-	struct evkeyvalq uri_params;
-
-	int started_responding;
 
 	/* HTTP data */
-	char *mime;
-	int mime_free;
+	char *mime; /* forced output content-type */
+	char *if_none_match; /* used with ETags */
+	char *jsonp; /* jsonp wrapper */
+	int keep_alive;
+	int mime_free; /* need to free mime buffer */
 
-	char *if_none_match;
+	/* various flags */
+	int started_responding;
+	int is_websocket;
+	int http_version;
+
+	struct http_client *pub_sub_client;
+	redisAsyncContext *ac;
 };
 
-struct pubsub_client {
+struct subscription {
 	struct server *s;
 	struct cmd *cmd;
-	struct evhttp_request *rq;
 };
 
 struct cmd *
-cmd_new(struct evhttp_request *rq, int count);
+cmd_new(int count);
 
 void
 cmd_free(struct cmd *c);
 
-int
-cmd_run(struct server *s, struct evhttp_request *rq,
+cmd_response_t
+cmd_run(struct worker *w, struct http_client *client,
 		const char *uri, size_t uri_len,
 		const char *body, size_t body_len);
 
 int
-cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format);
+cmd_select_format(struct http_client *client, struct cmd *cmd,
+		const char *uri, size_t uri_len, formatting_fun *f_format);
 
 int
 cmd_is_subscribe(struct cmd *cmd);
+
+void
+cmd_send(struct cmd *cmd, formatting_fun f_format);
+
+void
+cmd_setup(struct cmd *cmd, struct http_client *client);
 
 #endif

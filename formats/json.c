@@ -1,6 +1,8 @@
 #include "json.h"
 #include "common.h"
 #include "cmd.h"
+#include "http.h"
+#include "client.h"
 
 #include <string.h>
 #include <hiredis/hiredis.h>
@@ -23,8 +25,8 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 		return;
 	}
 
-	if (reply == NULL) {
-		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
+	if (reply == NULL) { /* broken Redis link */
+		format_send_error(cmd, 503, "Service Unavailable");
 		return;
 	}
 
@@ -32,7 +34,7 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	j = json_wrap_redis_reply(cmd, r);
 
 	/* get JSON as string, possibly with JSONP wrapper */
-	jstr = json_string_output(j, cmd);
+	jstr = json_string_output(j, cmd->jsonp);
 
 	/* send reply */
 	format_send_reply(cmd, jstr, strlen(jstr), "application/json");
@@ -119,8 +121,12 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 
 	/* copy verb, as jansson only takes a char* but not its length. */
 	char *verb;
-	verb = calloc(cmd->argv_len[0]+1, 1);
-	memcpy(verb, cmd->argv[0], cmd->argv_len[0]);
+	if(cmd->count) {
+		verb = calloc(cmd->argv_len[0]+1, 1);
+		memcpy(verb, cmd->argv[0], cmd->argv_len[0]);
+	} else {
+		verb = strdup("");
+	}
 
 
 	switch(r->type) {
@@ -182,30 +188,106 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 
 
 char *
-json_string_output(json_t *j, struct cmd *cmd) {
-	struct evkeyval *kv;
+json_string_output(json_t *j, const char *jsonp) {
 
 	char *json_reply = json_dumps(j, JSON_COMPACT);
 
 	/* check for JSONP */
-	TAILQ_FOREACH(kv, &cmd->uri_params, next) {
-		if(strcmp(kv->key, "jsonp") == 0) {
-			size_t json_len = strlen(json_reply);
-			size_t val_len = strlen(kv->value);
-			size_t ret_len = val_len + 1 + json_len + 3;
-			char *ret = calloc(1 + ret_len, 1);
+	if(jsonp) {
+		size_t jsonp_len = strlen(jsonp);
+		size_t json_len = strlen(json_reply);
+		size_t ret_len = jsonp_len + 1 + json_len + 3;
+		char *ret = calloc(1 + ret_len, 1);
 
-			memcpy(ret, kv->value, val_len);
-			ret[val_len]='(';
-			memcpy(ret + val_len + 1, json_reply, json_len);
-			memcpy(ret + val_len + 1 + json_len, ");\n", 3);
-			free(json_reply);
+		memcpy(ret, jsonp, jsonp_len);
+		ret[jsonp_len]='(';
+		memcpy(ret + jsonp_len + 1, json_reply, json_len);
+		memcpy(ret + jsonp_len + 1 + json_len, ");\n", 3);
+		free(json_reply);
 
-			return ret;
+		return ret;
+	}
+
+	return json_reply;
+}
+
+/* extract JSON from WebSocket frame and fill struct cmd. */
+struct cmd *
+json_ws_extract(struct http_client *c, const char *p, size_t sz) {
+
+	struct cmd *cmd = NULL;
+	json_t *j;
+	char *jsonz; /* null-terminated */
+
+	unsigned int i, cur;
+	int argc = 0;
+	json_error_t jerror;
+
+	(void)c;
+
+	jsonz = calloc(sz + 1, 1);
+	memcpy(jsonz, p, sz);
+	j = json_loads(jsonz, sz, &jerror);
+	free(jsonz);
+
+	if(!j) {
+		return NULL;
+	}
+	if(json_typeof(j) != JSON_ARRAY) {
+		json_decref(j);
+		return NULL; /* invalid JSON */
+	}
+
+	/* count elements */
+	for(i = 0; i < json_array_size(j); ++i) {
+		json_t *jelem = json_array_get(j, i);
+
+		switch(json_typeof(jelem)) {
+			case JSON_STRING:
+			case JSON_INTEGER:
+				argc++;
+				break;
+
+			default:
+				break;
 		}
 	}
 
+	if(!argc) { /* not a single item could be decoded */
+		json_decref(j);
+		return NULL;
+	}
 
-	return json_reply;
+	/* create command and add args */
+	cmd = cmd_new(argc);
+	for(i = 0, cur = 0; i < json_array_size(j); ++i) {
+		json_t *jelem = json_array_get(j, i);
+		char *tmp;
+
+		switch(json_typeof(jelem)) {
+			case JSON_STRING:
+				tmp = strdup(json_string_value(jelem));
+
+				cmd->argv[cur] = tmp;
+				cmd->argv_len[cur] = strlen(tmp);
+				cur++;
+				break;
+
+			case JSON_INTEGER:
+				tmp = malloc(40);
+				sprintf(tmp, "%d", (int)json_integer_value(jelem));
+
+				cmd->argv[cur] = tmp;
+				cmd->argv_len[cur] = strlen(tmp);
+				cur++;
+				break;
+
+			default:
+				break;
+		}
+	}
+
+	json_decref(j);
+	return cmd;
 }
 

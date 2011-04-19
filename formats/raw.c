@@ -1,6 +1,8 @@
 #include "raw.h"
-#include "cmd.h"
 #include "common.h"
+#include "http.h"
+#include "client.h"
+#include "cmd.h"
 
 #include <string.h>
 #include <hiredis/hiredis.h>
@@ -18,8 +20,8 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 	size_t sz;
 	(void)c;
 
-	if (reply == NULL) {
-		evhttp_send_reply(cmd->rq, 404, "Not Found", NULL);
+	if (reply == NULL) { /* broken Redis link */
+		format_send_error(cmd, 503, "Service Unavailable");
 		return;
 	}
 
@@ -47,6 +49,70 @@ integer_length(long long int i) {
 	}
 	return sz;
 }
+
+/* extract Redis protocol string from WebSocket frame and fill struct cmd. */
+struct cmd *
+raw_ws_extract(struct http_client *c, const char *p, size_t sz) {
+
+	struct cmd *cmd = NULL;
+	void *reader = NULL;
+	redisReply *reply = NULL;
+	unsigned int i;
+	(void)c;
+
+	/* create protocol reader */
+	reader = redisReplyReaderCreate();
+
+	/* add data */
+	redisReplyReaderFeed(reader, (char*)p, sz);
+
+	/* parse data into reply object */
+	if(redisReplyReaderGetReply(reader, (void**)&reply) == REDIS_ERR) {
+		goto end;
+	}
+
+	/* add data from reply object to cmd struct */
+	if(reply->type != REDIS_REPLY_ARRAY) {
+		goto end;
+	}
+
+	/* create cmd object */
+	cmd = cmd_new(reply->elements);
+
+	for(i = 0; i < reply->elements; ++i) {
+		redisReply *ri = reply->element[i];
+
+		switch(ri->type) {
+			case REDIS_REPLY_STRING:
+				cmd->argv_len[i] = ri->len;
+				cmd->argv[i] = calloc(cmd->argv_len[i] + 1, 1);
+				memcpy(cmd->argv[i], ri->str, ri->len);
+				break;
+
+			case REDIS_REPLY_INTEGER:
+				cmd->argv_len[i] = integer_length(ri->integer);
+				cmd->argv[i] = calloc(cmd->argv_len[i] + 1, 1);
+				sprintf(cmd->argv[i], "%lld", ri->integer);
+				break;
+
+			default:
+				cmd_free(cmd);
+				cmd = NULL;
+				goto end;
+		}
+	}
+
+
+end:
+	/* free reader */
+	if(reader) redisReplyReaderFree(reader);
+
+	/* free reply */
+	if(reply) freeReplyObject(reply);
+
+	return cmd;
+}
+
 
 static char *
 raw_array(const redisReply *r, size_t *sz) {

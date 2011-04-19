@@ -1,7 +1,11 @@
 #include "cmd.h"
-#include "server.h"
 #include "conf.h"
 #include "acl.h"
+#include "client.h"
+#include "pool.h"
+#include "worker.h"
+#include "http.h"
+#include "server.h"
 
 #include "formats/json.h"
 #include "formats/bson.h"
@@ -11,14 +15,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <hiredis/hiredis.h>
+#include <hiredis/async.h>
 #include <ctype.h>
 
 struct cmd *
-cmd_new(struct evhttp_request *rq, int count) {
+cmd_new(int count) {
 
 	struct cmd *c = calloc(1, sizeof(struct cmd));
 
-	c->rq = rq;
 	c->count = count;
 
 	c->argv = calloc(count, sizeof(char*));
@@ -31,30 +35,21 @@ cmd_new(struct evhttp_request *rq, int count) {
 void
 cmd_free(struct cmd *c) {
 
+	int i;
+	if(!c) return;
+
+	for(i = 0; i < c->count; ++i) {
+		free((char*)c->argv[i]);
+	}
 	free(c->argv);
 	free(c->argv_len);
 
+	free(c->jsonp);
+	free(c->if_none_match);
 	if(c->mime_free) free(c->mime);
 
+
 	free(c);
-}
-
-/**
- * Detect disconnection of a pub/sub client. We need to clean up the command.
- */
-void on_http_disconnect(struct evhttp_connection *evcon, void *ctx) {
-	struct pubsub_client *ps = ctx;
-
-	(void)evcon;
-
-	/* clean up redis object */
-	redisAsyncFree(ps->s->ac);
-
-	/* clean up command object */
-	if(ps->cmd) {
-		cmd_free(ps->cmd);
-	}
-	free(ps);
 }
 
 /* taken from libevent */
@@ -85,19 +80,52 @@ decode_uri(const char *uri, size_t length, size_t *out_len, int always_decode_pl
 	return ret;
 }
 
+/* setup headers */
+void
+cmd_setup(struct cmd *cmd, struct http_client *client) {
 
-int
-cmd_run(struct server *s, struct evhttp_request *rq,
-		const char *uri, size_t uri_len, const char *body, size_t body_len) {
+	int i;
+	cmd->keep_alive = client->keep_alive;
 
-	char *qmark = strchr(uri, '?');
+	for(i = 0; i < client->header_count; ++i) {
+		if(strcasecmp(client->headers[i].key, "If-None-Match") == 0) {
+			cmd->if_none_match = calloc(1+client->headers[i].val_sz, 1);
+			memcpy(cmd->if_none_match, client->headers[i].val,
+					client->headers[i].val_sz);
+		} else if(strcasecmp(client->headers[i].key, "Connection") == 0 &&
+				strcasecmp(client->headers[i].val, "Keep-Alive") == 0) {
+			cmd->keep_alive = 1;
+		}
+	}
+
+	if(client->type) {	/* transfer pointer ownership */
+		cmd->mime = client->type;
+		cmd->mime_free = 1;
+		client->type = NULL;
+	}
+
+	if(client->jsonp) {	/* transfer pointer ownership */
+		cmd->jsonp = client->jsonp;
+		client->jsonp = NULL;
+	}
+
+	cmd->fd = client->fd;
+	cmd->http_version = client->http_version;
+}
+
+
+cmd_response_t
+cmd_run(struct worker *w, struct http_client *client,
+		const char *uri, size_t uri_len,
+		const char *body, size_t body_len) {
+
+	char *qmark = memchr(uri, '?', uri_len);
 	char *slash;
 	const char *p;
 	int cmd_len;
-	int param_count = 0, cur_param = 1, i;
+	int param_count = 0, cur_param = 1;
 
 	struct cmd *cmd;
-
 	formatting_fun f_format;
 
 	/* count arguments */
@@ -105,20 +133,24 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 		uri_len = qmark - uri;
 	}
 	for(p = uri; p && p < uri + uri_len; param_count++) {
-		p = strchr(p+1, '/');
+		p = memchr(p+1, '/', uri_len - (p+1-uri));
 	}
 
 	if(body && body_len) { /* PUT request */
 		param_count++;
 	}
+	if(param_count == 0) {
+		return CMD_PARAM_ERROR;
+	}
 
-	cmd = cmd_new(rq, param_count);
-
-	/* parse URI parameters */
-	evhttp_parse_query(uri, &cmd->uri_params);
+	cmd = cmd_new(param_count);
+	cmd->fd = client->fd;
 
 	/* get output formatting function */
-	uri_len = cmd_select_format(cmd, uri, uri_len, &f_format);
+	uri_len = cmd_select_format(client, cmd, uri, uri_len, &f_format);
+
+	/* add HTTP info */
+	cmd_setup(cmd, client);
 
 	/* check if we only have one command or more. */
 	slash = memchr(uri, '/', uri_len);
@@ -129,37 +161,44 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	}
 
 	/* there is always a first parameter, it's the command name */
-	cmd->argv[0] = uri;
+	cmd->argv[0] = malloc(cmd_len);
+	memcpy(cmd->argv[0], uri, cmd_len);
 	cmd->argv_len[0] = cmd_len;
 
-
 	/* check that the client is able to run this command */
-	if(!acl_allow_command(cmd, s->cfg, rq)) {
-		return -1;
+	if(!acl_allow_command(cmd, w->s->cfg, client)) {
+		cmd_free(cmd);
+		return CMD_ACL_FAIL;
 	}
 
-	/* check if we have to split the connection */
 	if(cmd_is_subscribe(cmd)) {
-		struct pubsub_client *ps;
+		/* create a new connection to Redis */
+		cmd->ac = (redisAsyncContext*)pool_connect(w->pool, 0);
 
-		ps = calloc(1, sizeof(struct pubsub_client));
-		ps->s = s = server_copy(s);
-		ps->cmd = cmd;
-		ps->rq = rq;
-		evhttp_connection_set_closecb(rq->evcon, on_http_disconnect, ps);
+		/* register with the client, used upon disconnection */
+		client->pub_sub = cmd;
+		cmd->pub_sub_client = client;
+	} else {
+		/* get a connection from the pool */
+		cmd->ac = (redisAsyncContext*)pool_get_context(w->pool);
 	}
 
 	/* no args (e.g. INFO command) */
 	if(!slash) {
-		redisAsyncCommandArgv(s->ac, f_format, cmd, 1, cmd->argv, cmd->argv_len);
-		return 0;
+		if(!cmd->ac) {
+			cmd_free(cmd);
+			return CMD_REDIS_UNAVAIL;
+		}
+		redisAsyncCommandArgv(cmd->ac, f_format, cmd, 1,
+				(const char **)cmd->argv, cmd->argv_len);
+		return CMD_SENT;
 	}
 	p = slash + 1;
 	while(p < uri + uri_len) {
 
 		const char *arg = p;
 		int arg_len;
-		char *next = strchr(arg, '/');
+		char *next = memchr(arg, '/', uri_len - (arg-uri));
 		if(!next || next > uri + uri_len) { /* last argument */
 			p = uri + uri_len;
 			arg_len = p - arg;
@@ -174,28 +213,35 @@ cmd_run(struct server *s, struct evhttp_request *rq,
 	}
 
 	if(body && body_len) { /* PUT request */
-		cmd->argv[cur_param] = body;
+		cmd->argv[cur_param] = malloc(body_len);
+		memcpy(cmd->argv[cur_param], body, body_len);
 		cmd->argv_len[cur_param] = body_len;
 	}
 
-	/* push command to Redis. */
-	redisAsyncCommandArgv(s->ac, f_format, cmd, cmd->count, cmd->argv, cmd->argv_len);
-
-	for(i = 1; i < cur_param; ++i) {
-		free((char*)cmd->argv[i]);
+	/* send it off! */
+	if(cmd->ac) {
+		cmd_send(cmd, f_format);
+		return CMD_SENT;
 	}
-
-	return 0;
+	/* failed to find a suitable connection to Redis. */
+	cmd_free(cmd);
+	client->pub_sub = NULL;
+	return CMD_REDIS_UNAVAIL;
 }
 
+void
+cmd_send(struct cmd *cmd, formatting_fun f_format) {
+	redisAsyncCommandArgv(cmd->ac, f_format, cmd, cmd->count,
+		(const char **)cmd->argv, cmd->argv_len);
+}
 
 /**
  * Select Content-Type and processing function.
  */
 int
-cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_fun *f_format) {
+cmd_select_format(struct http_client *client, struct cmd *cmd,
+		const char *uri, size_t uri_len, formatting_fun *f_format) {
 
-	struct evkeyval *kv;
 	const char *ext;
 	int ext_len = -1;
 	unsigned int i;
@@ -252,24 +298,21 @@ cmd_select_format(struct cmd *cmd, const char *uri, size_t uri_len, formatting_f
 	}
 
 	/* the user can force it with ?type=some/thing */
-	TAILQ_FOREACH(kv, &cmd->uri_params, next) {
-		if(strcmp(kv->key, "type") == 0) {
-
-			*f_format = custom_type_reply;
-			cmd->mime = strdup(kv->value);
-			cmd->mime_free = 1;
-
-			break;
-		}
+	if(client->type) {
+		*f_format = custom_type_reply;
+		cmd->mime = strdup(client->type);
+		cmd->mime_free = 1;
 	}
+
 	return uri_len - ext_len - 1;
 }
 
 int
 cmd_is_subscribe(struct cmd *cmd) {
 
-	if(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0 ||
-		strncasecmp(cmd->argv[0], "PSUBSCRIBE", cmd->argv_len[0]) == 0) {
+	if(cmd->count >= 1 &&
+		(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0 ||
+		strncasecmp(cmd->argv[0], "PSUBSCRIBE", cmd->argv_len[0]) == 0)) {
 		return 1;
 	}
 	return 0;

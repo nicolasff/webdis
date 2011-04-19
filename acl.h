@@ -3,7 +3,7 @@
 
 #include <netinet/in.h>
 
-struct evhttp_request;
+struct http_client;
 struct cmd;
 struct conf;
 
@@ -31,9 +31,9 @@ struct acl {
 };
 
 int
-acl_match_client(struct acl *a, struct evhttp_request *rq, in_addr_t *ip);
+acl_match_client(struct acl *a, struct http_client *client, in_addr_t *ip);
 
 int
-acl_allow_command(struct cmd *cmd, struct conf *cfg, struct evhttp_request *rq);
+acl_allow_command(struct cmd *cmd, struct conf *cfg, struct http_client *client);
 
 #endif
