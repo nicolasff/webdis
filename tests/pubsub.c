@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <signal.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -130,6 +131,7 @@ reader_can_read(int fd, short event, void *ptr) {
 				fflush(stdout);
 			}
 			if(*c->counter > c->total) {
+				/* halt event loop. */
 				event_base_loopbreak(c->base);
 			}
 		} while(1);
@@ -228,6 +230,12 @@ usage(const char* argv0, char *host_default, short port_default,
 		c_default, n_default);
 }
 
+static struct event_base *__base;
+void on_sigint(int s) {
+	(void)s;
+	event_base_loopbreak(__base);
+}
+
 
 int
 main(int argc, char *argv[]) {
@@ -306,6 +314,10 @@ main(int argc, char *argv[]) {
 		writer_new(base, host, port, i % chans);
 	}
 
+	/* install signal handler */
+	__base = base;
+	signal(SIGINT, on_sigint);
+
 	/* save time now */
 	clock_gettime(CLOCK_MONOTONIC, &t0);
 	
@@ -317,10 +329,10 @@ main(int argc, char *argv[]) {
 	float mili0 = t0.tv_sec * 1000 + t0.tv_nsec / 1000000;
 	float mili1 = t1.tv_sec * 1000 + t1.tv_nsec / 1000000;
 
-	printf("\rReceived %ld messages from %d writers to %d readers through %d channels in %0.2f sec: received %0.2f msg/sec\n",
-		(long)n, w, r, chans,
+	printf("\rReceived %d messages from %d writers to %d readers through %d channels in %0.2f sec: received %0.2f msg/sec\n",
+		count, w, r, chans,
 		(mili1-mili0)/1000.0,
-		1000*n/(mili1-mili0));
+		1000*count/(mili1-mili0));
 
 	return EXIT_SUCCESS;
 }
