@@ -20,7 +20,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 </pre>
 
 # Features
-* GET and POST are supported.
+* GET and POST are supported, as well as `PUT` for file uploads.
 * JSON output by default, optional JSONP parameter (`?jsonp=myFunction` or `?callback=myFunction`).
 * Raw Redis 2.0 protocol output with `.raw` suffix
 * BSON support for compact responses and MongoDB compatibility.
@@ -41,8 +41,8 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Optional daemonize.
 
 # Ideas, TODO...
-* Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands? Implement a strict mode, mapping verbs to commands? How would webdis know of new commands?
-	* This could be done using a “strict mode” with a table of commands and the verbs that can/must be used with each command. Strict mode would be optional, configurable.
+* Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands?
+	* This could be done using a “strict mode” with a table of commands and the verbs that can/must be used with each command. Strict mode would be optional, configurable. How would webdis know of new commands remains to be determined.
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Support POST of raw Redis protocol data, and execute the whole thing. This could be useful for MULTI/EXEC transactions.
 * Enrich config file:
@@ -53,14 +53,15 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * SSL?
 	* Not sure if this is such a good idea.
 * SPDY?
+	* SPDY is mostly useful for parallel fetches. Not sure if it would make sense for Webdis.
 * Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
 
 # HTTP error codes
-* Unknown HTTP verb: 405 Method Not Allowed
-* Redis is unreachable: 503 Service Unavailable
+* Unknown HTTP verb: 405 Method Not Allowed.
+* Redis is unreachable: 503 Service Unavailable.
 * Matching ETag sent using `If-None-Match`: 304 Not Modified.
 * Could also be used:
-	* Timeout on the redis side: 503 Service Unavailable (this isn't supported by HiRedis yet).
+	* Timeout on the redis side: 503 Service Unavailable.
 	* Missing key: 404 Not Found.
 	* Unauthorized command (disabled in config file): 403 Forbidden.
 
