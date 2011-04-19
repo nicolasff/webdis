@@ -97,12 +97,6 @@ websocket_read(int fd, short event, void *ptr) {
 		char *data, *last;
 		int sz, msg_sz;
 
-		/*
-		printf("Received %d bytes: \n", ret);
-		write(1, packet, ret);
-		printf("\n");
-		*/
-		
 		if(wt->got_header == 0) { /* first response */
 			char *frame_start = strstr(packet, "MH"); /* end of the handshake */
 			if(frame_start == NULL) {
