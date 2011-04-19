@@ -21,7 +21,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 
 # Features
 * GET and POST are supported.
-* JSON output by default, optional JSONP parameter (`?jsonp=myFunction`).
+* JSON output by default, optional JSONP parameter (`?jsonp=myFunction` or `?callback=myFunction`).
 * Raw Redis 2.0 protocol output with `.raw` suffix
 * BSON support for compact responses and MongoDB compatibility.
 * HTTP 1.1 pipelining (70,000 http requests per second on a desktop Linux machine.)

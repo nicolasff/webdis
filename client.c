@@ -105,7 +105,8 @@ http_client_on_query_string(struct http_parser *parser, const char *at, size_t s
 			if(key_len == 4 && strncmp(key, "type", 4) == 0) {
 				c->type = calloc(1 + val_len, 1);
 				memcpy(c->type, val, val_len);
-			} else if(key_len == 5 && strncmp(key, "jsonp", 5) == 0) {
+			} else if((key_len == 5 && strncmp(key, "jsonp", 5) == 0)
+				|| (key_len == 8 && strncmp(key, "callback", 8) == 0)) {
 				c->jsonp = calloc(1 + val_len, 1);
 				memcpy(c->jsonp, val, val_len);
 			}
