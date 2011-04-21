@@ -20,6 +20,10 @@ http_response_init(struct http_response *r, int code, const char *msg) {
 	r->msg = msg;
 
 	http_response_set_header(r, "Server", "Webdis");
+
+	/* Cross-Origin Resource Sharing, CORS. */
+	http_response_set_header(r, "Allow", "GET,POST,PUT,OPTIONS");
+	http_response_set_header(r, "Access-Control-Allow-Origin", "*");
 }
 
 
@@ -57,7 +61,7 @@ http_response_set_header(struct http_response *r, const char *k, const char *v) 
 	memcpy(r->headers[pos].val, v, val_sz);
 	r->headers[pos].val_sz = val_sz;
 
-	if(!strcmp(k, "Transfer-Encoding") && !strcmp(v, "Chunked")) {
+	if(!r->chunked && !strcmp(k, "Transfer-Encoding") && !strcmp(v, "Chunked")) {
 		r->chunked = 1;
 	}
 }
@@ -216,11 +220,7 @@ http_send_options(struct http_client *c) {
 	http_response_set_connection_header(c, &resp);
 
 	http_response_set_header(&resp, "Content-Type", "text/html");
-	http_response_set_header(&resp, "Allow", "GET,POST,PUT,OPTIONS");
 	http_response_set_header(&resp, "Content-Length", "0");
-
-	/* Cross-Origin Resource Sharing, CORS. */
-	http_response_set_header(&resp, "Access-Control-Allow-Origin", "*");
 
 	http_response_write(&resp, c->fd);
 	http_client_reset(c);
