@@ -21,7 +21,10 @@ struct server {
 	int next_worker;
 
 	/* log lock */
-	pthread_spinlock_t log_lock;
+	struct {
+		pid_t self;
+		int fd;
+	} log;
 };
 
 struct server *
