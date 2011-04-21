@@ -20,7 +20,6 @@ http_response_init(struct http_response *r, int code, const char *msg) {
 	r->msg = msg;
 
 	http_response_set_header(r, "Server", "Webdis");
-	return;
 
 	/* Cross-Origin Resource Sharing, CORS. */
 	http_response_set_header(r, "Allow", "GET,POST,PUT,OPTIONS");

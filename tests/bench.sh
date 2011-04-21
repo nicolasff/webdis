@@ -59,9 +59,9 @@ test_lrange() {
 
 info
 test_ping
-test_set
-test_get
-test_incr
-test_lpush
-test_lrange 0 10
-test_lrange 0 100
+# test_set
+# test_get
+# test_incr
+# test_lpush
+# test_lrange 0 10
+# test_lrange 0 100
