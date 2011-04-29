@@ -105,16 +105,16 @@ http_response_write(struct http_response *r, int fd) {
 		p += r->headers[i].key_sz;
 
 		/* add ": " */
-		memcpy(p, ": ", 2);
-		p += 2;
+		*(p++) = ':';
+		*(p++) = ' ';
 
 		/* add value */
 		memcpy(p, r->headers[i].val, r->headers[i].val_sz);
 		p += r->headers[i].val_sz;
 
 		/* add "\r\n" */
-		memcpy(p, "\r\n", 2);
-		p += 2;
+		*(p++) = '\r';
+		*(p++) = '\n';
 
 		sz += header_sz;
 
