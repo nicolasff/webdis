@@ -61,7 +61,7 @@ http_response_set_header(struct http_response *r, const char *k, const char *v) 
 	memcpy(r->headers[pos].val, v, val_sz);
 	r->headers[pos].val_sz = val_sz;
 
-	if(!r->chunked && !strcmp(k, "Transfer-Encoding") && !strcmp(v, "Chunked")) {
+	if(!r->chunked && !strcmp(k, "Transfer-Encoding") && !strcmp(v, "chunked")) {
 		r->chunked = 1;
 	}
 }

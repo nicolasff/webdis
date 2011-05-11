@@ -73,7 +73,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			resp.http_version = cmd->http_version;
 			http_response_set_header(&resp, "Content-Type", ct);
 			http_response_set_keep_alive(&resp, 1);
-			http_response_set_header(&resp, "Transfer-Encoding", "Chunked");
+			http_response_set_header(&resp, "Transfer-Encoding", "chunked");
 			http_response_write(&resp, cmd->fd);
 		}
 		http_response_write_chunk(cmd->fd, p, sz);
