@@ -150,7 +150,7 @@ conf_parse_acl(json_t *j) {
 			mask_bits = (unsigned short)atoi(p+1);
 		}
 		a->cidr.enabled = 1;
-		a->cidr.mask = (mask_bits == 0 ? 0 : (0xffffffff << (32 - mask_bits)));
+		a->cidr.mask = (mask_bits == 0 ? 0xffffffff : (0xffffffff << (32 - mask_bits)));
 		a->cidr.subnet = ntohl(inet_addr(ip)) & a->cidr.mask;
 		free(ip);
 	}
