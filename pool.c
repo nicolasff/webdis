@@ -126,6 +126,7 @@ pool_connect(struct pool *p, int attach) {
 		*/
 		/* fprintf(stderr, "Error: %s\n", ac->errstr); */
 		redisAsyncFree(ac);
+		pool_schedule_reconnect(p);
 		return NULL;
 	}
 
