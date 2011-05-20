@@ -46,8 +46,9 @@ format_send_error(struct cmd *cmd, short code, const char *msg) {
 	/* for pub/sub, remove command from client */
 	if(cmd->pub_sub_client) {
 		cmd->pub_sub_client->pub_sub = NULL;
+	} else {
+		cmd_free(cmd);
 	}
-	cmd_free(cmd);
 }
 
 void

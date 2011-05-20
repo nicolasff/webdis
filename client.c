@@ -252,13 +252,15 @@ http_client_read(struct http_client *c) {
 
 		/* disconnect pub/sub client if there is one. */
 		if(c->pub_sub && c->pub_sub->ac) {
-			/*
-			printf("client disconnected (cmd=%p), ac=%p\n",
-				(void*)c->pub_sub, (void*)c->pub_sub->ac);
-			*/
+			struct cmd *cmd = c->pub_sub;
+
+			/* disconnect from all channels */
 			redisAsyncDisconnect(c->pub_sub->ac);
 			if(c->pub_sub) c->pub_sub->ac = NULL;
 			c->pub_sub = NULL;
+
+			/* delete command object */
+			cmd_free(cmd);
 		}
 
 		close(c->fd);
