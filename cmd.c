@@ -245,6 +245,7 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 	const char *ext;
 	int ext_len = -1;
 	unsigned int i;
+	int found = 0; /* did we match it to a predefined format? */
 
 	/* those are the available reply formats */
 	struct reply_format {
@@ -294,6 +295,7 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 			cmd->mime_free = 0;
 
 			*f_format = funs[i].f;
+			found = 1;
 		}
 	}
 
@@ -304,7 +306,12 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 		cmd->mime_free = 1;
 	}
 
-	return uri_len - ext_len - 1;
+	if(found) {
+		return uri_len - ext_len - 1;
+	} else {
+		/* no matching format, use default output with the full argument, extension included. */
+		return uri_len;
+	}
 }
 
 int
