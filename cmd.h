@@ -28,10 +28,13 @@ struct cmd {
 
 	/* HTTP data */
 	char *mime; /* forced output content-type */
+	int mime_free; /* need to free mime buffer */
+
+	char *filename; /* content-disposition attachment */
+
 	char *if_none_match; /* used with ETags */
 	char *jsonp; /* jsonp wrapper */
 	int keep_alive;
-	int mime_free; /* need to free mime buffer */
 
 	/* various flags */
 	int started_responding;

@@ -56,6 +56,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 
 	int free_cmd = 1;
 	struct http_response resp;
+	const char *ct = cmd->mime?cmd->mime:content_type;
 
 	if(cmd->is_websocket) {
 		ws_reply(cmd, p, sz);
@@ -68,10 +69,12 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 
 		/* start streaming */
 		if(cmd->started_responding == 0) {
-			const char *ct = cmd->mime?cmd->mime:content_type;
 			cmd->started_responding = 1;
 			http_response_init(&resp, 200, "OK");
 			resp.http_version = cmd->http_version;
+			if(cmd->filename) {
+				http_response_set_header(&resp, "Content-Disposition", cmd->filename);
+			}
 			http_response_set_header(&resp, "Content-Type", ct);
 			http_response_set_keep_alive(&resp, 1);
 			http_response_set_header(&resp, "Transfer-Encoding", "chunked");
@@ -88,8 +91,10 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			/* SAME! send 304. */
 			http_response_init(&resp, 304, "Not Modified");
 		} else {
-			const char *ct = cmd->mime?cmd->mime:content_type;
 			http_response_init(&resp, 200, "OK");
+			if(cmd->filename) {
+				http_response_set_header(&resp, "Content-Disposition", cmd->filename);
+			}
 			http_response_set_header(&resp, "Content-Type", ct);
 			http_response_set_header(&resp, "ETag", etag);
 			http_response_set_body(&resp, p, sz);

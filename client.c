@@ -72,6 +72,20 @@ http_client_on_header_name(struct http_parser *p, const char *at, size_t sz) {
 	return 0;
 }
 
+static char *
+wrap_filename(const char *val, size_t val_len) {
+
+	char format[] = "attachment; filename=\"";
+	size_t sz = sizeof(format) - 1 + val_len + 1;
+	char *p = calloc(sz + 1, 1);
+
+	memcpy(p, format, sizeof(format)-1); /* copy format */
+	memcpy(p + sizeof(format)-1, val, val_len); /* copy filename */
+	p[sz-1] = '"';
+
+	return p;
+}
+
 /*
  * Split query string into key/value pairs, process some of them.
  */
@@ -109,6 +123,8 @@ http_client_on_query_string(struct http_parser *parser, const char *at, size_t s
 				|| (key_len == 8 && strncmp(key, "callback", 8) == 0)) {
 				c->jsonp = calloc(1 + val_len, 1);
 				memcpy(c->jsonp, val, val_len);
+			} else if(key_len == 8 && strncmp(key, "filename", 8) == 0) {
+				c->filename = wrap_filename(val, val_len);
 			}
 
 			if(!amp) {
@@ -222,6 +238,7 @@ http_client_reset(struct http_client *c) {
 	c->path_sz = 0;
 	free(c->type); c->type = NULL;
 	free(c->jsonp); c->jsonp = NULL;
+	free(c->filename); c->filename = NULL;
 
 	/* no last known header callback */
 	c->last_cb = LAST_CB_NONE;

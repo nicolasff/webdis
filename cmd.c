@@ -109,6 +109,11 @@ cmd_setup(struct cmd *cmd, struct http_client *client) {
 		client->jsonp = NULL;
 	}
 
+	if(client->filename) {	/* transfer pointer ownership */
+		cmd->filename = client->filename;
+		client->filename = NULL;
+	}
+
 	cmd->fd = client->fd;
 	cmd->http_version = client->http_version;
 }
