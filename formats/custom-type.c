@@ -45,6 +45,9 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	http_response_set_header(&resp, "Content-Length", "0");
 	http_response_set_keep_alive(&resp, cmd->keep_alive);
 	http_response_write(&resp, cmd->fd);
-	cmd_free(cmd);
+
+	if(!cmd_is_subscribe(cmd)) {
+		cmd_free(cmd);
+	}
 }
 
