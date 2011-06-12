@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 
 /**
  * Sets up a non-blocking socket
@@ -95,6 +96,7 @@ server_can_accept(int fd, short event, void *ptr) {
 	int client_fd;
 	struct sockaddr_in addr;
 	socklen_t addr_sz = sizeof(addr);
+	char on = 1;
 	(void)event;
 
 	/* select worker to send the client to */
@@ -102,6 +104,9 @@ server_can_accept(int fd, short event, void *ptr) {
 
 	/* accept client */
 	client_fd = accept(fd, (struct sockaddr*)&addr, &addr_sz);
+
+	/* make non-blocking */
+	ioctl(client_fd, (int)FIONBIO, (char *)&on);
 
 	/* create client and send to worker. */
 	if(client_fd > 0) {
