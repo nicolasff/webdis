@@ -108,13 +108,19 @@ was received:
 * **`REDIS_REPLY_ARRAY`**:
     * A multi bulk reply. The number of elements in the multi bulk reply is stored in
       `reply->elements`. Every element in the multi bulk reply is a `redisReply` object as well
-      and can be accessed via `reply->elements[..index..]`.
+      and can be accessed via `reply->element[..index..]`.
       Redis may reply with nested arrays but this is fully supported.
 
 Replies should be freed using the `freeReplyObject()` function.
 Note that this function will take care of freeing sub-replies objects
 contained in arrays and nested arrays, so there is no need for the user to
 free the sub replies (it is actually harmful and will corrupt the memory).
+
+**Important:** the current version of hiredis (0.10.0) free's replies when the
+asynchronous API is used. This means you should not call `freeReplyObject` when
+you use this API. The reply is cleaned up by hiredis _after_ the callback
+returns. This behavior will probably change in future releases, so make sure to
+keep an eye on the changelog when upgrading (see issue #39).
 
 ### Cleaning up
 
@@ -171,7 +177,7 @@ the latter means an error occurred while reading a reply. Just as with the other
 the `err` field in the context can be used to find out what the cause of this error is.
 
 The following examples shows a simple pipeline (resulting in only a single call to `write(2)` and
-a single call to `write(2)`):
+a single call to `read(2)`):
 
     redisReply *reply;
     redisAppendCommand(context,"SET foo bar");
@@ -303,7 +309,41 @@ See the `adapters/` directory for bindings to *libev* and *libevent*.
 
 ## Reply parsing API
 
-To be done.
+Hiredis comes with a reply parsing API that makes it easy for writing higher
+level language bindings.
+
+The reply parsing API consists of the following functions:
+
+    redisReader *redisReaderCreate(void);
+    void redisReaderFree(redisReader *reader);
+    int redisReaderFeed(redisReader *reader, const char *buf, size_t len);
+    int redisReaderGetReply(redisReader *reader, void **reply);
+
+### Usage
+
+The function `redisReaderCreate` creates a `redisReader` structure that holds a
+buffer with unparsed data and state for the protocol parser.
+
+Incoming data -- most likely from a socket -- can be placed in the internal
+buffer of the `redisReader` using `redisReaderFeed`. This function will make a
+copy of the buffer pointed to by `buf` for `len` bytes. This data is parsed
+when `redisReaderGetReply` is called. This function returns an integer status
+and a reply object (as described above) via `void **reply`. The returned status
+can be either `REDIS_OK` or `REDIS_ERR`, where the latter means something went
+wrong (either a protocol error, or an out of memory error).
+
+### Customizing replies
+
+The function `redisReaderGetReply` creates `redisReply` and makes the function
+argument `reply` point to the created `redisReply` variable. For instance, if
+the response of type `REDIS_REPLY_STATUS` then the `str` field of `redisReply`
+will hold the status as a vanilla C string. However, the functions that are
+responsible for creating instances of the `redisReply` can be customized by
+setting the `fn` field on the `redisReader` struct. This should be done
+immediately after creating the `redisReader`.
+
+For example, [hiredis-rb](https://github.com/pietern/hiredis-rb/blob/master/ext/hiredis_ext/reader.c)
+uses customized reply object functions to create Ruby objects.
 
 ## AUTHORS
 

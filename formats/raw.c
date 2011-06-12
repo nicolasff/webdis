@@ -61,13 +61,13 @@ raw_ws_extract(struct http_client *c, const char *p, size_t sz) {
 	(void)c;
 
 	/* create protocol reader */
-	reader = redisReplyReaderCreate();
+	reader = redisReaderCreate();
 
 	/* add data */
-	redisReplyReaderFeed(reader, (char*)p, sz);
+	redisReaderFeed(reader, (char*)p, sz);
 
 	/* parse data into reply object */
-	if(redisReplyReaderGetReply(reader, (void**)&reply) == REDIS_ERR) {
+	if(redisReaderGetReply(reader, (void**)&reply) == REDIS_ERR) {
 		goto end;
 	}
 
@@ -105,7 +105,7 @@ raw_ws_extract(struct http_client *c, const char *p, size_t sz) {
 
 end:
 	/* free reader */
-	if(reader) redisReplyReaderFree(reader);
+	if(reader) redisReaderFree(reader);
 
 	/* free reply */
 	if(reply) freeReplyObject(reply);

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2009-2010, Salvatore Sanfilippo <antirez at gmail dot com>
- * Copyright (c) 2010, Pieter Noordhuis <pcnoordhuis at gmail dot com>
+ * Copyright (c) 2009-2011, Salvatore Sanfilippo <antirez at gmail dot com>
+ * Copyright (c) 2010-2011, Pieter Noordhuis <pcnoordhuis at gmail dot com>
  *
  * All rights reserved.
  *
@@ -32,13 +32,13 @@
 #ifndef __HIREDIS_ASYNC_H
 #define __HIREDIS_ASYNC_H
 #include "hiredis.h"
-#include "dict.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct redisAsyncContext; /* need forward declaration of redisAsyncContext */
+struct dict; /* dictionary header is included in async.c */
 
 /* Reply callback prototype and container */
 typedef void (redisCallbackFn)(struct redisAsyncContext*, void*, void*);
@@ -95,15 +95,14 @@ typedef struct redisAsyncContext {
     /* Subscription callbacks */
     struct {
         redisCallbackList invalid;
-        dict *channels;
-        dict *patterns;
+        struct dict *channels;
+        struct dict *patterns;
     } sub;
 } redisAsyncContext;
 
 /* Functions that proxy to hiredis */
 redisAsyncContext *redisAsyncConnect(const char *ip, int port);
 redisAsyncContext *redisAsyncConnectUnix(const char *path);
-int redisAsyncSetReplyObjectFunctions(redisAsyncContext *ac, redisReplyObjectFunctions *fn);
 int redisAsyncSetConnectCallback(redisAsyncContext *ac, redisConnectCallback *fn);
 int redisAsyncSetDisconnectCallback(redisAsyncContext *ac, redisDisconnectCallback *fn);
 void redisAsyncDisconnect(redisAsyncContext *ac);

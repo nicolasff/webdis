@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2009-2010, Salvatore Sanfilippo <antirez at gmail dot com>
- * Copyright (c) 2010, Pieter Noordhuis <pcnoordhuis at gmail dot com>
+ * Copyright (c) 2009-2011, Salvatore Sanfilippo <antirez at gmail dot com>
+ * Copyright (c) 2010-2011, Pieter Noordhuis <pcnoordhuis at gmail dot com>
  *
  * All rights reserved.
  *
@@ -30,11 +30,12 @@
  */
 
 #include <string.h>
+#include <strings.h>
 #include <assert.h>
 #include <ctype.h>
 #include "async.h"
+#include "dict.c"
 #include "sds.h"
-#include "util.h"
 
 /* Forward declaration of function in hiredis.c */
 void __redisAppendCommand(redisContext *c, char *cmd, size_t len);
@@ -134,11 +135,6 @@ redisAsyncContext *redisAsyncConnectUnix(const char *path) {
     return ac;
 }
 
-int redisAsyncSetReplyObjectFunctions(redisAsyncContext *ac, redisReplyObjectFunctions *fn) {
-    redisContext *c = &(ac->c);
-    return redisSetReplyObjectFunctions(c,fn);
-}
-
 int redisAsyncSetConnectCallback(redisAsyncContext *ac, redisConnectCallback *fn) {
     if (ac->onConnect == NULL) {
         ac->onConnect = fn;
@@ -166,7 +162,6 @@ static int __redisPushCallback(redisCallbackList *list, redisCallback *source) {
 
     /* Copy callback from stack to heap */
     cb = malloc(sizeof(*cb));
-    if (!cb) redisOOM();
     if (source != NULL) {
         memcpy(cb,source,sizeof(*cb));
         cb->next = NULL;
@@ -351,7 +346,7 @@ void redisProcessCallbacks(redisAsyncContext *ac) {
 
     while((status = redisGetReply(c,&reply)) == REDIS_OK) {
         if (reply == NULL) {
-            /* When the connection is being disconnected and there are
+	    /* When the connection is being disconnected and there are
              * no more replies, this is the cue to really disconnect. */
             if (c->flags & REDIS_DISCONNECTING && sdslen(c->obuf) == 0) {
                 __redisAsyncDisconnect(ac);
@@ -366,14 +361,27 @@ void redisProcessCallbacks(redisAsyncContext *ac) {
         /* Even if the context is subscribed, pending regular callbacks will
          * get a reply before pub/sub messages arrive. */
         if (__redisShiftCallback(&ac->replies,&cb) != REDIS_OK) {
-            /* No more regular callbacks, the context *must* be subscribed. */
+            /* A spontaneous reply in a not-subscribed context can only be the
+             * error reply that is sent when a new connection exceeds the
+             * maximum number of allowed connections on the server side. This
+             * is seen as an error instead of a regular reply because the
+             * server closes the connection after sending it. To prevent the
+             * error from being overwritten by an EOF error the connection is
+             * closed here. See issue #43. */
+            if ( !(c->flags & REDIS_SUBSCRIBED) && ((redisReply*)reply)->type == REDIS_REPLY_ERROR ) {
+                c->err = REDIS_ERR_OTHER;
+                snprintf(c->errstr,sizeof(c->errstr),"%s",((redisReply*)reply)->str);
+                __redisAsyncDisconnect(ac);
+                return;
+            }
+            /* No more regular callbacks and no errors, the context *must* be subscribed. */
             assert(c->flags & REDIS_SUBSCRIBED);
             __redisGetSubscribeCallback(ac,reply,&cb);
         }
 
         if (cb.fn != NULL) {
             __redisRunCallback(ac,&cb,reply);
-            c->fn->freeObject(reply);
+            c->reader->fn->freeObject(reply);
 
             /* Proceed with free'ing when redisAsyncFree() was called. */
             if (c->flags & REDIS_FREEING) {
@@ -385,9 +393,10 @@ void redisProcessCallbacks(redisAsyncContext *ac) {
              * or there were no callbacks to begin with. Either way, don't
              * abort with an error, but simply ignore it because the client
              * doesn't know what the server will spit out over the wire. */
-            c->fn->freeObject(reply);
+            c->reader->fn->freeObject(reply);
         }
     }
+
 
     /* Disconnect when there was an error reading the reply */
     if (status != REDIS_OK)
