@@ -35,6 +35,9 @@ struct conf {
 	/* Logging */
 	char *logfile;
 	log_level verbosity;
+
+	/* Request to serve on “/” */
+	char *default_root;
 };
 
 struct conf *

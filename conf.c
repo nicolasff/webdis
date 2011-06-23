@@ -87,6 +87,8 @@ conf_read(const char *filename) {
 			conf->database = json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "pool_size") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->pool_size_per_thread = json_integer_value(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "default_root") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->default_root = strdup(json_string_value(jtmp));
 		}
 	}
 

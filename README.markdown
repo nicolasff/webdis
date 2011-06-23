@@ -39,6 +39,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * File upload with PUT.
 * With the JSON output, the return value of INFO is parsed and transformed into an object.
 * Optional daemonize.
+* Default root object: Add `"default_root": "/GET/index.html"` in webdis.json to substitute the request to `/` with a Redis request.
 
 # Ideas, TODO...
 * Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands?

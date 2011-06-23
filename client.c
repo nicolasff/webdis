@@ -5,6 +5,7 @@
 #include "worker.h"
 #include "websocket.h"
 #include "cmd.h"
+#include "conf.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -183,6 +184,15 @@ http_client_on_message_complete(struct http_parser *p) {
 		c->is_websocket = 1;
 		return 0;
 	}
+
+	/* handle default root object */
+	if(c->path_sz == 1 && *c->path == '/' && c->w->s->cfg->default_root) { /* replace */
+		free(c->path);
+		c->path = strdup(c->w->s->cfg->default_root);
+		c->path_sz = strlen(c->path);
+	}
+
+
 	worker_process_client(c);
 	http_client_reset(c);
 
