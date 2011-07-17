@@ -9,6 +9,14 @@ OBJS=webdis.o cmd.o worker.o slog.o server.o libb64/cencode.o acl.o md5/md5.o ht
 CFLAGS=-O3 -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
 LDFLAGS=-levent -pthread
 
+PREFIX ?= /usr/local
+CONFDIR ?= $(DESTDIR)/etc
+
+INSTALL_DIRS = $(DESTDIR) \
+	       $(DESTDIR)/$(PREFIX) \
+	       $(DESTDIR)/$(PREFIX)/bin \
+	       $(CONFDIR)
+
 all: $(OUT) Makefile
 
 $(OUT): $(OBJS) Makefile
@@ -20,6 +28,12 @@ $(OUT): $(OBJS) Makefile
 %.o: %.c Makefile
 	$(CC) -c $(CFLAGS) -o $@ $<
 
+$(INSTALL_DIRS):
+	mkdir -p $@
+
 clean:
 	rm -f $(OBJS) $(OUT)
 
+install: $(OUT) $(INSTALL_DIRS)
+	cp $(OUT) $(DESTDIR)/$(PREFIX)/bin
+	cp webdis.prod.json $(CONFDIR)
