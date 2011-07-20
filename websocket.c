@@ -1,4 +1,4 @@
-#include "md5/md5.h"
+#include "sha1/sha1.h"
 #include "websocket.h"
 #include "client.h"
 #include "cmd.h"
@@ -16,56 +16,36 @@
 #include <errno.h>
 
 /**
- * This code uses the WebSocket specification from May 23, 2010.
- * The latest copy is available at http://www.whatwg.org/specs/web-socket-protocol/
+ * This code uses the WebSocket specification from July, 2011.
+ * The latest copy is available at http://datatracker.ietf.org/doc/draft-ietf-hybi-thewebsocketprotocol/?include_text=1
  */
-static uint32_t
-ws_read_key(const char *s) {
-	
-	uint32_t ret = 0, spaces = 0;
-	const char *p;
-	size_t sz;
-
-	if(!s) {
-		return 0;
-	}
-
-	sz = strlen(s);
-
-	for(p = s; p < s+sz; ++p) {
-		if(*p >= '0' && *p <= '9') {
-			ret *= 10;
-			ret += (*p)  - '0';
-		} else if (*p == ' ') {
-			spaces++;
-		}
-	}
-	return htonl(ret / spaces);
-}
 
 static int
-ws_compute_handshake(struct http_client *c, unsigned char *out) {
+ws_compute_handshake(struct http_client *c, unsigned char *out, size_t *out_sz) {
 
-	char buffer[16];
-	md5_state_t ctx;
+	unsigned char *buffer, sha1_output[20];
+    char magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+	SHA1Context ctx;
 
 	// websocket handshake
-	uint32_t number_1 = ws_read_key(client_get_header(c, "Sec-WebSocket-Key1"));
-	uint32_t number_2 = ws_read_key(client_get_header(c, "Sec-WebSocket-Key2"));
+	const char *key = client_get_header(c, "Sec-WebSocket-Key");
+    size_t key_sz = strlen(key), buffer_sz = key_sz + sizeof(magic) - 1;
+    buffer = calloc(key_sz, 1);
 
-	if(c->body_sz < 8) { /* we need at least 8 bytes */
-		return -1;
-	}
+    // concatenate key and guid in buffer
+    memcpy(buffer, key, key_sz);
+    memcpy(buffer+key_sz, magic, sizeof(magic)-1);
+    
+    // compute sha-1
+    SHA1Reset(&ctx);
+    SHA1Input(&ctx, buffer, buffer_sz);
+    SHA1Result(&ctx);
 
-	/* copy number_1, number_2, and last 8 bytes of the body. */
-	memcpy(buffer, &number_1, 4);
-	memcpy(buffer + 4, &number_2, 4);
-	memcpy(buffer + 8, c->body + c->body_sz - 8, 8);
-	
-	/* hash that buffer, that creates the handshake signature. */
-	md5_init(&ctx);
-	md5_append(&ctx, (const md5_byte_t *)buffer, sizeof(buffer));
-	md5_finish(&ctx, out);
+    memcpy(sha1_output, &ctx.Message_Digest[0], 20);
+
+    // TODO: encode `sha1_output' in base 64, into `out'.
+    *out = 0;
+    *out_sz = 0;
 
 	return 0;
 }
@@ -74,10 +54,10 @@ int
 ws_handshake_reply(struct http_client *c) {
 
 	int ret;
-	unsigned char md5_handshake[16];
+	unsigned char sha1_handshake[40];
 	char *buffer = NULL, *p;
 	const char *origin = NULL, *host = NULL;
-	size_t origin_sz = 0, host_sz = 0, sz;
+	size_t origin_sz = 0, host_sz = 0, handshake_sz = 0, sz;
 
 	char template0[] = "HTTP/1.1 101 Websocket Protocol Handshake\r\n"
 		"Upgrade: WebSocket\r\n"
@@ -101,7 +81,7 @@ ws_handshake_reply(struct http_client *c) {
 		return -1;
 	}
 
-	if(ws_compute_handshake(c, &md5_handshake[0]) != 0) {
+	if(ws_compute_handshake(c, &sha1_handshake[0], &handshake_sz) != 0) {
 		/* failed to compute handshake. */
 		return -1;
 	}
@@ -109,7 +89,7 @@ ws_handshake_reply(struct http_client *c) {
 	sz = sizeof(template0)-1 + origin_sz
 		+ sizeof(template1)-1 + host_sz + c->path_sz
 		+ sizeof(template2)-1 + host_sz
-		+ sizeof(template3)-1 + sizeof(md5_handshake);
+		+ sizeof(template3)-1 + handshake_sz + 1;
 
 	p = buffer = malloc(sz);
 
@@ -138,7 +118,7 @@ ws_handshake_reply(struct http_client *c) {
 	/* template3 */
 	memcpy(p, template3, sizeof(template3)-1); 
 	p += sizeof(template3)-1;
-	memcpy(p, &md5_handshake[0], sizeof(md5_handshake));
+	memcpy(p, &sha1_handshake[0], handshake_sz);
 
 	ret = write(c->fd, buffer, sz);
 	free(buffer);
