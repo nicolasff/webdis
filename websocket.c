@@ -1,4 +1,5 @@
 #include "sha1/sha1.h"
+#include "libb64/cencode.h"
 #include "websocket.h"
 #include "client.h"
 #include "cmd.h"
@@ -21,11 +22,13 @@
  */
 
 static int
-ws_compute_handshake(struct http_client *c, unsigned char *out, size_t *out_sz) {
+ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 
 	unsigned char *buffer, sha1_output[20];
     char magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 	SHA1Context ctx;
+    base64_encodestate b64_ctx;
+    int pos;
 
 	// websocket handshake
 	const char *key = client_get_header(c, "Sec-WebSocket-Key");
@@ -40,12 +43,14 @@ ws_compute_handshake(struct http_client *c, unsigned char *out, size_t *out_sz) 
     SHA1Reset(&ctx);
     SHA1Input(&ctx, buffer, buffer_sz);
     SHA1Result(&ctx);
-
     memcpy(sha1_output, &ctx.Message_Digest[0], 20);
 
-    // TODO: encode `sha1_output' in base 64, into `out'.
-    *out = 0;
-    *out_sz = 0;
+    // encode `sha1_output' in base 64, into `out'.
+    base64_init_encodestate(&b64_ctx);
+    pos = base64_encode_block((const char*)sha1_output, 20, out, &b64_ctx);
+    base64_encode_blockend(out + pos, &b64_ctx);
+
+    *out_sz = strlen(out);
 
 	return 0;
 }
@@ -54,7 +59,7 @@ int
 ws_handshake_reply(struct http_client *c) {
 
 	int ret;
-	unsigned char sha1_handshake[40];
+	char sha1_handshake[40];
 	char *buffer = NULL, *p;
 	const char *origin = NULL, *host = NULL;
 	size_t origin_sz = 0, host_sz = 0, handshake_sz = 0, sz;
