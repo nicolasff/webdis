@@ -25,32 +25,37 @@ static int
 ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 
 	unsigned char *buffer, sha1_output[20];
-    char magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+	char magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 	SHA1Context ctx;
-    base64_encodestate b64_ctx;
-    int pos;
+	base64_encodestate b64_ctx;
+	int pos;
 
 	// websocket handshake
 	const char *key = client_get_header(c, "Sec-WebSocket-Key");
-    size_t key_sz = strlen(key), buffer_sz = key_sz + sizeof(magic) - 1;
-    buffer = calloc(key_sz, 1);
+	size_t key_sz = key?strlen(key):0, buffer_sz = key_sz + sizeof(magic) - 1;
+	buffer = calloc(buffer_sz, 1);
 
-    // concatenate key and guid in buffer
-    memcpy(buffer, key, key_sz);
-    memcpy(buffer+key_sz, magic, sizeof(magic)-1);
-    
-    // compute sha-1
-    SHA1Reset(&ctx);
-    SHA1Input(&ctx, buffer, buffer_sz);
-    SHA1Result(&ctx);
-    memcpy(sha1_output, &ctx.Message_Digest[0], 20);
+	// concatenate key and guid in buffer
+	memcpy(buffer, key, key_sz);
+	memcpy(buffer+key_sz, magic, sizeof(magic)-1);
 
-    // encode `sha1_output' in base 64, into `out'.
-    base64_init_encodestate(&b64_ctx);
-    pos = base64_encode_block((const char*)sha1_output, 20, out, &b64_ctx);
-    base64_encode_blockend(out + pos, &b64_ctx);
+	// compute sha-1
+	SHA1Reset(&ctx);
+	SHA1Input(&ctx, buffer, buffer_sz);
+	SHA1Result(&ctx);
+	memcpy(sha1_output, &ctx.Message_Digest[0], 20);
 
-    *out_sz = strlen(out);
+	// encode `sha1_output' in base 64, into `out'.
+	base64_init_encodestate(&b64_ctx);
+	pos = base64_encode_block((const char*)sha1_output, 20, out, &b64_ctx);
+	base64_encode_blockend(out + pos, &b64_ctx);
+
+	// compute length, without \n
+	*out_sz = strlen(out);
+	if(out[*out_sz-1] == '\n')
+		(*out_sz)--;
+
+	free(buffer);
 
 	return 0;
 }
@@ -72,7 +77,9 @@ ws_handshake_reply(struct http_client *c) {
 		"Sec-WebSocket-Location: ws://"; /* %s%s */
 	char template2[] = "\r\n"
 		"Origin: http://"; /* %s */
-	char template3[] = "\r\n\r\n";
+	char template3[] = "\r\n"
+		"Sec-WebSocket-Accept: "; /* %s */
+	char template4[] = "\r\n\r\n";
 
 	if((origin = client_get_header(c, "Origin"))) {
 		origin_sz = strlen(origin);
@@ -86,6 +93,7 @@ ws_handshake_reply(struct http_client *c) {
 		return -1;
 	}
 
+	memset(sha1_handshake, 0, sizeof(sha1_handshake));
 	if(ws_compute_handshake(c, &sha1_handshake[0], &handshake_sz) != 0) {
 		/* failed to compute handshake. */
 		return -1;
@@ -94,20 +102,21 @@ ws_handshake_reply(struct http_client *c) {
 	sz = sizeof(template0)-1 + origin_sz
 		+ sizeof(template1)-1 + host_sz + c->path_sz
 		+ sizeof(template2)-1 + host_sz
-		+ sizeof(template3)-1 + handshake_sz + 1;
+		+ sizeof(template3)-1 + handshake_sz
+		+ sizeof(template4)-1;
 
 	p = buffer = malloc(sz);
 
 	/* Concat all */
 
 	/* template0 */
-	memcpy(p, template0, sizeof(template0)-1); 
+	memcpy(p, template0, sizeof(template0)-1);
 	p += sizeof(template0)-1;
 	memcpy(p, origin, origin_sz);
 	p += origin_sz;
 
 	/* template1 */
-	memcpy(p, template1, sizeof(template1)-1); 
+	memcpy(p, template1, sizeof(template1)-1);
 	p += sizeof(template1)-1;
 	memcpy(p, host, host_sz);
 	p += host_sz;
@@ -115,16 +124,22 @@ ws_handshake_reply(struct http_client *c) {
 	p += c->path_sz;
 
 	/* template2 */
-	memcpy(p, template2, sizeof(template2)-1); 
+	memcpy(p, template2, sizeof(template2)-1);
 	p += sizeof(template2)-1;
 	memcpy(p, host, host_sz);
 	p += host_sz;
 
 	/* template3 */
-	memcpy(p, template3, sizeof(template3)-1); 
+	memcpy(p, template3, sizeof(template3)-1);
 	p += sizeof(template3)-1;
 	memcpy(p, &sha1_handshake[0], handshake_sz);
+	p += handshake_sz;
 
+	/* template4 */
+	memcpy(p, template4, sizeof(template4)-1);
+	p += sizeof(template4)-1;
+
+	/* send data to client */
 	ret = write(c->fd, buffer, sz);
 	free(buffer);
 
