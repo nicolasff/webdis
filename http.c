@@ -137,7 +137,16 @@ http_response_write(struct http_response *r, int fd) {
 	}
 
 	/* send buffer to client */
-	ret = write(fd, s, sz);
+	p = s;
+	while(sz) {
+		ret = write(fd, p, sz);
+		if(ret <= 0)	/* error or closed socket */
+			break;
+
+		sz -= ret;
+		p += ret;
+	}
+
 
 	/* cleanup buffer */
 	free(s);
