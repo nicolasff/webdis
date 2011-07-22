@@ -41,7 +41,7 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 
 	/* couldn't make sense of what the client wanted. */
-	http_response_init(&resp, 400, "Bad Request");
+	http_response_init(&resp, cmd->w, 400, "Bad Request");
 	http_response_set_header(&resp, "Content-Length", "0");
 	http_response_set_keep_alive(&resp, cmd->keep_alive);
 	http_response_write(&resp, cmd->fd);

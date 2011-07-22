@@ -11,13 +11,14 @@
 /* HTTP Response */
 
 void
-http_response_init(struct http_response *r, int code, const char *msg) {
+http_response_init(struct http_response *r, struct worker *w, int code, const char *msg) {
 
 	/* remove any old data */
 	memset(r, 0, sizeof(struct http_response));
 
 	r->code = code;
 	r->msg = msg;
+	r->w = w;
 
 	http_response_set_header(r, "Server", "Webdis");
 
@@ -73,7 +74,13 @@ http_response_set_body(struct http_response *r, const char *body, size_t body_le
 	r->body_len = body_len;
 }
 
-int
+void
+http_schedule_write(const char *s, size_t sz, struct http_response *r, int keep_alive) {
+
+
+}
+
+void
 http_response_write(struct http_response *r, int fd) {
 
 	char *s = NULL, *p;
@@ -135,6 +142,11 @@ http_response_write(struct http_response *r, int fd) {
 		memcpy(s + sz, r->body, r->body_len);
 		sz += r->body_len;
 	}
+#if 0
+	if(r->w) {
+		http_schedule_write(s, sz, r, keep_alive);
+	}
+#endif
 
 	/* send buffer to client */
 	p = s;
@@ -160,8 +172,6 @@ http_response_write(struct http_response *r, int fd) {
 		free(r->headers[i].val);
 	}
 	free(r->headers);
-
-	return ret == (int)sz ? 0 : 1;
 }
 
 static void
@@ -182,7 +192,7 @@ http_crossdomain(struct http_client *c) {
   "<allow-access-from domain=\"*\" />\n"
 "</cross-domain-policy>\n";
 
-	http_response_init(&resp, 200, "OK");
+	http_response_init(&resp, NULL, 200, "OK");
 	resp.http_version = c->http_version;
 	http_response_set_connection_header(c, &resp);
 	http_response_set_header(&resp, "Content-Type", "application/xml");
@@ -197,7 +207,7 @@ void
 http_send_error(struct http_client *c, short code, const char *msg) {
 
 	struct http_response resp;
-	http_response_init(&resp, code, msg);
+	http_response_init(&resp, NULL, code, msg);
 	resp.http_version = c->http_version;
 	http_response_set_connection_header(c, &resp);
 	http_response_set_body(&resp, NULL, 0);
@@ -223,7 +233,7 @@ void
 http_send_options(struct http_client *c) {
 
 	struct http_response resp;
-	http_response_init(&resp, 200, "OK");
+	http_response_init(&resp, NULL, 200, "OK");
 	resp.http_version = c->http_version;
 	http_response_set_connection_header(c, &resp);
 

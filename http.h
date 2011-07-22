@@ -4,6 +4,7 @@
 #include <sys/types.h>
 
 struct http_client;
+struct worker;
 
 struct http_header {
 	char *key;
@@ -26,12 +27,14 @@ struct http_response {
 
 	int chunked;
 	int http_version;
+
+	struct worker *w;
 };
 
 /* HTTP response */
 
 void
-http_response_init(struct http_response *r, int code, const char *msg);
+http_response_init(struct http_response *r, struct worker *w, int code, const char *msg);
 
 void
 http_response_set_header(struct http_response *r, const char *k, const char *v);
@@ -39,8 +42,11 @@ http_response_set_header(struct http_response *r, const char *k, const char *v);
 void
 http_response_set_body(struct http_response *r, const char *body, size_t body_len);
 
-int
+void
 http_response_write(struct http_response *r, int fd);
+
+void
+http_schedule_write(const char *s, size_t sz, struct http_response *r, int keep_alive);
 
 void
 http_crossdomain(struct http_client *c);

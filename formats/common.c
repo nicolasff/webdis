@@ -37,7 +37,7 @@ format_send_error(struct cmd *cmd, short code, const char *msg) {
 	struct http_response resp;
 
 	if(!cmd->is_websocket && !cmd->pub_sub_client) {
-		http_response_init(&resp, code, msg);
+		http_response_init(&resp, cmd->w, code, msg);
 		resp.http_version = cmd->http_version;
 		http_response_set_keep_alive(&resp, cmd->keep_alive);
 		http_response_write(&resp, cmd->fd);
@@ -70,7 +70,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 		/* start streaming */
 		if(cmd->started_responding == 0) {
 			cmd->started_responding = 1;
-			http_response_init(&resp, 200, "OK");
+			http_response_init(&resp, cmd->w, 200, "OK");
 			resp.http_version = cmd->http_version;
 			if(cmd->filename) {
 				http_response_set_header(&resp, "Content-Disposition", cmd->filename);
@@ -89,9 +89,9 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 		/* check If-None-Match */
 		if(cmd->if_none_match && strcmp(cmd->if_none_match, etag) == 0) {
 			/* SAME! send 304. */
-			http_response_init(&resp, 304, "Not Modified");
+			http_response_init(&resp, cmd->w, 304, "Not Modified");
 		} else {
-			http_response_init(&resp, 200, "OK");
+			http_response_init(&resp, cmd->w, 200, "OK");
 			if(cmd->filename) {
 				http_response_set_header(&resp, "Content-Disposition", cmd->filename);
 			}
