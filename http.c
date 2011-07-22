@@ -140,11 +140,10 @@ http_response_write(struct http_response *r, int fd) {
 	p = s;
 	while(sz) {
 		ret = write(fd, p, sz);
-		if(ret <= 0)	/* error or closed socket */
-			break;
-
-		sz -= ret;
-		p += ret;
+		if(ret > 0) { /* block */
+			sz -= ret;
+			p += ret;
+		}
 	}
 
 
