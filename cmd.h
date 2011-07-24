@@ -43,6 +43,7 @@ struct cmd {
 
 	struct http_client *pub_sub_client;
 	redisAsyncContext *ac;
+	struct worker *w;
 };
 
 struct subscription {
