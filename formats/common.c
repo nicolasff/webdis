@@ -34,13 +34,13 @@ char *etag_new(const char *p, size_t sz) {
 void
 format_send_error(struct cmd *cmd, short code, const char *msg) {
 
-	struct http_response resp;
+	struct http_response *resp;
 
 	if(!cmd->is_websocket && !cmd->pub_sub_client) {
-		http_response_init(&resp, cmd->w, code, msg);
-		resp.http_version = cmd->http_version;
-		http_response_set_keep_alive(&resp, cmd->keep_alive);
-		http_response_write(&resp, cmd->fd);
+		resp = http_response_init(cmd->w, code, msg);
+		resp->http_version = cmd->http_version;
+		http_response_set_keep_alive(resp, cmd->keep_alive);
+		http_response_write(resp, cmd->fd);
 	}
 
 	/* for pub/sub, remove command from client */
@@ -55,8 +55,8 @@ void
 format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content_type) {
 
 	int free_cmd = 1;
-	struct http_response resp;
 	const char *ct = cmd->mime?cmd->mime:content_type;
+	struct http_response *resp;
 
 	if(cmd->is_websocket) {
 		ws_reply(cmd, p, sz);
@@ -70,16 +70,17 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 		/* start streaming */
 		if(cmd->started_responding == 0) {
 			cmd->started_responding = 1;
-			http_response_init(&resp, cmd->w, 200, "OK");
-			resp.http_version = cmd->http_version;
+			resp = http_response_init(cmd->w, 200, "OK");
+			resp->http_version = cmd->http_version;
 			if(cmd->filename) {
-				http_response_set_header(&resp, "Content-Disposition", cmd->filename);
+				http_response_set_header(resp, "Content-Disposition", cmd->filename);
 			}
-			http_response_set_header(&resp, "Content-Type", ct);
-			http_response_set_keep_alive(&resp, 1);
-			http_response_set_header(&resp, "Transfer-Encoding", "chunked");
-			http_response_write(&resp, cmd->fd);
+			http_response_set_header(resp, "Content-Type", ct);
+			http_response_set_keep_alive(resp, 1);
+			http_response_set_header(resp, "Transfer-Encoding", "chunked");
+			http_response_write(resp, cmd->fd);
 		}
+		/* FIXME: make this asynchronous. */
 		http_response_write_chunk(cmd->fd, p, sz);
 
 	} else {
@@ -89,19 +90,19 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 		/* check If-None-Match */
 		if(cmd->if_none_match && strcmp(cmd->if_none_match, etag) == 0) {
 			/* SAME! send 304. */
-			http_response_init(&resp, cmd->w, 304, "Not Modified");
+			resp = http_response_init(cmd->w, 304, "Not Modified");
 		} else {
-			http_response_init(&resp, cmd->w, 200, "OK");
+			resp = http_response_init(cmd->w, 200, "OK");
 			if(cmd->filename) {
-				http_response_set_header(&resp, "Content-Disposition", cmd->filename);
+				http_response_set_header(resp, "Content-Disposition", cmd->filename);
 			}
-			http_response_set_header(&resp, "Content-Type", ct);
-			http_response_set_header(&resp, "ETag", etag);
-			http_response_set_body(&resp, p, sz);
+			http_response_set_header(resp, "Content-Type", ct);
+			http_response_set_header(resp, "ETag", etag);
+			http_response_set_body(resp, p, sz);
 		}
-		resp.http_version = cmd->http_version;
-		http_response_set_keep_alive(&resp, cmd->keep_alive);
-		http_response_write(&resp, cmd->fd);
+		resp->http_version = cmd->http_version;
+		http_response_set_keep_alive(resp, cmd->keep_alive);
+		http_response_write(resp, cmd->fd);
 		free(etag);
 	}
 	

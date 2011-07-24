@@ -2,6 +2,7 @@
 #define HTTP_H
 
 #include <sys/types.h>
+#include <event.h>
 
 struct http_client;
 struct worker;
@@ -16,6 +17,9 @@ struct http_header {
 
 
 struct http_response {
+
+	struct event ev;
+
 	short code;
 	const char *msg;
 
@@ -25,16 +29,21 @@ struct http_response {
 	const char *body;
 	size_t body_len;
 
+	char *out;
+	size_t out_sz;
+
 	int chunked;
 	int http_version;
+	int keep_alive;
+	int sent;
 
 	struct worker *w;
 };
 
 /* HTTP response */
 
-void
-http_response_init(struct http_response *r, struct worker *w, int code, const char *msg);
+struct http_response *
+http_response_init(struct worker *w, int code, const char *msg);
 
 void
 http_response_set_header(struct http_response *r, const char *k, const char *v);
@@ -46,7 +55,7 @@ void
 http_response_write(struct http_response *r, int fd);
 
 void
-http_schedule_write(const char *s, size_t sz, struct http_response *r, int keep_alive);
+http_schedule_write(int fd, struct http_response *r);
 
 void
 http_crossdomain(struct http_client *c);
