@@ -80,8 +80,9 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			http_response_set_header(resp, "Transfer-Encoding", "chunked");
 			http_response_write(resp, cmd->fd);
 		}
-		/* FIXME: make this asynchronous. */
-		http_response_write_chunk(cmd->fd, p, sz);
+
+		/* Asynchronous chunk write. */
+		http_response_write_chunk(cmd->fd, cmd->w, p, sz);
 
 	} else {
 		/* compute ETag */

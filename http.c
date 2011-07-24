@@ -94,6 +94,8 @@ http_response_cleanup(struct http_response *r, int fd, int success) {
 		free(r->headers[i].val);
 	}
 	free(r->headers);
+
+	free(r);
 }
 
 static void
@@ -195,19 +197,6 @@ http_response_write(struct http_response *r, int fd) {
 	/* send buffer to client */
 	r->sent = 0;
 	http_schedule_write(fd, r);
-
-#if 0
-	p = r->out;
-	while(r->out_sz) {
-		ret = write(fd, p, r->out_sz);
-		if(ret > 0) { /* block */
-			r->out_sz -= ret;
-			p += ret;
-		}
-	}
-
-	http_response_cleanup(r, ret);
-#endif
 }
 
 static void
@@ -281,15 +270,27 @@ http_send_options(struct http_client *c) {
  * Write HTTP chunk.
  */
 void
-http_response_write_chunk(int fd, const char *p, size_t sz) {
+http_response_write_chunk(int fd, struct worker *w, const char *p, size_t sz) {
 
-	char buf[64];
-	int ret, chunk_size;
+	char *out, tmp[64];
+	size_t out_sz;
+	int chunk_size;
+	struct http_response *r = http_response_init(w, 0, NULL);
 
-	chunk_size = sprintf(buf, "%x\r\n", (int)sz);
-	ret = write(fd, buf, chunk_size);
-	ret = write(fd, p, sz);
-	ret = write(fd, "\r\n", 2);
-	(void)ret;
+	/* calculate format size */
+	chunk_size = sprintf(tmp, "%x\r\n", (int)sz);
+	
+	out_sz = chunk_size + sz + 2;
+	out = malloc(out_sz);
+	memcpy(out, tmp, chunk_size);
+	memcpy(out + chunk_size, p, sz);
+	memcpy(out + chunk_size + sz, "\r\n", 2);
+
+
+	/* send async write */
+	r->out = out;
+	r->out_sz = out_sz;
+
+	http_schedule_write(fd, r);
 }
 
