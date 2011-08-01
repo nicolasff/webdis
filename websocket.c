@@ -141,6 +141,7 @@ ws_handshake_reply(struct http_client *c) {
 	memcpy(p, &md5_handshake[0], sizeof(md5_handshake));
 
 	ret = write(c->fd, buffer, sz);
+	(void)ret;
 	free(buffer);
 
 	return 0;

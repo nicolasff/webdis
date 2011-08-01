@@ -142,6 +142,7 @@ http_response_write(struct http_response *r, int fd) {
 	r->out = calloc(r->out_sz + 1, 1);
 
 	ret = sprintf(r->out, "HTTP/1.%d %d %s\r\n", (r->http_version?1:0), r->code, r->msg);
+	(void)ret;
 	p = r->out;
 
 	if(r->code == 200 && r->body) {
