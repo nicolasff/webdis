@@ -141,6 +141,7 @@ ws_handshake_reply(struct http_client *c) {
 
 	/* send data to client */
 	ret = write(c->fd, buffer, sz);
+	(void)ret;
 	free(buffer);
 
 	return 0;

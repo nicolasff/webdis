@@ -86,6 +86,7 @@ cmd_setup(struct cmd *cmd, struct http_client *client) {
 
 	int i;
 	cmd->keep_alive = client->keep_alive;
+	cmd->w = client->w; /* keep track of the worker */
 
 	for(i = 0; i < client->header_count; ++i) {
 		if(strcasecmp(client->headers[i].key, "If-None-Match") == 0) {

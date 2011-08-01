@@ -10,20 +10,23 @@
 
 /* HTTP Response */
 
-void
-http_response_init(struct http_response *r, int code, const char *msg) {
+struct http_response *
+http_response_init(struct worker *w, int code, const char *msg) {
 
-	/* remove any old data */
-	memset(r, 0, sizeof(struct http_response));
+	/* create object */
+	struct http_response *r = calloc(1, sizeof(struct http_response));
 
 	r->code = code;
 	r->msg = msg;
+	r->w = w;
 
 	http_response_set_header(r, "Server", "Webdis");
 
 	/* Cross-Origin Resource Sharing, CORS. */
 	http_response_set_header(r, "Allow", "GET,POST,PUT,OPTIONS");
 	http_response_set_header(r, "Access-Control-Allow-Origin", "*");
+
+	return r;
 }
 
 
@@ -73,18 +76,74 @@ http_response_set_body(struct http_response *r, const char *body, size_t body_le
 	r->body_len = body_len;
 }
 
-int
+static void
+http_response_cleanup(struct http_response *r, int fd, int success) {
+
+	int i;
+
+	/* cleanup buffer */
+	free(r->out);
+	if(!r->keep_alive && !success) {
+		/* Close fd is client doesn't support Keep-Alive. */
+		close(fd);
+	}
+
+	/* cleanup response object */
+	for(i = 0; i < r->header_count; ++i) {
+		free(r->headers[i].key);
+		free(r->headers[i].val);
+	}
+	free(r->headers);
+
+	free(r);
+}
+
+static void
+http_can_write(int fd, short event, void *p) {
+
+	int ret;
+	struct http_response *r = p;
+
+	(void)event;
+	
+	ret = write(fd, r->out + r->sent, r->out_sz - r->sent);
+	
+	if(ret > 0)
+		r->sent += ret;
+
+	if(ret <= 0 || r->out_sz - r->sent == 0) { /* error or done */
+		http_response_cleanup(r, fd, (int)r->out_sz == r->sent ? 1 : 0);
+	} else { /* reschedule write */
+		http_schedule_write(fd, r);
+	}
+}
+
+void
+http_schedule_write(int fd, struct http_response *r) {
+
+	if(r->w) { /* async */
+		event_set(&r->ev, fd, EV_WRITE, http_can_write, r);
+		event_base_set(r->w->base, &r->ev);
+		event_add(&r->ev, NULL);
+	} else { /* blocking */
+		http_can_write(fd, 0, r);
+	}
+
+}
+
+void
 http_response_write(struct http_response *r, int fd) {
 
-	char *s = NULL, *p;
-	size_t sz = 0;
-	int i, ret, keep_alive = 0;
+	char *p;
+	int i, ret;
 
-	sz = sizeof("HTTP/1.x xxx ")-1 + strlen(r->msg) + 2;
-	s = calloc(sz + 1, 1);
+	r->keep_alive = 0;
+	r->out_sz = sizeof("HTTP/1.x xxx ")-1 + strlen(r->msg) + 2;
+	r->out = calloc(r->out_sz + 1, 1);
 
-	ret = sprintf(s, "HTTP/1.%d %d %s\r\n", (r->http_version?1:0), r->code, r->msg);
-	p = s;
+	ret = sprintf(r->out, "HTTP/1.%d %d %s\r\n", (r->http_version?1:0), r->code, r->msg);
+	(void)ret;
+	p = r->out;
 
 	if(r->code == 200 && r->body) {
 		char content_length[10];
@@ -97,8 +156,8 @@ http_response_write(struct http_response *r, int fd) {
 	for(i = 0; i < r->header_count; ++i) {
 		/* "Key: Value\r\n" */
 		size_t header_sz = r->headers[i].key_sz + 2 + r->headers[i].val_sz + 2;
-		s = realloc(s, sz + header_sz);
-		p = s + sz;
+		r->out = realloc(r->out, r->out_sz + header_sz);
+		p = r->out + r->out_sz;
 
 		/* add key */
 		memcpy(p, r->headers[i].key, r->headers[i].key_sz);
@@ -116,52 +175,29 @@ http_response_write(struct http_response *r, int fd) {
 		*(p++) = '\r';
 		*(p++) = '\n';
 
-		sz += header_sz;
+		r->out_sz += header_sz;
 
 		if(strncasecmp("Connection", r->headers[i].key, r->headers[i].key_sz) == 0 &&
 			strncasecmp("Keep-Alive", r->headers[i].val, r->headers[i].val_sz) == 0) {
-			keep_alive = 1;
+			r->keep_alive = 1;
 		}
 	}
 
 	/* end of headers */
-	s = realloc(s, sz + 2);
-	memcpy(s + sz, "\r\n", 2);
-	sz += 2;
+	r->out = realloc(r->out, r->out_sz + 2);
+	memcpy(r->out + r->out_sz, "\r\n", 2);
+	r->out_sz += 2;
 
 	/* append body if there is one. */
 	if(r->body && r->body_len) {
-		s = realloc(s, sz + r->body_len);
-		memcpy(s + sz, r->body, r->body_len);
-		sz += r->body_len;
+		r->out = realloc(r->out, r->out_sz + r->body_len);
+		memcpy(r->out + r->out_sz, r->body, r->body_len);
+		r->out_sz += r->body_len;
 	}
 
 	/* send buffer to client */
-	p = s;
-	while(sz) {
-		ret = write(fd, p, sz);
-		if(ret > 0) { /* block */
-			sz -= ret;
-			p += ret;
-		}
-	}
-
-
-	/* cleanup buffer */
-	free(s);
-	if(!keep_alive && (size_t)ret == sz) {
-		/* Close fd is client doesn't support Keep-Alive. */
-		close(fd);
-	}
-
-	/* cleanup response object */
-	for(i = 0; i < r->header_count; ++i) {
-		free(r->headers[i].key);
-		free(r->headers[i].val);
-	}
-	free(r->headers);
-
-	return ret == (int)sz ? 0 : 1;
+	r->sent = 0;
+	http_schedule_write(fd, r);
 }
 
 static void
@@ -175,20 +211,19 @@ http_response_set_connection_header(struct http_client *c, struct http_response 
 void
 http_crossdomain(struct http_client *c) {
 
-	struct http_response resp;
+	struct http_response *resp = http_response_init(NULL, 200, "OK");
 	char out[] = "<?xml version=\"1.0\"?>\n"
 "<!DOCTYPE cross-domain-policy SYSTEM \"http://www.macromedia.com/xml/dtds/cross-domain-policy.dtd\">\n"
 "<cross-domain-policy>\n"
   "<allow-access-from domain=\"*\" />\n"
 "</cross-domain-policy>\n";
 
-	http_response_init(&resp, 200, "OK");
-	resp.http_version = c->http_version;
-	http_response_set_connection_header(c, &resp);
-	http_response_set_header(&resp, "Content-Type", "application/xml");
-	http_response_set_body(&resp, out, sizeof(out)-1);
+	resp->http_version = c->http_version;
+	http_response_set_connection_header(c, resp);
+	http_response_set_header(resp, "Content-Type", "application/xml");
+	http_response_set_body(resp, out, sizeof(out)-1);
 
-	http_response_write(&resp, c->fd);
+	http_response_write(resp, c->fd);
 	http_client_reset(c);
 }
 
@@ -196,13 +231,12 @@ http_crossdomain(struct http_client *c) {
 void
 http_send_error(struct http_client *c, short code, const char *msg) {
 
-	struct http_response resp;
-	http_response_init(&resp, code, msg);
-	resp.http_version = c->http_version;
-	http_response_set_connection_header(c, &resp);
-	http_response_set_body(&resp, NULL, 0);
+	struct http_response *resp = http_response_init(NULL, code, msg);
+	resp->http_version = c->http_version;
+	http_response_set_connection_header(c, resp);
+	http_response_set_body(resp, NULL, 0);
 
-	http_response_write(&resp, c->fd);
+	http_response_write(resp, c->fd);
 	http_client_reset(c);
 }
 
@@ -222,15 +256,14 @@ http_response_set_keep_alive(struct http_response *r, int enabled) {
 void
 http_send_options(struct http_client *c) {
 
-	struct http_response resp;
-	http_response_init(&resp, 200, "OK");
-	resp.http_version = c->http_version;
-	http_response_set_connection_header(c, &resp);
+	struct http_response *resp = http_response_init(NULL, 200, "OK");
+	resp->http_version = c->http_version;
+	http_response_set_connection_header(c, resp);
 
-	http_response_set_header(&resp, "Content-Type", "text/html");
-	http_response_set_header(&resp, "Content-Length", "0");
+	http_response_set_header(resp, "Content-Type", "text/html");
+	http_response_set_header(resp, "Content-Length", "0");
 
-	http_response_write(&resp, c->fd);
+	http_response_write(resp, c->fd);
 	http_client_reset(c);
 }
 
@@ -238,15 +271,27 @@ http_send_options(struct http_client *c) {
  * Write HTTP chunk.
  */
 void
-http_response_write_chunk(int fd, const char *p, size_t sz) {
+http_response_write_chunk(int fd, struct worker *w, const char *p, size_t sz) {
 
-	char buf[64];
-	int ret, chunk_size;
+	char *out, tmp[64];
+	size_t out_sz;
+	int chunk_size;
+	struct http_response *r = http_response_init(w, 0, NULL);
 
-	chunk_size = sprintf(buf, "%x\r\n", (int)sz);
-	ret = write(fd, buf, chunk_size);
-	ret = write(fd, p, sz);
-	ret = write(fd, "\r\n", 2);
-	(void)ret;
+	/* calculate format size */
+	chunk_size = sprintf(tmp, "%x\r\n", (int)sz);
+	
+	out_sz = chunk_size + sz + 2;
+	out = malloc(out_sz);
+	memcpy(out, tmp, chunk_size);
+	memcpy(out + chunk_size, p, sz);
+	memcpy(out + chunk_size + sz, "\r\n", 2);
+
+
+	/* send async write */
+	r->out = out;
+	r->out_sz = out_sz;
+
+	http_schedule_write(fd, r);
 }
 
