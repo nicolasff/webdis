@@ -83,7 +83,7 @@ http_response_cleanup(struct http_response *r, int fd, int success) {
 
 	/* cleanup buffer */
 	free(r->out);
-	if(!r->keep_alive && !success) {
+	if(!r->keep_alive || !success) {
 		/* Close fd is client doesn't support Keep-Alive. */
 		close(fd);
 	}
