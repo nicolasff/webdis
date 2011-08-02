@@ -14,6 +14,7 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	struct cmd *cmd = privdata;
 	(void)c;
 	char int_buffer[50];
+	char *status_buf;
 	int int_len;
 	struct http_response *resp;
 
@@ -31,6 +32,15 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 
 			case REDIS_REPLY_STRING:
 				format_send_reply(cmd, reply->str, reply->len, cmd->mime);
+				return;
+
+			case REDIS_REPLY_STATUS:
+			case REDIS_REPLY_ERROR:
+				status_buf = calloc(1 + reply->len, 1);
+				status_buf[0] = (reply->type == REDIS_REPLY_STATUS ? '+' : '-');
+				memcpy(status_buf + 1, reply->str, reply->len);
+				format_send_reply(cmd, status_buf, 1 + reply->len, cmd->mime);
+				free(status_buf);
 				return;
 
 			case REDIS_REPLY_INTEGER:
