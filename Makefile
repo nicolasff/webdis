@@ -24,7 +24,7 @@ all: .CHECK_FOR_MSGPACK
 
 .WITH_MSGPACK:
 	@echo "Building with MsgPack support"
-	@make CFLAGS="$(CFLAGS) -DMSGPACK=1" .REAL_BUILD
+	@make CFLAGS="$(CFLAGS) -DMSGPACK=1" FORMAT_OBJS="$(FORMAT_OBJS) formats/msgpack.o" .REAL_BUILD
 
 .WITHOUT_MSGPACK:
 	@echo "Building without MsgPack support"
