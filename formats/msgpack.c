@@ -7,18 +7,21 @@
 #include <string.h>
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
-#include <jansson.h> /* TODO: remove once msgpack is fully integrated. */
 
-static json_t *
-json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r);
+struct msg_out {
+	char *p;
+	size_t sz;
+};
+
+static void
+msgpack_wrap_redis_reply(const struct cmd *cmd, struct msg_out *, const redisReply *r);
 
 void
 msgpack_reply(redisAsyncContext *c, void *r, void *privdata) {
 
 	redisReply *reply = r;
 	struct cmd *cmd = privdata;
-	json_t *j;
-	char *jstr;
+	struct msg_out out;
 	(void)c;
 
 	if(cmd == NULL) {
@@ -31,42 +34,67 @@ msgpack_reply(redisAsyncContext *c, void *r, void *privdata) {
 		return;
 	}
 
-	/* encode redis reply as JSON */
-    j = json_wrap_redis_reply(cmd, r);
+	/* prepare data structure for output */
+	out.p = NULL;
+	out.sz = 0;
 
-	/* get JSON as string, possibly with JSONP wrapper */
-	jstr = msgpack_string_output(j, cmd->jsonp);
+	/* encode redis reply */
+	msgpack_wrap_redis_reply(cmd, &out, r);
 
 	/* send reply */
-	format_send_reply(cmd, jstr, strlen(jstr), "application/json");
+	format_send_reply(cmd, out.p, out.sz, "application/x-msgpack");
 
 	/* cleanup */
-	json_decref(j);
-	free(jstr);
+	free(out.p);
+}
+
+static int
+on_msgpack_write(void *data, const char *s, unsigned int sz) {
+
+	struct msg_out *out = data;
+
+	out->p = realloc(out->p, out->sz + sz);
+	memcpy(out->p + out->sz, s, sz);
+	out->sz += sz;
+
+	return sz;
 }
 
 /**
  * Parse info message and return object.
  */
-static json_t *
-json_info_reply(const char *s) {
+void
+msg_info_reply(msgpack_packer* pk, const char *s, size_t sz) {
 	const char *p = s;
-	size_t sz = strlen(s);
-
-	json_t *jroot = json_object();
+	unsigned int count = 0;
 
 	/* TODO: handle new format */
 
+	/* count number of lines */
+	while(p < s + sz) {
+		p = strchr(p, '\r');
+		if(!p) break;
+
+		p++;
+		count++;
+	}
+
+	/* create msgpack object */
+	msgpack_pack_map(pk, count);
+
+	p = s;
 	while(p < s + sz) {
 		char *key, *val, *nl, *colon;
+		size_t key_sz, val_sz;
 
 		/* find key */
 		colon = strchr(p, ':');
 		if(!colon) {
 			break;
 		}
-		key = calloc(colon - p + 1, 1);
-		memcpy(key, p, colon - p);
+		key_sz = colon - p;
+		key = calloc(key_sz + 1, 1);
+		memcpy(key, p, key_sz);
 		p = colon + 1;
 
 		/* find value */
@@ -75,220 +103,128 @@ json_info_reply(const char *s) {
 			free(key);
 			break;
 		}
-		val = calloc(nl - p + 1, 1);
-		memcpy(val, p, nl - p);
+		val_sz = nl - p;
+		val = calloc(val_sz + 1, 1);
+		memcpy(val, p, val_sz);
 		p = nl + 1;
 		if(*p == '\n') p++;
 
 		/* add to object */
-		json_object_set_new(jroot, key, json_string(val));
+		msgpack_pack_raw(pk, key_sz);
+		msgpack_pack_raw_body(pk, key, key_sz);
+		msgpack_pack_raw(pk, val_sz);
+		msgpack_pack_raw_body(pk, val, val_sz);
+
 		free(key);
 		free(val);
 	}
-
-	return jroot;
 }
 
-static json_t *
-json_hgetall_reply(const redisReply *r) {
-	/* zip keys and values together in a json object */
-	json_t *jroot;
+static void
+msg_hgetall_reply(msgpack_packer* pk, const redisReply *r) {
+	/* zip keys and values together in a msgpack object */
 	unsigned int i;
 
 	if(r->elements % 2 != 0) {
-		return NULL;
+		return;
 	}
 
-	jroot = json_object();
+	msgpack_pack_map(pk, r->elements / 2);
 	for(i = 0; i < r->elements; i += 2) {
 		redisReply *k = r->element[i], *v = r->element[i+1];
 
 		/* keys and values need to be strings */
 		if(k->type != REDIS_REPLY_STRING || v->type != REDIS_REPLY_STRING) {
-			json_decref(jroot);
-			return NULL;
+			return;
 		}
-		json_object_set_new(jroot, k->str, json_string(v->str));
+
+		/* key */
+		msgpack_pack_raw(pk, k->len);
+		msgpack_pack_raw_body(pk, k->str, k->len);
+
+		/* value */
+		msgpack_pack_raw(pk, v->len);
+		msgpack_pack_raw_body(pk, v->str, v->len);
 	}
-	return jroot;
 }
 
-static json_t *
-json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
+static void
+msgpack_wrap_redis_reply(const struct cmd *cmd, struct msg_out *out, const redisReply *r) {
 
 	unsigned int i;
-	json_t *jlist, *jroot = json_object(); /* that's what we return */
-
+	msgpack_packer* pk = msgpack_packer_new(out, on_msgpack_write);
 
 	/* copy verb, as jansson only takes a char* but not its length. */
 	char *verb;
+	size_t verb_sz = 0;
 	if(cmd->count) {
 		verb = calloc(cmd->argv_len[0]+1, 1);
-		memcpy(verb, cmd->argv[0], cmd->argv_len[0]);
+		verb_sz = cmd->argv_len[0];
+		memcpy(verb, cmd->argv[0], verb_sz);
 	} else {
 		verb = strdup("");
 	}
 
+	msgpack_pack_map(pk, 1);
+
+	msgpack_pack_raw(pk, verb_sz);
+	msgpack_pack_raw_body(pk, verb, verb_sz);
 
 	switch(r->type) {
 		case REDIS_REPLY_STATUS:
 		case REDIS_REPLY_ERROR:
-			jlist = json_array();
-			json_array_append_new(jlist,
-				r->type == REDIS_REPLY_ERROR ? json_false() : json_true());
-			json_array_append_new(jlist, json_string(r->str));
-			json_object_set_new(jroot, verb, jlist);
+			msgpack_pack_array(pk, 2);
+
+			if(r->type == REDIS_REPLY_ERROR)
+				msgpack_pack_false(pk);
+			else
+				msgpack_pack_true(pk);
 			break;
 
 		case REDIS_REPLY_STRING:
 			if(strcasecmp(verb, "INFO") == 0) {
-				json_object_set_new(jroot, verb, json_info_reply(r->str));
+				msg_info_reply(pk, r->str, r->len);
 			} else {
-				json_object_set_new(jroot, verb, json_string(r->str));
+				msgpack_pack_raw(pk, r->len);
+				msgpack_pack_raw_body(pk, r->str, r->len);
 			}
 			break;
 
 		case REDIS_REPLY_INTEGER:
-			json_object_set_new(jroot, verb, json_integer(r->integer));
+			msgpack_pack_int64(pk, r->integer);
 			break;
 
 		case REDIS_REPLY_ARRAY:
 			if(strcasecmp(verb, "HGETALL") == 0) {
-				json_t *jobj = json_hgetall_reply(r);
-				if(jobj) {
-					json_object_set_new(jroot, verb, jobj);
-					break;
-				}
+				msg_hgetall_reply(pk, r);
+				break;
 			}
-			jlist = json_array();
+
+			msgpack_pack_array(pk, r->elements);
+
 			for(i = 0; i < r->elements; ++i) {
 				redisReply *e = r->element[i];
 				switch(e->type) {
 					case REDIS_REPLY_STRING:
-						json_array_append_new(jlist, json_string(e->str));
+						msgpack_pack_raw(pk, e->len);
+						msgpack_pack_raw_body(pk, e->str, e->len);
 						break;
 					case REDIS_REPLY_INTEGER:
-						json_array_append_new(jlist, json_integer(e->integer));
+						msgpack_pack_int64(pk, e->integer);
 						break;
 					default:
-						json_array_append_new(jlist, json_null());
+						msgpack_pack_nil(pk);
 						break;
 				}
 			}
-			json_object_set_new(jroot, verb, jlist);
+
 			break;
 
 		default:
-			json_object_set_new(jroot, verb, json_null());
+			msgpack_pack_nil(pk);
 			break;
 	}
 
 	free(verb);
-	return jroot;
+	msgpack_packer_free(pk);
 }
-
-
-char *
-msgpack_string_output(json_t *j, const char *jsonp) {
-
-	char *json_reply = json_dumps(j, JSON_COMPACT);
-
-	/* check for JSONP */
-	if(jsonp) {
-		size_t jsonp_len = strlen(jsonp);
-		size_t json_len = strlen(json_reply);
-		size_t ret_len = jsonp_len + 1 + json_len + 3;
-		char *ret = calloc(1 + ret_len, 1);
-
-		memcpy(ret, jsonp, jsonp_len);
-		ret[jsonp_len]='(';
-		memcpy(ret + jsonp_len + 1, json_reply, json_len);
-		memcpy(ret + jsonp_len + 1 + json_len, ");\n", 3);
-		free(json_reply);
-
-		return ret;
-	}
-
-	return json_reply;
-}
-
-/* extract JSON from WebSocket frame and fill struct cmd. */
-struct cmd *
-msgpack_ws_extract(struct http_client *c, const char *p, size_t sz) {
-
-	struct cmd *cmd = NULL;
-	json_t *j;
-	char *jsonz; /* null-terminated */
-
-	unsigned int i, cur;
-	int argc = 0;
-	json_error_t jerror;
-
-	(void)c;
-
-	jsonz = calloc(sz + 1, 1);
-	memcpy(jsonz, p, sz);
-	j = json_loads(jsonz, sz, &jerror);
-	free(jsonz);
-
-	if(!j) {
-		return NULL;
-	}
-	if(json_typeof(j) != JSON_ARRAY) {
-		json_decref(j);
-		return NULL; /* invalid JSON */
-	}
-
-	/* count elements */
-	for(i = 0; i < json_array_size(j); ++i) {
-		json_t *jelem = json_array_get(j, i);
-
-		switch(json_typeof(jelem)) {
-			case JSON_STRING:
-			case JSON_INTEGER:
-				argc++;
-				break;
-
-			default:
-				break;
-		}
-	}
-
-	if(!argc) { /* not a single item could be decoded */
-		json_decref(j);
-		return NULL;
-	}
-
-	/* create command and add args */
-	cmd = cmd_new(argc);
-	for(i = 0, cur = 0; i < json_array_size(j); ++i) {
-		json_t *jelem = json_array_get(j, i);
-		char *tmp;
-
-		switch(json_typeof(jelem)) {
-			case JSON_STRING:
-				tmp = strdup(json_string_value(jelem));
-
-				cmd->argv[cur] = tmp;
-				cmd->argv_len[cur] = strlen(tmp);
-				cur++;
-				break;
-
-			case JSON_INTEGER:
-				tmp = malloc(40);
-				sprintf(tmp, "%d", (int)json_integer_value(jelem));
-
-				cmd->argv[cur] = tmp;
-				cmd->argv_len[cur] = strlen(tmp);
-				cur++;
-				break;
-
-			default:
-				break;
-		}
-	}
-
-	json_decref(j);
-	return cmd;
-}
-
