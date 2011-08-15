@@ -65,6 +65,7 @@ on_msgpack_write(void *data, const char *s, unsigned int sz) {
  */
 void
 msg_info_reply(msgpack_packer* pk, const char *s, size_t sz) {
+
 	const char *p = s;
 	unsigned int count = 0;
 
@@ -122,7 +123,9 @@ msg_info_reply(msgpack_packer* pk, const char *s, size_t sz) {
 
 static void
 msg_hgetall_reply(msgpack_packer* pk, const redisReply *r) {
+
 	/* zip keys and values together in a msgpack object */
+
 	unsigned int i;
 
 	if(r->elements % 2 != 0) {
@@ -155,25 +158,23 @@ msgpack_wrap_redis_reply(const struct cmd *cmd, struct msg_out *out, const redis
 	msgpack_packer* pk = msgpack_packer_new(out, on_msgpack_write);
 
 	/* copy verb, as jansson only takes a char* but not its length. */
-	char *verb;
+	char *verb = "";
 	size_t verb_sz = 0;
 	if(cmd->count) {
-		verb = calloc(cmd->argv_len[0]+1, 1);
 		verb_sz = cmd->argv_len[0];
-		memcpy(verb, cmd->argv[0], verb_sz);
-	} else {
-		verb = strdup("");
+		verb = cmd->argv[0];
 	}
 
+	/* Create map object */
 	msgpack_pack_map(pk, 1);
 
+	/* The single element is the verb */
 	msgpack_pack_raw(pk, verb_sz);
 	msgpack_pack_raw_body(pk, verb, verb_sz);
 
 	switch(r->type) {
 		case REDIS_REPLY_STATUS:
 		case REDIS_REPLY_ERROR:
-			msgpack_pack_array(pk, 2);
 
 			if(r->type == REDIS_REPLY_ERROR)
 				msgpack_pack_false(pk);
@@ -182,7 +183,7 @@ msgpack_wrap_redis_reply(const struct cmd *cmd, struct msg_out *out, const redis
 			break;
 
 		case REDIS_REPLY_STRING:
-			if(strcasecmp(verb, "INFO") == 0) {
+			if(verb_sz ==4 && strncasecmp(verb, "INFO", 4) == 0) {
 				msg_info_reply(pk, r->str, r->len);
 			} else {
 				msgpack_pack_raw(pk, r->len);
@@ -191,11 +192,11 @@ msgpack_wrap_redis_reply(const struct cmd *cmd, struct msg_out *out, const redis
 			break;
 
 		case REDIS_REPLY_INTEGER:
-			msgpack_pack_int64(pk, r->integer);
+			msgpack_pack_int(pk, r->integer);
 			break;
 
 		case REDIS_REPLY_ARRAY:
-			if(strcasecmp(verb, "HGETALL") == 0) {
+			if(verb_sz == 7 && strncasecmp(verb, "HGETALL", 7) == 0) {
 				msg_hgetall_reply(pk, r);
 				break;
 			}
@@ -210,7 +211,7 @@ msgpack_wrap_redis_reply(const struct cmd *cmd, struct msg_out *out, const redis
 						msgpack_pack_raw_body(pk, e->str, e->len);
 						break;
 					case REDIS_REPLY_INTEGER:
-						msgpack_pack_int64(pk, e->integer);
+						msgpack_pack_int(pk, e->integer);
 						break;
 					default:
 						msgpack_pack_nil(pk);
@@ -225,6 +226,5 @@ msgpack_wrap_redis_reply(const struct cmd *cmd, struct msg_out *out, const redis
 			break;
 	}
 
-	free(verb);
 	msgpack_packer_free(pk);
 }
