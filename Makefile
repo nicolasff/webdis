@@ -17,7 +17,20 @@ INSTALL_DIRS = $(DESTDIR) \
 	       $(DESTDIR)/$(PREFIX)/bin \
 	       $(CONFDIR)
 
-all: $(OUT) Makefile
+all: .CHECK_FOR_MSGPACK
+
+.CHECK_FOR_MSGPACK:
+	@if [ -f /usr/lib/libmsgpack.so ]; then make .WITH_MSGPACK; else make .WITHOUT_MSGPACK ; fi
+
+.WITH_MSGPACK:
+	@echo "Building with MsgPack support"
+	@make CFLAGS="$(CFLAGS) -DMSGPACK=1" .REAL_BUILD
+
+.WITHOUT_MSGPACK:
+	@echo "Building without MsgPack support"
+	@make .REAL_BUILD
+
+.REAL_BUILD: $(OUT) Makefile
 
 $(OUT): $(OBJS) Makefile
 	$(CC) $(LDFLAGS) -o $(OUT) $(OBJS)
