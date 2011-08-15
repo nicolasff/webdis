@@ -175,11 +175,17 @@ msgpack_wrap_redis_reply(const struct cmd *cmd, struct msg_out *out, const redis
 	switch(r->type) {
 		case REDIS_REPLY_STATUS:
 		case REDIS_REPLY_ERROR:
+			msgpack_pack_array(pk, 2);
 
+			/* first element: book */
 			if(r->type == REDIS_REPLY_ERROR)
 				msgpack_pack_false(pk);
 			else
 				msgpack_pack_true(pk);
+
+			/* second element: message */
+			msgpack_pack_raw(pk, r->len);
+			msgpack_pack_raw_body(pk, r->str, r->len);
 			break;
 
 		case REDIS_REPLY_STRING:
