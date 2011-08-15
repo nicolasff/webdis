@@ -5,6 +5,10 @@ try:
 	import bson
 except:
 	bson = None
+try:
+	import msgpack
+except:
+	msgpack = None
 
 
 host = '127.0.0.1'
@@ -176,6 +180,60 @@ class TestBSon(TestWebdis):
 		self.assertTrue(isinstance(obj[0][u'UNKNOWN'], list))
 		self.assertTrue(obj[0]['UNKNOWN'][0] == False)
 		self.assertTrue(isinstance(obj[0]['UNKNOWN'][1], bson.Binary))
+
+def need_msgpack(fn):
+	def wrapper(self):
+		if msgpack:
+			fn(self)
+	return wrapper
+
+class TestMsgPack(TestWebdis):
+
+	@need_msgpack
+	def test_set(self):
+		"success type (+OK)"
+		self.query('DEL/hello')
+		f = self.query('SET/hello/world.msg')
+		self.assertTrue(f.headers.getheader('Content-Type') == 'application/x-msgpack')
+		obj = msgpack.loads(f.read())
+		self.assertTrue(obj == {'SET': (True, 'OK')})
+
+	@need_msgpack
+	def test_get(self):
+		"string type"
+		self.query('SET/hello/world')
+		f = self.query('GET/hello.msg')
+		obj = msgpack.loads(f.read())
+		self.assertTrue(obj == {'GET': 'world'})
+
+	@need_msgpack
+	def test_incr(self):
+		"integer type"
+		self.query('DEL/hello')
+		f = self.query('INCR/hello.msg')
+		obj = msgpack.loads(f.read())
+		self.assertTrue(obj == {'INCR': 1})
+
+	@need_msgpack
+	def test_list(self):
+		"list type"
+		self.query('DEL/hello')
+		self.query('RPUSH/hello/abc')
+		self.query('RPUSH/hello/def')
+		f = self.query('LRANGE/hello/0/-1.msg')
+		obj = msgpack.loads(f.read())
+		self.assertTrue(obj == {'LRANGE': ('abc', 'def')})
+
+	@need_msgpack
+	def test_error(self):
+		"error return type"
+		f = self.query('UNKNOWN/COMMAND.msg')
+		obj = msgpack.loads(f.read())
+		self.assertTrue('UNKNOWN' in obj)
+		self.assertTrue(isinstance(obj, dict))
+		self.assertTrue(isinstance(obj['UNKNOWN'], tuple))
+		self.assertTrue(obj['UNKNOWN'][0] == False)
+		self.assertTrue(isinstance(obj['UNKNOWN'][1], str))
 
 class TestETag(TestWebdis):
 

@@ -10,6 +10,9 @@
 #include "formats/json.h"
 #include "formats/bson.h"
 #include "formats/raw.h"
+#ifdef MSGPACK
+#include "formats/msgpack.h"
+#endif
 #include "formats/custom-type.h"
 
 #include <stdlib.h>
@@ -264,6 +267,10 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 		{.s = "json", .sz = 4, .f = json_reply, .ct = "application/json"},
 		{.s = "raw", .sz = 3, .f = raw_reply, .ct = "binary/octet-stream"},
 		{.s = "bson", .sz = 4, .f = bson_reply, .ct = "application/bson"},
+
+#ifdef MSGPACK
+		{.s = "msg", .sz = 3, .f = msgpack_reply, .ct = "application/x-msgpack"},
+#endif
 
 		{.s = "bin", .sz = 3, .f = custom_type_reply, .ct = "binary/octet-stream"},
 		{.s = "txt", .sz = 3, .f = custom_type_reply, .ct = "text/plain"},
