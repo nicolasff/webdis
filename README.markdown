@@ -24,6 +24,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * JSON output by default, optional JSONP parameter (`?jsonp=myFunction` or `?callback=myFunction`).
 * Raw Redis 2.0 protocol output with `.raw` suffix
 * BSON support for compact responses and MongoDB compatibility.
+* MessagePack output with `.msg` suffix
 * HTTP 1.1 pipelining (70,000 http requests per second on a desktop Linux machine.)
 * Multi-threaded server, configurable number of worker threads.
 * WebSocket support (Currently using the “hixie-76” specification).
@@ -173,6 +174,7 @@ Several content-types are available:
 
 * `.json` for `application/json` (this is the default Content-Type).
 * `.bson` for `application/bson`. See [http://bsonspec.org/](http://bsonspec.org/) for the specs.
+* `.msg` for `application/x-msgpack`. See [http://msgpack.org/](http://msgpack.org/) for the specs.
 * `.txt` for `text/plain`
 * `.html` for `text/html`
 * `xhtml` for `application/xhtml+xml`
