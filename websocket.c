@@ -28,7 +28,7 @@ ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 	char magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 	SHA1Context ctx;
 	base64_encodestate b64_ctx;
-	int pos;
+	int pos, i;
 
 	// websocket handshake
 	const char *key = client_get_header(c, "Sec-WebSocket-Key");
@@ -43,7 +43,10 @@ ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 	SHA1Reset(&ctx);
 	SHA1Input(&ctx, buffer, buffer_sz);
 	SHA1Result(&ctx);
-	memcpy(sha1_output, &ctx.Message_Digest[0], 20);
+	for(i = 0; i < 5; ++i) {	// put in correct byte order before memcpy.
+		ctx.Message_Digest[i] = ntohl(ctx.Message_Digest[i]);
+	}
+	memcpy(sha1_output, (unsigned char*)ctx.Message_Digest, 20);
 
 	// encode `sha1_output' in base 64, into `out'.
 	base64_init_encodestate(&b64_ctx);
@@ -82,6 +85,8 @@ ws_handshake_reply(struct http_client *c) {
 	char template4[] = "\r\n\r\n";
 
 	if((origin = client_get_header(c, "Origin"))) {
+		origin_sz = strlen(origin);
+	} else if((origin = client_get_header(c, "Sec-WebSocket-Origin"))) {
 		origin_sz = strlen(origin);
 	}
 	if((host = client_get_header(c, "Host"))) {

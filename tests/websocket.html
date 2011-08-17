@@ -91,7 +91,15 @@ function log(id, dir, msg) {
 }
 
 function testJSON() {
-	var jsonSocket = new WebSocket("ws://"+host+":"+port+"/.json");
+
+
+	if(typeof(WebSocket) == 'function')
+		f = WebSocket;
+	if(typeof(MozWebSocket) == 'function')
+		f = MozWebSocket;
+
+
+	var jsonSocket = new f("ws://"+host+":"+port+"/.json");
 	var self = this;
 
 	send = function(j) {
