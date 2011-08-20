@@ -8,13 +8,11 @@ CFLAGS=-O3 -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
 LDFLAGS=-levent -pthread
 
 # check for MessagePack
-MSGPACK_LIB=$(shell ls /usr/lib/libmsgpack.so)
+MSGPACK_LIB=$(shell ls /usr/lib/libmsgpack.so 2>/dev/null)
 ifneq ($(strip $(MSGPACK_LIB)),)
 	FORMAT_OBJS += formats/msgpack.o
 	CFLAGS += -DMSGPACK=1
 	LDFLAGS += -lmsgpack
-else
-	CFLAGS += -DMSGPACK=0
 endif
 
 
