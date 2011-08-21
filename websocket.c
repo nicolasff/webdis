@@ -191,14 +191,118 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 	return -1;
 }
 
+static struct ws_msg *
+ws_msg_new(const char *p, size_t psz, const unsigned char *mask) {
+	
+	size_t i;
+	struct ws_msg *m = malloc(sizeof(struct ws_msg));
+	m->data = malloc(psz);
+	m->sz = psz;
+
+	memcpy(m->data, p, psz);
+	for(i = 0; i < psz && mask; ++i) {
+		m->data[i] = (unsigned char)p[i] ^ mask[i%4];
+	}
+
+	return m;
+}
+
+static void
+ws_msg_free(struct ws_msg *m) {
+
+	free(m->data);
+	free(m);
+}
+
+static enum ws_read_action
+ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
+	
+	int fin = 0, has_mask;
+	uint32_t len;
+	const char *p;
+	unsigned char mask[4];
+
+	/* parse frame and extract contents */
+	if(sz < 8)
+		return WS_READ_MORE;
+
+
+	if(frame[0] & 0x80) /* FIN bit set */
+		fin = 1;
+
+	has_mask = frame[1] & 0x80 ? 1:0;
+
+	/* get payload length */
+	len = frame[1] & 0x7f;	/* remove leftmost bit */
+	if(len <= 125) { /* data starts right after the mask */
+		p = frame + 2 + (has_mask ? 4 : 0);
+		if(has_mask) memcpy(&mask, frame + 2, sizeof(mask));
+	} else if(len == 126) {
+		memcpy(&len, frame, sizeof(uint32_t));
+		len = ntohl(len & 0x0000ffff);
+		p = frame + 4 + (has_mask ? 4 : 0);
+		if(has_mask) memcpy(&mask, frame + 4, sizeof(mask));
+	} else if(len == 127) {
+		memcpy(&len, frame + 4, sizeof(uint32_t));
+		len = ntohl(len);
+		p = frame + 6 + (has_mask ? 4 : 0);
+		if(has_mask) memcpy(&mask, frame + 6, sizeof(mask));
+	}
+
+	/* we now have the (possibly masked) data starting in p, and its length.  */
+	if(len > sz - (p - frame)) { /* not enough data */
+		return WS_READ_MORE;
+	}
+#if 0
+	printf("sz- (p-frame) = %zd\n", sz - (p - frame));
+	*msg = NULL;
+
+	for(i = 0; i < len; ++i) {
+		printf("%c", (unsigned char)p[i] ^ (unsigned char)mask[i%4]);
+	}
+	printf("\n");
+#endif
+
+	*msg = ws_msg_new(p, len, has_mask ? mask : NULL);
+
+
+
+
+
+	return WS_READ_EXEC;
+}
+
+
 /**
  * Process some data just received on the socket.
  */
 enum ws_read_action
 ws_add_data(struct http_client *c) {
-	const char *frame_start, *frame_end;
-	char *tmp;
+	/* const char *frame_start, *frame_end; */
+	/*char *tmp; */
+	size_t i;
+	enum ws_read_action action;
+	struct ws_msg *frame = NULL;
 
+	for(i = 0; i < c->sz; ++i) {
+		if(i && i % 16 == 0) printf("\n");
+		printf("%.2x ", (unsigned char)c->buffer[i]);
+	}
+	printf("\n\n");
+
+	action = ws_parse_data(c->buffer, c->sz, &frame);
+
+	if(action == WS_READ_EXEC) {
+		int ret = ws_execute(c, frame->data, frame->sz);
+		ws_msg_free(frame);
+
+		if(ret != 0) {
+			/* can't process frame. */
+			return WS_READ_FAIL;
+		}
+	}
+	return action;
+#if 0
 	while(1) {
 		/* look for frame start */
 		if(!c->sz || c->buffer[0] != '\x00') {
@@ -232,6 +336,7 @@ ws_add_data(struct http_client *c) {
 		free(c->buffer);
 		c->buffer = tmp;
 	}
+#endif
 }
 
 int
