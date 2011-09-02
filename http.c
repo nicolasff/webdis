@@ -19,6 +19,7 @@ http_response_init(struct worker *w, int code, const char *msg) {
 	r->code = code;
 	r->msg = msg;
 	r->w = w;
+	r->keep_alive = 0; /* default */
 
 	http_response_set_header(r, "Server", "Webdis");
 
@@ -137,7 +138,7 @@ http_response_write(struct http_response *r, int fd) {
 	char *p;
 	int i, ret;
 
-	r->keep_alive = 0;
+	/*r->keep_alive = 0;*/
 	r->out_sz = sizeof("HTTP/1.x xxx ")-1 + strlen(r->msg) + 2;
 	r->out = calloc(r->out_sz + 1, 1);
 
@@ -245,6 +246,7 @@ http_send_error(struct http_client *c, short code, const char *msg) {
  */
 void
 http_response_set_keep_alive(struct http_response *r, int enabled) {
+	r->keep_alive = enabled;
 	if(enabled) {
 		http_response_set_header(r, "Connection", "Keep-Alive");
 	} else {
@@ -277,6 +279,7 @@ http_response_write_chunk(int fd, struct worker *w, const char *p, size_t sz) {
 	size_t out_sz;
 	int chunk_size;
 	struct http_response *r = http_response_init(w, 0, NULL);
+	r->keep_alive = 1; /* chunks are always keep-alive */
 
 	/* calculate format size */
 	chunk_size = sprintf(tmp, "%x\r\n", (int)sz);
