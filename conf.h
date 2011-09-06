@@ -22,6 +22,9 @@ struct conf {
 	/* daemonize process, off by default */
 	int daemonize;
 
+	/* WebSocket support, off by default */
+	int websockets;
+
 	/* database number */
 	int database;
 

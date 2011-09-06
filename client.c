@@ -180,7 +180,7 @@ http_client_on_message_complete(struct http_parser *p) {
 	}
 	c->http_version = c->parser.http_minor;
 
-	if(p->upgrade) { /* WebSocket, don't execute just yet */
+	if(p->upgrade && c->w->s->cfg->websockets) { /* WebSocket, don't execute just yet */
 		c->is_websocket = 1;
 		return 0;
 	}
