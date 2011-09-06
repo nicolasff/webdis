@@ -78,11 +78,12 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			http_response_set_header(resp, "Content-Type", ct);
 			http_response_set_keep_alive(resp, 1);
 			http_response_set_header(resp, "Transfer-Encoding", "chunked");
+			http_response_set_body(resp, p, sz);
 			http_response_write(resp, cmd->fd);
+		} else {
+			/* Asynchronous chunk write. */
+			http_response_write_chunk(cmd->fd, cmd->w, p, sz);
 		}
-
-		/* Asynchronous chunk write. */
-		http_response_write_chunk(cmd->fd, cmd->w, p, sz);
 
 	} else {
 		/* compute ETag */
