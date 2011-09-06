@@ -164,12 +164,14 @@ http_response_write(struct http_response *r, int fd) {
 	(void)ret;
 	p = r->out;
 
-	if(r->code == 200 && r->body) {
-		char content_length[10];
-		sprintf(content_length, "%zd", r->body_len);
-		http_response_set_header(r, "Content-Length", content_length);
-	} else if(!r->chunked) {
-		http_response_set_header(r, "Content-Length", "0");
+	if(!r->chunked) {
+		if(r->code == 200 && r->body) {
+			char content_length[10];
+			sprintf(content_length, "%zd", r->body_len);
+			http_response_set_header(r, "Content-Length", content_length);
+		} else {
+			http_response_set_header(r, "Content-Length", "0");
+		}
 	}
 
 	for(i = 0; i < r->header_count; ++i) {
@@ -209,10 +211,19 @@ http_response_write(struct http_response *r, int fd) {
 
 	/* append body if there is one. */
 	if(r->body && r->body_len) {
-		if(r->chunked) {
-			r->out = realloc(r->out, r->out_sz + r->body_len);
-			memcpy(r->out + r->out_sz, r->body, r->body_len);
-			r->out_sz += r->body_len;
+
+		char *tmp = (char*)r->body;
+		size_t tmp_len = r->body_len;
+		if(r->chunked) { /* replace body with formatted chunk */
+			tmp = format_chunk(r->body, r->body_len, &tmp_len);
+		}
+
+		r->out = realloc(r->out, r->out_sz + tmp_len);
+		memcpy(r->out + r->out_sz, tmp, tmp_len);
+		r->out_sz += tmp_len;
+
+		if(r->chunked) { /* need to free the chunk */
+			free(tmp);
 		}
 	}
 
