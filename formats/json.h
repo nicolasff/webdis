@@ -14,6 +14,9 @@ json_reply(redisAsyncContext *c, void *r, void *privdata);
 char *
 json_string_output(json_t *j, const char *jsonp);
 
+json_t *
+json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r);
+
 struct cmd *
 json_ws_extract(struct http_client *c, const char *p, size_t sz);
 

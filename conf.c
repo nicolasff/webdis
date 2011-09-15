@@ -38,6 +38,7 @@ conf_read(const char *filename) {
 	conf->daemonize = 0;
 	conf->database = 0;
 	conf->pool_size_per_thread = 2;
+	conf->html_body = strdup("");
 
 	j = json_load_file(filename, 0, &error);
 	if(!j) {
@@ -91,6 +92,9 @@ conf_read(const char *filename) {
 			conf->pool_size_per_thread = json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "default_root") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			conf->default_root = strdup(json_string_value(jtmp));
+		} else if(strcmp(json_object_iter_key(kv),"html_body") == 0 && json_typeof(jtmp) == JSON_STRING){
+			conf->html_body = strdup(json_string_value(jtmp));
+			conf->html_body_sz = strlen(conf->html_body);
 		}
 	}
 

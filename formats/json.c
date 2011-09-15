@@ -8,9 +8,6 @@
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 
-static json_t *
-json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r);
-
 void
 json_reply(redisAsyncContext *c, void *r, void *privdata) {
 
@@ -112,7 +109,7 @@ json_hgetall_reply(const redisReply *r) {
 	return jroot;
 }
 
-static json_t *
+json_t *
 json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 
 	unsigned int i;

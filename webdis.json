@@ -11,6 +11,8 @@
 	"daemonize":	false,
 	"websockets":	false,
 
+	"html_body":	"<html><head></head><script>function forward(msg) { window.parent.postMessage(JSON.stringify(msg), '*'); } </script>",
+
 	"database":	0,
 
 	"acl": [

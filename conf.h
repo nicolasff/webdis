@@ -31,6 +31,10 @@ struct conf {
 	/* ACL */
 	struct acl *perms;
 
+	/* pre-loaded body, for streaming iframes */
+	char *html_body;
+	size_t html_body_sz;
+
 	/* user/group */
 	uid_t user;
 	gid_t group;

@@ -8,6 +8,7 @@
 #include "server.h"
 
 #include "formats/json.h"
+#include "formats/html.h"
 #include "formats/bson.h"
 #include "formats/raw.h"
 #ifdef MSGPACK
@@ -274,7 +275,7 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 
 		{.s = "bin", .sz = 3, .f = custom_type_reply, .ct = "binary/octet-stream"},
 		{.s = "txt", .sz = 3, .f = custom_type_reply, .ct = "text/plain"},
-		{.s = "html", .sz = 4, .f = custom_type_reply, .ct = "text/html"},
+		{.s = "html", .sz = 4, .f = html_reply, .ct = "text/html"},
 		{.s = "xhtml", .sz = 5, .f = custom_type_reply, .ct = "application/xhtml+xml"},
 		{.s = "xml", .sz = 3, .f = custom_type_reply, .ct = "text/xml"},
 

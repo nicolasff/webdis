@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Pub/Sub example</title>
+		<meta charset="utf-8" />
+		<style type="text/css">
+
+			body {
+				width: 800px;
+				margin: auto;
+			}
+
+			header {
+				font-size: 36pt;
+				width: 100%;
+				text-align: center;
+				margin-bottom: 1em;
+				color: #541F14;
+			}
+
+			section.proto {
+				float: left;
+				/*background-color: #f8f8f8;*/
+			}
+
+			section#json {
+				width: 380px;
+				margin-right: 20px;
+			}
+
+			section#raw {
+				width: 380px;
+				padding-left: 16px;
+				border-left: 4px solid #626266;
+			}
+
+			div.desc {
+				margin: 0px;
+			}
+			pre.sent, pre.received {
+				margin-top: 0px;
+				border-radius: 4px;
+				padding: 5px;
+			}
+			pre.sent {
+				border: 1px solid #938172;
+				background-color: white;
+			}
+			pre.received {
+				border: 1px solid #CC9E61;
+				text-align: right;
+			}
+
+		</style>
+	</head>
+
+	<body>
+		<header>Pub/Sub with Webdis and JSONP</header>
+
+
+		<script type="text/javascript">
+
+$ = function(id) {return document.getElementById(id);};
+var host = "127.0.0.1";
+var port = 7379;
+
+var onmessage = function(e) { 
+	console.log("received:", e.data + ' - origin: ' + e.origin);
+} 
+
+if(typeof window.addEventListener != 'undefined') {
+	window.addEventListener('message', onmessage, true);
+}
+else if(typeof window.attachEvent != 'undefined') {
+	window.attachEvent('onmessage', onmessage);
+}
+
+function log(id, dir, msg) {
+
+	var desc = document.createElement("div");
+	desc.setAttribute("class", "desc");
+	desc.innerHTML = dir;
+	$(id).appendChild(desc);
+
+	var e = document.createElement("pre");
+	e.setAttribute("class", dir);
+	e.innerHTML = msg;
+	$(id).appendChild(e);
+}
+
+function testJSONP() {
+	var iframe = document.createElement('iframe');
+	iframe.src = "http://"+host+":"+port+"/SUBSCRIBE/x.html?jsonp=forward";
+	document.getElementsByTagName("body")[0].appendChild(iframe);
+}
+
+addEventListener("DOMContentLoaded", function(){
+	testJSONP();
+}, null);
+
+		</script>
+	</body>
+</html>
