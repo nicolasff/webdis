@@ -7,6 +7,9 @@
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 
+static char *
+custom_array(const redisReply *r, size_t *sz);
+
 void
 custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 
@@ -17,6 +20,9 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	char *status_buf;
 	int int_len;
 	struct http_response *resp;
+	size_t sz;
+	char *array_out;
+
 
 	if (reply == NULL) { /* broken Redis link */
 		format_send_error(cmd, 503, "Service Unavailable");
@@ -47,6 +53,11 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 				int_len = sprintf(int_buffer, "%lld", reply->integer);
 				format_send_reply(cmd, int_buffer, int_len, cmd->mime);
 				return;
+			case REDIS_REPLY_ARRAY:
+				array_out = custom_array(r, &sz);
+				format_send_reply(cmd, array_out, sz, cmd->mime);
+				free(array_out);
+				return;
 		}
 	}
 
@@ -61,3 +72,46 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 }
 
+static char *
+custom_array(const redisReply *r, size_t *sz) {
+
+	unsigned int i;
+	char *ret, *p;
+
+	/* compute size */
+	*sz = 0;
+	for(i = 0; i < r->elements; ++i) {
+		redisReply *e = r->element[i];
+		switch(e->type) {
+			case REDIS_REPLY_STRING:
+				*sz += (i ? 1 : 0) + e->len;
+				break;
+			case REDIS_REPLY_INTEGER:
+				*sz += 1 + integer_length(e->integer);
+				break;
+
+		}
+	}
+
+	/* allocate */
+	p = ret = malloc(*sz);
+
+	/* copy */
+	for(i = 0; i < r->elements; ++i) {
+		redisReply *e = r->element[i];
+		switch(e->type) {
+			case REDIS_REPLY_STRING:
+				if (i) {
+					p += sprintf(p, ",");
+				}
+				memcpy(p, e->str, e->len);
+				p += e->len;
+				break;
+			case REDIS_REPLY_INTEGER:
+				p += sprintf(p, i ? ",%lld" : "%lld", e->integer);
+				break;
+		}
+	}
+
+	return ret;
+}
