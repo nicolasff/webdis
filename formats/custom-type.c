@@ -84,10 +84,7 @@ custom_array(const redisReply *r, size_t *sz) {
 		redisReply *e = r->element[i];
 		switch(e->type) {
 			case REDIS_REPLY_STRING:
-				*sz += (i ? 1 : 0) + e->len;
-				break;
-			case REDIS_REPLY_INTEGER:
-				*sz += 1 + integer_length(e->integer);
+				*sz += e->len;
 				break;
 
 		}
@@ -101,14 +98,8 @@ custom_array(const redisReply *r, size_t *sz) {
 		redisReply *e = r->element[i];
 		switch(e->type) {
 			case REDIS_REPLY_STRING:
-				if (i) {
-					p += sprintf(p, ",");
-				}
 				memcpy(p, e->str, e->len);
 				p += e->len;
-				break;
-			case REDIS_REPLY_INTEGER:
-				p += sprintf(p, i ? ",%lld" : "%lld", e->integer);
 				break;
 		}
 	}
