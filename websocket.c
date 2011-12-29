@@ -15,10 +15,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/param.h>
+
 #ifdef __APPLE__
+#include <machine/endian.h>
+#else
+#ifdef BSD /* depends on sys/param.h */
 #include <sys/endian.h>
 #else
 #include <endian.h>
+#endif
 #endif
 
 /**
