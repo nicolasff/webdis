@@ -18,13 +18,16 @@
 #include <sys/param.h>
 
 #ifdef __APPLE__
-#include <machine/endian.h>
-#else
-#ifdef BSD /* depends on sys/param.h */
-#include <sys/endian.h>
-#else
-#include <endian.h>
-#endif
+#  include <machine/endian.h>
+#elif defined(__linux__)
+#  include <endian.h>
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
+#  include <sys/endian.h>
+#elif defined(__OpenBSD__)
+#  include <sys/types.h>
+#  define be16toh(x) betoh16(x)
+#  define be32toh(x) betoh32(x)
+#  define be64toh(x) betoh64(x)
 #endif
 
 /**
@@ -260,9 +263,7 @@ ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 		p = frame + 4 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 4, sizeof(mask));
 	} else if(len == 127) {
-		uint64_t sz64;
-		memcpy(&sz64, frame + 2, sizeof(uint64_t));
-		len = be64toh(sz64);
+		len = ntohl64(frame+2);
 		p = frame + 10 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 10, sizeof(mask));
 	}
