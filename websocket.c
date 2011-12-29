@@ -17,24 +17,23 @@
 #include <errno.h>
 #include <sys/param.h>
 
-#ifdef __APPLE__
-#  include <machine/endian.h>
-#elif defined(__linux__)
-#  include <endian.h>
-#elif defined(__FreeBSD__) || defined(__NetBSD__)
-#  include <sys/endian.h>
-#elif defined(__OpenBSD__)
-#  include <sys/types.h>
-#  define be16toh(x) betoh16(x)
-#  define be32toh(x) betoh32(x)
-#  define be64toh(x) betoh64(x)
-#endif
-
 /**
  * This code uses the WebSocket specification from RFC 6455.
  * A copy is available at http://www.rfc-editor.org/rfc/rfc6455.txt
  */
 
+/* custom 64-bit encoding functions to avoid portability issues */
+#define webdis_ntohl64(p) \
+	((((uint64_t)((p)[0])) <<  0) + (((uint64_t)((p)[1])) <<  8) +\
+	 (((uint64_t)((p)[2])) << 16) + (((uint64_t)((p)[3])) << 24) +\
+	 (((uint64_t)((p)[4])) << 32) + (((uint64_t)((p)[5])) << 40) +\
+	 (((uint64_t)((p)[6])) << 48) + (((uint64_t)((p)[7])) << 56))
+
+#define webdis_htonl64(p) {\
+	(char)(((p & ((uint64_t)0xff <<  0)) >>  0) & 0xff), (char)(((p & ((uint64_t)0xff <<  8)) >>  8) & 0xff), \
+	(char)(((p & ((uint64_t)0xff << 16)) >> 16) & 0xff), (char)(((p & ((uint64_t)0xff << 24)) >> 24) & 0xff), \
+	(char)(((p & ((uint64_t)0xff << 32)) >> 32) & 0xff), (char)(((p & ((uint64_t)0xff << 40)) >> 40) & 0xff), \
+	(char)(((p & ((uint64_t)0xff << 48)) >> 48) & 0xff), (char)(((p & ((uint64_t)0xff << 56)) >> 56) & 0xff) }
 static int
 ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 
@@ -263,7 +262,7 @@ ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 		p = frame + 4 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 4, sizeof(mask));
 	} else if(len == 127) {
-		len = ntohl64(frame+2);
+		len = webdis_ntohl64(frame+2);
 		p = frame + 10 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 10, sizeof(mask));
 	}
@@ -339,10 +338,9 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 		memcpy(frame + 4, p, sz);
 		frame_sz = sz + 4;
 	} else if (sz > 65536) {
-		uint64_t sz64 = htobe64(sz);
-		sz64 = (sz64 << 1) >> 1;	/* clear leftmost bit */
+		char sz64[8] = webdis_htonl64(sz);
 		frame[1] = 127;
-		memcpy(frame + 2, &sz64, 8);
+		memcpy(frame + 2, sz64, 8);
 		memcpy(frame + 10, p, sz);
 		frame_sz = sz + 10;
 	}

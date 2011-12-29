@@ -7,15 +7,6 @@
 struct http_client;
 struct cmd;
 
-#define ntohl64(p) ((p)[0] +\
-			(((int64_t)((p)[1])) << 8) 	+\
-			(((int64_t)((p)[2])) << 16) +\
-			(((int64_t)((p)[3])) << 24) +\
-			(((int64_t)((p)[4])) << 32) +\
-			(((int64_t)((p)[5])) << 40) +\
-			(((int64_t)((p)[6])) << 48) +\
-			(((int64_t)((p)[7])) << 56))
-
 enum ws_state {
 	WS_ERROR,
 	WS_READING,
