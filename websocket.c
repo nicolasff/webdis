@@ -194,44 +194,46 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 }
 
 static struct ws_msg *
-ws_msg_new(const char *p, size_t psz, const unsigned char *mask) {
-	
-	size_t i;
-	struct ws_msg *m = malloc(sizeof(struct ws_msg));
-	m->payload = malloc(psz);
-	m->payload_sz = psz;
-
-	memcpy(m->payload, p, psz);
-	for(i = 0; i < psz && mask; ++i) {
-		m->payload[i] = (unsigned char)p[i] ^ mask[i%4];
-	}
-
-	return m;
+ws_msg_new() {
+	return calloc(1, sizeof(struct ws_msg));
 }
 
 static void
-ws_msg_free(struct ws_msg *m) {
+ws_msg_add(struct ws_msg *m, const char *p, size_t psz, const unsigned char *mask) {
+	
+	/* add data to frame */
+	size_t i;
+	m->payload = realloc(m->payload, m->payload_sz + psz);
+	memcpy(m->payload + m->payload_sz, p, psz);
 
-	free(m->payload);
-	free(m);
+	/* apply mask */
+	for(i = 0; i < psz && mask; ++i) {
+		m->payload[m->payload_sz + i] = (unsigned char)p[i] ^ mask[i%4];
+	}
+
+	/* save new size */
+	m->payload_sz += psz;
+}
+
+static void
+ws_msg_free(struct ws_msg **m) {
+
+	free((*m)->payload);
+	free(*m);
+	*m = NULL;
 }
 
 static enum ws_state
 ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 	
 	int has_mask;
-	uint32_t len;
+	uint64_t len;
 	const char *p;
 	unsigned char mask[4];
 
 	/* parse frame and extract contents */
 	if(sz < 8) {
 		return WS_READING;
-	}
-
-
-	if(frame[0] & 0x80) { /* FIN bit set */
-		/* TODO */
 	}
 
 	has_mask = frame[1] & 0x80 ? 1:0;
@@ -242,15 +244,17 @@ ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 		p = frame + 2 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 2, sizeof(mask));
 	} else if(len == 126) {
-		memcpy(&len, frame, sizeof(uint32_t));
-		len = ntohl(len & 0x0000ffff);
+		uint16_t sz16;
+		memcpy(&sz16, frame + 2, sizeof(uint16_t));
+		len = ntohs(sz16);
 		p = frame + 4 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 4, sizeof(mask));
 	} else if(len == 127) {
-		memcpy(&len, frame + 4, sizeof(uint32_t));
-		len = ntohl(len);
-		p = frame + 6 + (has_mask ? 4 : 0);
-		if(has_mask) memcpy(&mask, frame + 6, sizeof(mask));
+		uint64_t sz64;
+		memcpy(&sz64, frame + 2, sizeof(uint64_t));
+		len = be64toh(sz64);
+		p = frame + 10 + (has_mask ? 4 : 0);
+		if(has_mask) memcpy(&mask, frame + 10, sizeof(mask));
 	}
 
 	/* we now have the (possibly masked) data starting in p, and its length.  */
@@ -258,11 +262,16 @@ ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 		return WS_READING;
 	}
 
-	*msg = ws_msg_new(p, len, has_mask ? mask : NULL);
-	(*msg)->total_sz = len + (p - frame);
+	if(!*msg)
+		*msg = ws_msg_new();
+	ws_msg_add(*msg, p, len, has_mask ? mask : NULL);
+	(*msg)->total_sz += len + (p - frame);
 
-
-	return WS_MSG_COMPLETE;
+	if(frame[0] & 0x80) { /* FIN bit set */
+		return WS_MSG_COMPLETE;
+	} else {
+		return WS_READING;	/* need more data */
+	}
 }
 
 
@@ -273,16 +282,17 @@ enum ws_state
 ws_add_data(struct http_client *c) {
 
 	enum ws_state state;
-	struct ws_msg *frame = NULL;
 
-	state = ws_parse_data(c->buffer, c->sz, &frame);
+	state = ws_parse_data(c->buffer, c->sz, &c->frame);
 
 	if(state == WS_MSG_COMPLETE) {
-		int ret = ws_execute(c, frame->payload, frame->payload_sz);
-		ws_msg_free(frame);
+		int ret = ws_execute(c, c->frame->payload, c->frame->payload_sz);
 
 		/* remove frame from client buffer */
-		http_client_remove_data(c, frame->total_sz);
+		http_client_remove_data(c, c->frame->total_sz);
+
+		/* free frame and set back to NULL */
+		ws_msg_free(&c->frame);
 
 		if(ret != 0) {
 			/* can't process frame. */
