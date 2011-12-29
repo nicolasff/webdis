@@ -15,7 +15,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#ifdef __APPLE__
+#include <sys/endian.h>
+#else
 #include <endian.h>
+#endif
 
 /**
  * This code uses the WebSocket specification from RFC 6455.
