@@ -19,6 +19,7 @@ http_response_init(struct worker *w, int code, const char *msg) {
 	r->code = code;
 	r->msg = msg;
 	r->w = w;
+	r->keep_alive = 0; /* default */
 
 	http_response_set_header(r, "Server", "Webdis");
 
@@ -131,13 +132,31 @@ http_schedule_write(int fd, struct http_response *r) {
 
 }
 
+static char *
+format_chunk(const char *p, size_t sz, size_t *out_sz) {
+
+	char *out, tmp[64];
+	int chunk_size;
+
+	/* calculate format size */
+	chunk_size = sprintf(tmp, "%x\r\n", (int)sz);
+	
+	*out_sz = chunk_size + sz + 2;
+	out = malloc(*out_sz);
+	memcpy(out, tmp, chunk_size);
+	memcpy(out + chunk_size, p, sz);
+	memcpy(out + chunk_size + sz, "\r\n", 2);
+
+	return out;
+}
+
 void
 http_response_write(struct http_response *r, int fd) {
 
 	char *p;
 	int i, ret;
 
-	r->keep_alive = 0;
+	/*r->keep_alive = 0;*/
 	r->out_sz = sizeof("HTTP/1.x xxx ")-1 + strlen(r->msg) + 2;
 	r->out = calloc(r->out_sz + 1, 1);
 
@@ -145,12 +164,14 @@ http_response_write(struct http_response *r, int fd) {
 	(void)ret;
 	p = r->out;
 
-	if(r->code == 200 && r->body) {
-		char content_length[10];
-		sprintf(content_length, "%zd", r->body_len);
-		http_response_set_header(r, "Content-Length", content_length);
-	} else if(!r->chunked) {
-		http_response_set_header(r, "Content-Length", "0");
+	if(!r->chunked) {
+		if(r->code == 200 && r->body) {
+			char content_length[10];
+			sprintf(content_length, "%zd", r->body_len);
+			http_response_set_header(r, "Content-Length", content_length);
+		} else {
+			http_response_set_header(r, "Content-Length", "0");
+		}
 	}
 
 	for(i = 0; i < r->header_count; ++i) {
@@ -190,9 +211,20 @@ http_response_write(struct http_response *r, int fd) {
 
 	/* append body if there is one. */
 	if(r->body && r->body_len) {
-		r->out = realloc(r->out, r->out_sz + r->body_len);
-		memcpy(r->out + r->out_sz, r->body, r->body_len);
-		r->out_sz += r->body_len;
+
+		char *tmp = (char*)r->body;
+		size_t tmp_len = r->body_len;
+		if(r->chunked) { /* replace body with formatted chunk */
+			tmp = format_chunk(r->body, r->body_len, &tmp_len);
+		}
+
+		r->out = realloc(r->out, r->out_sz + tmp_len);
+		memcpy(r->out + r->out_sz, tmp, tmp_len);
+		r->out_sz += tmp_len;
+
+		if(r->chunked) { /* need to free the chunk */
+			free(tmp);
+		}
 	}
 
 	/* send buffer to client */
@@ -245,6 +277,7 @@ http_send_error(struct http_client *c, short code, const char *msg) {
  */
 void
 http_response_set_keep_alive(struct http_response *r, int enabled) {
+	r->keep_alive = enabled;
 	if(enabled) {
 		http_response_set_header(r, "Connection", "Keep-Alive");
 	} else {
@@ -273,25 +306,13 @@ http_send_options(struct http_client *c) {
 void
 http_response_write_chunk(int fd, struct worker *w, const char *p, size_t sz) {
 
-	char *out, tmp[64];
-	size_t out_sz;
-	int chunk_size;
 	struct http_response *r = http_response_init(w, 0, NULL);
+	r->keep_alive = 1; /* chunks are always keep-alive */
 
-	/* calculate format size */
-	chunk_size = sprintf(tmp, "%x\r\n", (int)sz);
-	
-	out_sz = chunk_size + sz + 2;
-	out = malloc(out_sz);
-	memcpy(out, tmp, chunk_size);
-	memcpy(out + chunk_size, p, sz);
-	memcpy(out + chunk_size + sz, "\r\n", 2);
-
+	/* format packet */
+	r->out = format_chunk(p, sz, &r->out_sz);
 
 	/* send async write */
-	r->out = out;
-	r->out_sz = out_sz;
-
 	http_schedule_write(fd, r);
 }
 

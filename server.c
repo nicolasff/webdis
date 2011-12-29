@@ -126,18 +126,18 @@ server_can_accept(int fd, short event, void *ptr) {
  */
 static void
 server_daemonize(void) {
-        int fd;
+	int fd;
 
-        if (fork() != 0) exit(0); /* parent exits */
-        setsid(); /* create a new session */
+	if (fork() != 0) exit(0); /* parent exits */
+	setsid(); /* create a new session */
 
-        /* Every output goes to /dev/null. */
-        if ((fd = open("/dev/null", O_RDWR, 0)) != -1) {
-                dup2(fd, STDIN_FILENO);
-                dup2(fd, STDOUT_FILENO);
-                dup2(fd, STDERR_FILENO);
-                if (fd > STDERR_FILENO) close(fd);
-        }
+	/* Every output goes to /dev/null. */
+	if ((fd = open("/dev/null", O_RDWR, 0)) != -1) {
+		dup2(fd, STDIN_FILENO);
+		dup2(fd, STDOUT_FILENO);
+		dup2(fd, STDERR_FILENO);
+		if (fd > STDERR_FILENO) close(fd);
+	}
 }
 
 
@@ -145,6 +145,10 @@ int
 server_start(struct server *s) {
 
 	int i;
+
+	/* initialize libevent */
+	s->base = event_base_new();
+
 	if(s->cfg->daemonize) {
 		server_daemonize();
 
@@ -171,9 +175,6 @@ server_start(struct server *s) {
 	if(s->fd < 0) {
 		return -1;
 	}
-
-	/* initialize libevent */
-	s->base = event_base_new();
 
 	/* start http server */
 	event_set(&s->ev, s->fd, EV_READ | EV_PERSIST, server_can_accept, s);

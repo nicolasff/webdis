@@ -32,7 +32,7 @@ INSTALL_DIRS = $(DESTDIR) \
 all: $(OUT) Makefile
 
 $(OUT): $(OBJS) Makefile
-	$(CC) $(LDFLAGS) -o $(OUT) $(OBJS)
+	$(CC) -o $(OUT) $(OBJS) $(LDFLAGS)
 
 %.o: %.c %.h Makefile
 	$(CC) -c $(CFLAGS) -o $@ $<
