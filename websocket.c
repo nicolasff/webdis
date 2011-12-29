@@ -15,10 +15,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <endian.h>
 
 /**
- * This code uses the WebSocket specification from July, 2011.
- * The latest copy is available at http://datatracker.ietf.org/doc/draft-ietf-hybi-thewebsocketprotocol/?include_text=1
+ * This code uses the WebSocket specification from RFC 6455.
+ * A copy is available at http://www.rfc-editor.org/rfc/rfc6455.txt
  */
 
 static int
@@ -72,9 +73,10 @@ ws_handshake_reply(struct http_client *c) {
 	const char *origin = NULL, *host = NULL;
 	size_t origin_sz = 0, host_sz = 0, handshake_sz = 0, sz;
 
-	char template0[] = "HTTP/1.1 101 Websocket Protocol Handshake\r\n"
-		"Upgrade: WebSocket\r\n"
+	char template0[] = "HTTP/1.1 101 Switching Protocols\r\n"
+		"Upgrade: websocket\r\n"
 		"Connection: Upgrade\r\n"
+		"Sec-WebSocket-Protocol: chat\r\n"
 		"Sec-WebSocket-Origin: "; /* %s */
 	char template1[] = "\r\n"
 		"Sec-WebSocket-Location: ws://"; /* %s%s */
@@ -196,12 +198,12 @@ ws_msg_new(const char *p, size_t psz, const unsigned char *mask) {
 	
 	size_t i;
 	struct ws_msg *m = malloc(sizeof(struct ws_msg));
-	m->data = malloc(psz);
-	m->sz = psz;
+	m->payload = malloc(psz);
+	m->payload_sz = psz;
 
-	memcpy(m->data, p, psz);
+	memcpy(m->payload, p, psz);
 	for(i = 0; i < psz && mask; ++i) {
-		m->data[i] = (unsigned char)p[i] ^ mask[i%4];
+		m->payload[i] = (unsigned char)p[i] ^ mask[i%4];
 	}
 
 	return m;
@@ -210,25 +212,27 @@ ws_msg_new(const char *p, size_t psz, const unsigned char *mask) {
 static void
 ws_msg_free(struct ws_msg *m) {
 
-	free(m->data);
+	free(m->payload);
 	free(m);
 }
 
-static enum ws_read_action
+static enum ws_state
 ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 	
-	int fin = 0, has_mask;
+	int has_mask;
 	uint32_t len;
 	const char *p;
 	unsigned char mask[4];
 
 	/* parse frame and extract contents */
-	if(sz < 8)
-		return WS_READ_MORE;
+	if(sz < 8) {
+		return WS_READING;
+	}
 
 
-	if(frame[0] & 0x80) /* FIN bit set */
-		fin = 1;
+	if(frame[0] & 0x80) { /* FIN bit set */
+		/* TODO */
+	}
 
 	has_mask = frame[1] & 0x80 ? 1:0;
 
@@ -251,111 +255,83 @@ ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 
 	/* we now have the (possibly masked) data starting in p, and its length.  */
 	if(len > sz - (p - frame)) { /* not enough data */
-		return WS_READ_MORE;
+		return WS_READING;
 	}
-#if 0
-	printf("sz- (p-frame) = %zd\n", sz - (p - frame));
-	*msg = NULL;
-
-	for(i = 0; i < len; ++i) {
-		printf("%c", (unsigned char)p[i] ^ (unsigned char)mask[i%4]);
-	}
-	printf("\n");
-#endif
 
 	*msg = ws_msg_new(p, len, has_mask ? mask : NULL);
+	(*msg)->total_sz = len + (p - frame);
 
 
-
-
-
-	return WS_READ_EXEC;
+	return WS_MSG_COMPLETE;
 }
 
 
 /**
  * Process some data just received on the socket.
  */
-enum ws_read_action
+enum ws_state
 ws_add_data(struct http_client *c) {
-	/* const char *frame_start, *frame_end; */
-	/*char *tmp; */
-	size_t i;
-	enum ws_read_action action;
+
+	enum ws_state state;
 	struct ws_msg *frame = NULL;
 
-	for(i = 0; i < c->sz; ++i) {
-		if(i && i % 16 == 0) printf("\n");
-		printf("%.2x ", (unsigned char)c->buffer[i]);
-	}
-	printf("\n\n");
+	state = ws_parse_data(c->buffer, c->sz, &frame);
 
-	action = ws_parse_data(c->buffer, c->sz, &frame);
-
-	if(action == WS_READ_EXEC) {
-		int ret = ws_execute(c, frame->data, frame->sz);
+	if(state == WS_MSG_COMPLETE) {
+		int ret = ws_execute(c, frame->payload, frame->payload_sz);
 		ws_msg_free(frame);
 
+		/* remove frame from client buffer */
+		http_client_remove_data(c, frame->total_sz);
+
 		if(ret != 0) {
 			/* can't process frame. */
-			return WS_READ_FAIL;
+			return WS_ERROR;
 		}
 	}
-	return action;
-#if 0
-	while(1) {
-		/* look for frame start */
-		if(!c->sz || c->buffer[0] != '\x00') {
-			/* can't find frame start */
-			return WS_READ_FAIL;
-		}
-
-		/* look for frame end */
-		int ret;
-		size_t frame_len;
-		frame_start = c->buffer;
-		frame_end = memchr(frame_start, '\xff', c->sz);
-		if(frame_end == NULL) {
-			/* continue reading */
-			return WS_READ_MORE;
-		}
-
-		/* parse and execute frame. */
-		frame_len = frame_end - frame_start - 1;
-
-		ret = ws_execute(c, frame_start + 1, frame_len);
-		if(ret != 0) {
-			/* can't process frame. */
-			return WS_READ_FAIL;
-		}
-
-		/* remove frame from buffer */
-		c->sz -= (2 + frame_len);
-		tmp = malloc(c->sz);
-		memcpy(tmp, c->buffer + 2 + frame_len, c->sz);
-		free(c->buffer);
-		c->buffer = tmp;
-	}
-#endif
+	return state;
 }
 
 int
 ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 
 	int ret;
-	char *buffer = malloc(sz + 2);
+	char *frame = malloc(sz + 8); /* create frame by prepending header */
+	size_t frame_sz;
 
-	/* create frame by prepending 0x00 and appending 0xff */
-	buffer[0] = '\x00';
-	memcpy(buffer + 1, p, sz);
-	buffer[sz + 1] = '\xff';
+	/*
+      The length of the "Payload data", in bytes: if 0-125, that is the
+      payload length.  If 126, the following 2 bytes interpreted as a
+      16-bit unsigned integer are the payload length.  If 127, the
+      following 8 bytes interpreted as a 64-bit unsigned integer (the
+      most significant bit MUST be 0) are the payload length.
+	  */
+	frame[0] = '\x81';
+	if(sz <= 125) {
+		frame[1] = sz;
+		memcpy(frame + 2, p, sz);
+		frame_sz = sz + 2;
+	} else if (sz > 125 && sz <= 65536) {
+		uint16_t sz16 = htons(sz);
+		frame[1] = 126;
+		memcpy(frame + 2, &sz16, 2);
+		memcpy(frame + 4, p, sz);
+		frame_sz = sz + 4;
+	} else if (sz > 65536) {
+		uint64_t sz64 = htobe64(sz);
+		sz64 = (sz64 << 1) >> 1;	/* clear leftmost bit */
+		frame[1] = 127;
+		memcpy(frame + 2, &sz64, 8);
+		memcpy(frame + 10, p, sz);
+		frame_sz = sz + 10;
+	}
 
 	/* send WS frame */
-	ret = write(cmd->fd, buffer, sz+2);
-	free(buffer);
+	ret = write(cmd->fd, frame, frame_sz);
+	free(frame);
 
-	if(ret == (int)sz + 2) {
-		/* success */
+
+	if(ret == (int)frame_sz) { /* success */
 		return 0;
 	}
 

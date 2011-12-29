@@ -68,6 +68,9 @@ int
 http_client_read(struct http_client *c);
 
 int
+http_client_remove_data(struct http_client *c, size_t sz);
+
+int
 http_client_execute(struct http_client *c);
 
 int
