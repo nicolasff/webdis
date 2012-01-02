@@ -57,6 +57,7 @@ raw_ws_extract(struct http_client *c, const char *p, size_t sz) {
 	struct cmd *cmd = NULL;
 	void *reader = NULL;
 	redisReply *reply = NULL;
+	void **reply_ptr = (void**)&reply;
 	unsigned int i;
 	(void)c;
 
@@ -67,7 +68,7 @@ raw_ws_extract(struct http_client *c, const char *p, size_t sz) {
 	redisReaderFeed(reader, (char*)p, sz);
 
 	/* parse data into reply object */
-	if(redisReaderGetReply(reader, (void**)&reply) == REDIS_ERR) {
+	if(redisReaderGetReply(reader, reply_ptr) == REDIS_ERR) {
 		goto end;
 	}
 

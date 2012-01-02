@@ -265,6 +265,8 @@ ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 		len = webdis_ntohl64(frame+2);
 		p = frame + 10 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 10, sizeof(mask));
+	} else {
+		return WS_ERROR;
 	}
 
 	/* we now have the (possibly masked) data starting in p, and its length.  */
@@ -317,7 +319,7 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 
 	int ret;
 	char *frame = malloc(sz + 8); /* create frame by prepending header */
-	size_t frame_sz;
+	size_t frame_sz = 0;
 
 	/*
       The length of the "Payload data", in bytes: if 0-125, that is the
