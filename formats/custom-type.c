@@ -27,7 +27,7 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 		switch(reply->type) {
 
 			case REDIS_REPLY_NIL: /* or nil values */
-				format_send_reply(cmd, "", 0, cmd->mime);
+				format_send_error(cmd, 404, "Not found");
 				return;
 
 			case REDIS_REPLY_STRING:
