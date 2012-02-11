@@ -305,6 +305,23 @@ http_client_read(struct http_client *c) {
 }
 
 int
+http_client_remove_data(struct http_client *c, size_t sz) {
+
+	char *buffer;
+	if(c->sz < sz)
+		return -1;
+
+	/* replace buffer */
+	buffer = malloc(c->sz - sz);
+	memcpy(buffer, c->buffer + sz, c->sz - sz);
+	free(c->buffer);
+	c->buffer = buffer;
+	c->sz -= sz;
+
+	return 0;
+}
+
+int
 http_client_execute(struct http_client *c) {
 
 	int nparsed = http_parser_execute(&c->parser, &c->settings, c->buffer, c->sz);

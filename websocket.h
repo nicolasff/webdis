@@ -2,19 +2,26 @@
 #define WEBSOCKET_H
 
 #include <stdlib.h>
+#include <stdint.h>
 
 struct http_client;
 struct cmd;
 
-enum ws_read_action {
-	WS_READ_FAIL,
-	WS_READ_MORE,
-	WS_READ_EXEC};
+enum ws_state {
+	WS_ERROR,
+	WS_READING,
+	WS_MSG_COMPLETE};
+
+struct ws_msg {
+	char *payload;
+	size_t payload_sz;
+	size_t total_sz;
+};
 
 int
 ws_handshake_reply(struct http_client *c);
 
-enum ws_read_action
+enum ws_state
 ws_add_data(struct http_client *c);
 
 int

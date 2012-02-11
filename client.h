@@ -4,6 +4,7 @@
 #include <event.h>
 #include <arpa/inet.h>
 #include "http_parser.h"
+#include "websocket.h"
 
 struct http_header;
 struct server;
@@ -53,6 +54,8 @@ struct http_client {
 	char *filename; /* content-disposition */
 
 	struct cmd *pub_sub;
+
+	struct ws_msg *frame; /* websocket frame */
 };
 
 struct http_client *
@@ -66,6 +69,9 @@ http_client_free(struct http_client *c);
 
 int
 http_client_read(struct http_client *c);
+
+int
+http_client_remove_data(struct http_client *c, size_t sz);
 
 int
 http_client_execute(struct http_client *c);
