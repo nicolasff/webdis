@@ -114,3 +114,18 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 	}
 }
 
+int
+integer_length(long long int i) {
+	int sz = 0;
+	int ci = abs(i);
+	while (ci > 0) {
+		ci = (ci/10);
+		sz += 1;
+	}
+	if(i == 0) { /* log 0 doesn't make sense. */
+		sz = 1;
+	} else if(i < 0) { /* allow for neg sign as well. */
+		sz++;
+	}
+	return sz;
+}

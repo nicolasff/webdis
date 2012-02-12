@@ -12,5 +12,7 @@ format_send_reply(struct cmd *cmd,
 
 void
 format_send_error(struct cmd *cmd, short code, const char *msg);
+int
+integer_length(long long int i);
 
 #endif
