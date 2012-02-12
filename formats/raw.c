@@ -34,22 +34,6 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 	free(raw_out);
 }
 
-static int
-integer_length(long long int i) {
-	int sz = 0;
-	int ci = abs(i);
-	while (ci > 0) {
-		ci = (ci/10);
-		sz += 1;
-	}
-	if(i == 0) { /* log 0 doesn't make sense. */
-		sz = 1;
-	} else if(i < 0) { /* allow for neg sign as well. */
-		sz++;
-	}
-	return sz;
-}
-
 /* extract Redis protocol string from WebSocket frame and fill struct cmd. */
 struct cmd *
 raw_ws_extract(struct http_client *c, const char *p, size_t sz) {
