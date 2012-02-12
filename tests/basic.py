@@ -270,17 +270,5 @@ class TestETag(TestWebdis):
 		f = self.query('GET/hello.txt', None, {'If-None-Match': '"'+ h +'"'})
 		self.assertTrue(f.read() == 'world')
 
-class TestBadRequest(TestWebdis):
-
-	def test_invalid_output_format(self):
-		self.query('DEL/hello')
-		self.query('LPUSH/hello/world')	# "hello" is a list.
-		try:
-			f = self.query('LRANGE/hello/0/-1.txt')	# let's try a range query on it (valid) but as text (invalid)
-		except urllib2.HTTPError as e:
-			self.assertTrue(e.code == 400)
-			return
-		self.assertTrue(False) # we should have received a 400.
-
 if __name__ == '__main__':
 	unittest.main()
