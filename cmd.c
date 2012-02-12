@@ -48,6 +48,7 @@ cmd_free(struct cmd *c) {
 	free(c->argv_len);
 
 	free(c->jsonp);
+	free(c->separator);
 	free(c->if_none_match);
 	if(c->mime_free) free(c->mime);
 
@@ -111,6 +112,11 @@ cmd_setup(struct cmd *cmd, struct http_client *client) {
 	if(client->jsonp) {	/* transfer pointer ownership */
 		cmd->jsonp = client->jsonp;
 		client->jsonp = NULL;
+	}
+
+	if(client->separator) {	/* transfer pointer ownership */
+		cmd->separator = client->separator;
+		client->separator = NULL;
 	}
 
 	if(client->filename) {	/* transfer pointer ownership */

@@ -8,7 +8,7 @@
 #include <hiredis/async.h>
 
 static char *
-custom_array(const redisReply *r, size_t *sz);
+custom_array(struct cmd *cmd, const redisReply *r, size_t *sz);
 
 void
 custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
@@ -54,7 +54,7 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 				format_send_reply(cmd, int_buffer, int_len, cmd->mime);
 				return;
 			case REDIS_REPLY_ARRAY:
-				array_out = custom_array(r, &sz);
+				array_out = custom_array(cmd, r, &sz);
 				format_send_reply(cmd, array_out, sz, cmd->mime);
 				free(array_out);
 				return;
@@ -73,10 +73,14 @@ custom_type_reply(redisAsyncContext *c, void *r, void *privdata) {
 }
 
 static char *
-custom_array(const redisReply *r, size_t *sz) {
+custom_array(struct cmd *cmd, const redisReply *r, size_t *sz) {
 
 	unsigned int i;
 	char *ret, *p;
+	size_t sep_len = 0;
+
+	if(cmd->separator)
+		sep_len = strlen(cmd->separator);
 
 	/* compute size */
 	*sz = 0;
@@ -84,6 +88,8 @@ custom_array(const redisReply *r, size_t *sz) {
 		redisReply *e = r->element[i];
 		switch(e->type) {
 			case REDIS_REPLY_STRING:
+				if(sep_len && i != 0)
+					*sz += sep_len;
 				*sz += e->len;
 				break;
 
@@ -98,6 +104,10 @@ custom_array(const redisReply *r, size_t *sz) {
 		redisReply *e = r->element[i];
 		switch(e->type) {
 			case REDIS_REPLY_STRING:
+				if(sep_len && i != 0) {
+					memcpy(p, cmd->separator, sep_len);
+					p += sep_len;
+				}
 				memcpy(p, e->str, e->len);
 				p += e->len;
 				break;

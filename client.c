@@ -124,6 +124,9 @@ http_client_on_query_string(struct http_parser *parser, const char *at, size_t s
 				|| (key_len == 8 && strncmp(key, "callback", 8) == 0)) {
 				c->jsonp = calloc(1 + val_len, 1);
 				memcpy(c->jsonp, val, val_len);
+			} else if(key_len == 3 && strncmp(key, "sep", 3) == 0) {
+				c->separator = calloc(1 + val_len, 1);
+				memcpy(c->separator, val, val_len);
 			} else if(key_len == 8 && strncmp(key, "filename", 8) == 0) {
 				c->filename = wrap_filename(val, val_len);
 			}

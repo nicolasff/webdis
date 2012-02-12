@@ -92,6 +92,23 @@ class TestJSON(TestWebdis):
 		self.assertTrue(obj['UNKNOWN'][0] == False)
 		self.assertTrue(isinstance(obj['UNKNOWN'][1], unicode))
 
+class TestCustom(TestWebdis):
+	def test_list(self):
+		"List responses with custom format"
+		self.query('DEL/hello')
+		self.query('RPUSH/hello/a/b/c')
+		f = self.query('LRANGE/hello/0/-1.txt')
+		self.assertTrue(f.headers.getheader('Content-Type') == 'text/plain')
+		self.assertTrue(f.read() == "abc")
+
+	def test_separator(self):
+		"Separator in list responses with custom format"
+		self.query('DEL/hello')
+		self.query('RPUSH/hello/a/b/c')
+		f = self.query('LRANGE/hello/0/-1.txt?sep=--')
+		self.assertTrue(f.headers.getheader('Content-Type') == 'text/plain')
+		self.assertTrue(f.read() == "a--b--c")
+
 class TestRaw(TestWebdis):
 
 	def test_set(self):

@@ -182,6 +182,7 @@ Several content-types are available:
 * `.png` for `image/png`
 * `jpg` or `jpeg` for `image/jpeg`
 * Any other with the `?type=anything/youwant` query string.
+* Add a custom separator for list responses with `?sep=,` query string.
 
 <pre>
 curl -v "http://127.0.0.1:7379/GET/hello.html"

@@ -51,6 +51,7 @@ struct http_client {
 
 	char *type; /* forced output content-type */
 	char *jsonp; /* jsonp wrapper */
+	char *separator; /* list separator for raw lists */
 	char *filename; /* content-disposition */
 
 	struct cmd *pub_sub;

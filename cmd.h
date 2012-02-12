@@ -34,6 +34,7 @@ struct cmd {
 
 	char *if_none_match; /* used with ETags */
 	char *jsonp; /* jsonp wrapper */
+	char *separator; /* list separator for raw lists */
 	int keep_alive;
 
 	/* various flags */
