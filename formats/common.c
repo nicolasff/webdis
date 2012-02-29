@@ -15,6 +15,9 @@ char *etag_new(const char *p, size_t sz) {
 	char *etag = calloc(34 + 1, 1);
 	int i;
 
+	if(!etag)
+		return NULL;
+
 	md5_state_t pms;
 
 	md5_init(&pms);
@@ -89,23 +92,27 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 		/* compute ETag */
 		char *etag = etag_new(p, sz);
 
-		/* check If-None-Match */
-		if(cmd->if_none_match && strcmp(cmd->if_none_match, etag) == 0) {
-			/* SAME! send 304. */
-			resp = http_response_init(cmd->w, 304, "Not Modified");
-		} else {
-			resp = http_response_init(cmd->w, 200, "OK");
-			if(cmd->filename) {
-				http_response_set_header(resp, "Content-Disposition", cmd->filename);
+		if(etag) {
+			/* check If-None-Match */
+			if(cmd->if_none_match && strcmp(cmd->if_none_match, etag) == 0) {
+				/* SAME! send 304. */
+				resp = http_response_init(cmd->w, 304, "Not Modified");
+			} else {
+				resp = http_response_init(cmd->w, 200, "OK");
+				if(cmd->filename) {
+					http_response_set_header(resp, "Content-Disposition", cmd->filename);
+				}
+				http_response_set_header(resp, "Content-Type", ct);
+				http_response_set_header(resp, "ETag", etag);
+				http_response_set_body(resp, p, sz);
 			}
-			http_response_set_header(resp, "Content-Type", ct);
-			http_response_set_header(resp, "ETag", etag);
-			http_response_set_body(resp, p, sz);
+			resp->http_version = cmd->http_version;
+			http_response_set_keep_alive(resp, cmd->keep_alive);
+			http_response_write(resp, cmd->fd);
+			free(etag);
+		} else {
+			format_send_error(cmd, 503, "Service Unavailable");
 		}
-		resp->http_version = cmd->http_version;
-		http_response_set_keep_alive(resp, cmd->keep_alive);
-		http_response_write(resp, cmd->fd);
-		free(etag);
 	}
 	
 	/* cleanup */
