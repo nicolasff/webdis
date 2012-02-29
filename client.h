@@ -15,6 +15,10 @@ typedef enum {
 	LAST_CB_KEY = 1,
 	LAST_CB_VAL = 2} last_cb_t;
 
+typedef enum {
+	CLIENT_DISCONNECTED = -1,
+	CLIENT_OOM = -2} client_error_t;
+
 struct http_client {
 
 	int fd;
@@ -34,10 +38,11 @@ struct http_client {
 	last_cb_t last_cb;
 
 	/* various flags. */
-	int keep_alive;
-	int broken;
-	int is_websocket;
-	int http_version;
+	char keep_alive;
+	char broken;
+	char is_websocket;
+	char http_version;
+	char failed_alloc;
 
 	/* HTTP data */
 	char *path;

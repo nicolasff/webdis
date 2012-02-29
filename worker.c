@@ -44,8 +44,13 @@ worker_can_read(int fd, short event, void *p) {
 
 	ret = http_client_read(c);
 	if(ret <= 0) {
-		/* client disconnected */
-		return;
+		if((client_error_t)ret == CLIENT_DISCONNECTED) {
+			return;
+		} else if (c->failed_alloc || (client_error_t)ret == CLIENT_OOM) {
+			slog(c->w->s, WEBDIS_DEBUG, "503", 3);
+			http_send_error(c, 503, "Service Unavailable");
+			return;
+		}
 	}
 
 	if(c->is_websocket) {
@@ -55,7 +60,10 @@ worker_can_read(int fd, short event, void *p) {
 		/* run parser */
 		nparsed = http_client_execute(c);
 
-		if(c->is_websocket) {
+		if(c->failed_alloc) {
+			slog(c->w->s, WEBDIS_DEBUG, "503", 3);
+			http_send_error(c, 503, "Service Unavailable");
+		} else if(c->is_websocket) {
 			/* we need to use the remaining (unparsed) data as the body. */
 			if(nparsed < ret) {
 				http_client_add_to_body(c, c->buffer + nparsed + 1, c->sz - nparsed - 1);
@@ -66,8 +74,12 @@ worker_can_read(int fd, short event, void *p) {
 			free(c->buffer);
 			c->buffer = NULL;
 			c->sz = 0;
-		} else if(nparsed != ret || c->request_sz > c->s->cfg->http_max_request_size) {
+		} else if(nparsed != ret) {
+			slog(c->w->s, WEBDIS_DEBUG, "400", 3);
 			http_send_error(c, 400, "Bad Request");
+		} else if(c->request_sz > c->s->cfg->http_max_request_size) {
+			slog(c->w->s, WEBDIS_DEBUG, "413", 3);
+			http_send_error(c, 413, "Request Entity Too Large");
 		}
 	}
 

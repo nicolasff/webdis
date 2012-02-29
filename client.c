@@ -14,12 +14,14 @@
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 
+#define CHECK_ALLOC(c, ptr) if(!(ptr)) { c->failed_alloc = 1; return -1;}
+
 static int
 http_client_on_url(struct http_parser *p, const char *at, size_t sz) {
 
 	struct http_client *c = p->data;
 
-	c->path = realloc(c->path, c->path_sz + sz + 1);
+	CHECK_ALLOC(c, c->path = realloc(c->path, c->path_sz + sz + 1));
 	memcpy(c->path + c->path_sz, at, sz);
 	c->path_sz += sz;
 	c->path[c->path_sz] = 0;
@@ -40,7 +42,7 @@ http_client_on_body(struct http_parser *p, const char *at, size_t sz) {
 int
 http_client_add_to_body(struct http_client *c, const char *at, size_t sz) {
 
-	c->body = realloc(c->body, c->body_sz + sz + 1);
+	CHECK_ALLOC(c, c->body = realloc(c->body, c->body_sz + sz + 1));
 	memcpy(c->body + c->body_sz, at, sz);
 	c->body_sz += sz;
 	c->body[c->body_sz] = 0;
@@ -57,13 +59,13 @@ http_client_on_header_name(struct http_parser *p, const char *at, size_t sz) {
 	/* if we're not adding to the same header name as last time, realloc to add one field. */
 	if(c->last_cb != LAST_CB_KEY) {
 		n = ++c->header_count;
-		c->headers = realloc(c->headers, n * sizeof(struct http_header));
+		CHECK_ALLOC(c, c->headers = realloc(c->headers, n * sizeof(struct http_header)));
 		memset(&c->headers[n-1], 0, sizeof(struct http_header));
 	}
 
 	/* Add data to the current header name. */
-	c->headers[n-1].key = realloc(c->headers[n-1].key,
-			c->headers[n-1].key_sz + sz + 1);
+	CHECK_ALLOC(c, c->headers[n-1].key = realloc(c->headers[n-1].key,
+			c->headers[n-1].key_sz + sz + 1));
 	memcpy(c->headers[n-1].key + c->headers[n-1].key_sz, at, sz);
 	c->headers[n-1].key_sz += sz;
 	c->headers[n-1].key[c->headers[n-1].key_sz] = 0;
@@ -146,8 +148,8 @@ http_client_on_header_value(struct http_parser *p, const char *at, size_t sz) {
 	size_t n = c->header_count;
 
 	/* Add data to the current header value. */
-	c->headers[n-1].val = realloc(c->headers[n-1].val,
-			c->headers[n-1].val_sz + sz + 1);
+	CHECK_ALLOC(c, c->headers[n-1].val = realloc(c->headers[n-1].val,
+			c->headers[n-1].val_sz + sz + 1));
 	memcpy(c->headers[n-1].val + c->headers[n-1].val_sz, at, sz);
 	c->headers[n-1].val_sz += sz;
 	c->headers[n-1].val[c->headers[n-1].val_sz] = 0;
@@ -297,11 +299,14 @@ http_client_read(struct http_client *c) {
 		close(c->fd);
 
 		http_client_free(c);
-		return -1;
+		return (int)CLIENT_DISCONNECTED;
 	}
 
 	/* save what we've just read */
 	c->buffer = realloc(c->buffer, c->sz + ret);
+	if(!c->buffer) {
+		return (int)CLIENT_OOM;
+	}
 	memcpy(c->buffer + c->sz, buffer, ret);
 	c->sz += ret;
 
@@ -319,7 +324,7 @@ http_client_remove_data(struct http_client *c, size_t sz) {
 		return -1;
 
 	/* replace buffer */
-	buffer = malloc(c->sz - sz);
+	CHECK_ALLOC(c, buffer = malloc(c->sz - sz));
 	memcpy(buffer, c->buffer + sz, c->sz - sz);
 	free(c->buffer);
 	c->buffer = buffer;
