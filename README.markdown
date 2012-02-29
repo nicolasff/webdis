@@ -34,7 +34,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
 * Drop privileges on startup.
 * Custom Content-Type using a pre-defined file extension, or with `?type=some/thing`.
-* URL-encoded parameters for binary data or slashes. For instance, `%2f` is decoded as `/` but not used as a command separator.
+* URL-encoded parameters for binary data or slashes and question marks. For instance, `%2f` is decoded as `/` but not used as a command separator.
 * Logs, with a configurable verbosity.
 * Cross-origin requests, usable with XMLHttpRequest2 (Cross-Origin Resource Sharing - CORS).
 * File upload with PUT.
