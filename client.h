@@ -30,6 +30,7 @@ struct http_client {
 	struct http_parser_settings settings;
 	char *buffer;
 	size_t sz;
+	size_t request_sz; /* accumulated so far. */
 	last_cb_t last_cb;
 
 	/* various flags. */

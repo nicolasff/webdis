@@ -15,6 +15,7 @@ struct conf {
 	char *http_host;
 	short http_port;
 	short http_threads;
+	size_t http_max_request_size;
 
 	/* pool size, one pool per worker thread */
 	int pool_size_per_thread;

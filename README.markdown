@@ -41,6 +41,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * With the JSON output, the return value of INFO is parsed and transformed into an object.
 * Optional daemonize.
 * Default root object: Add `"default_root": "/GET/index.html"` in webdis.json to substitute the request to `/` with a Redis request.
+* HTTP request limit with `http_max_request_size` (in bytes, set to 128MB by default).
 
 # Ideas, TODO...
 * Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands?

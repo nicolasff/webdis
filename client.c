@@ -252,6 +252,7 @@ http_client_reset(struct http_client *c) {
 	free(c->type); c->type = NULL;
 	free(c->jsonp); c->jsonp = NULL;
 	free(c->filename); c->filename = NULL;
+	c->request_sz = 0;
 
 	/* no last known header callback */
 	c->last_cb = LAST_CB_NONE;
@@ -303,6 +304,9 @@ http_client_read(struct http_client *c) {
 	c->buffer = realloc(c->buffer, c->sz + ret);
 	memcpy(c->buffer + c->sz, buffer, ret);
 	c->sz += ret;
+
+	/* keep track of total sent */
+	c->request_sz += ret;
 
 	return ret;
 }

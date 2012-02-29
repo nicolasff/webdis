@@ -66,6 +66,8 @@ worker_can_read(int fd, short event, void *p) {
 			free(c->buffer);
 			c->buffer = NULL;
 			c->sz = 0;
+		} else if(nparsed != ret || c->request_sz > c->s->cfg->http_max_request_size) {
+			http_send_error(c, 400, "Bad Request");
 		}
 	}
 
