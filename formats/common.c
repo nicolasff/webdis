@@ -63,7 +63,10 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 
 	if(cmd->is_websocket) {
 		ws_reply(cmd, p, sz);
-		cmd_free(cmd);
+
+		/* If it's a subscribe command, there'll be more responses */
+		if( !cmd_is_subscribe(cmd) )
+			cmd_free(cmd);
 		return;
 	}
 
