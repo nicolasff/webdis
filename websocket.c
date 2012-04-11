@@ -192,8 +192,21 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 			cmd_setup(cmd, c);
 			cmd->is_websocket = 1;
 
-			/* get Redis connection from pool */
-			cmd->ac = (redisAsyncContext*)pool_get_context(c->w->pool);
+			if (c->pub_sub != NULL) {
+				/* This client already has its own connection
+				 * to Redis due to a subscription; use it from
+				 * now on. */
+				cmd->ac = c->pub_sub->ac;
+			} else if (cmd_is_subscribe(cmd)) {
+				/* New subscribe command; make new Redis context
+				 * for this client */
+				cmd->ac = pool_connect(c->w->pool, 0);
+				c->pub_sub = cmd;
+				cmd->pub_sub_client = c;
+			} else {
+				/* get Redis connection from pool */
+				cmd->ac = (redisAsyncContext*)pool_get_context(c->w->pool);
+			}
 
 			/* send it off */
 			cmd_send(cmd, fun_reply);
