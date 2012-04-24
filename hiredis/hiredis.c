@@ -358,12 +358,7 @@ static int processLineItem(redisReader *r) {
     char *p;
     int len;
 
-    cur->poff = (r->pos-r->roff)-1;
-    cur->coff = cur->poff+1;
     if ((p = readLine(r,&len)) != NULL) {
-        cur->plen = 1+len+2; /* include \r\n */
-        cur->clen = len;
-
         if (cur->type == REDIS_REPLY_INTEGER) {
             if (r->fn && r->fn->createInteger)
                 obj = r->fn->createInteger(cur,readLongLong(p));
@@ -402,13 +397,10 @@ static int processBulkItem(redisReader *r) {
     p = r->buf+r->pos;
     s = seekNewline(p,r->len-r->pos);
     if (s != NULL) {
+        p = r->buf+r->pos;
         bytelen = s-(r->buf+r->pos)+2; /* include \r\n */
-        cur->poff = (r->pos-r->roff)-1;
-        cur->plen = bytelen+1;
-        cur->coff = cur->poff+1+bytelen;
-        cur->clen = 0;
-
         len = readLongLong(p);
+
         if (len < 0) {
             /* The nil object can always be created. */
             if (r->fn && r->fn->createNil)
@@ -420,8 +412,6 @@ static int processBulkItem(redisReader *r) {
             /* Only continue when the buffer contains the entire bulk item. */
             bytelen += len+2; /* include \r\n */
             if (r->pos+bytelen <= r->len) {
-                cur->plen += len+2;
-                cur->clen = len;
                 if (r->fn && r->fn->createString)
                     obj = r->fn->createString(cur,s+2,len);
                 else
@@ -456,19 +446,14 @@ static int processMultiBulkItem(redisReader *r) {
     long elements;
     int root = 0;
 
-    /* Set error for nested multi bulks with depth > 1 */
-    if (r->ridx == 2) {
+    /* Set error for nested multi bulks with depth > 2 */
+    if (r->ridx == 3) {
         __redisReaderSetError(r,REDIS_ERR_PROTOCOL,
-            "No support for nested multi bulk replies with depth > 1");
+            "No support for nested multi bulk replies with depth > 2");
         return REDIS_ERR;
     }
 
-    cur->poff = (r->pos-r->roff)-1;
-    cur->coff = 0;
     if ((p = readLine(r,NULL)) != NULL) {
-        cur->plen = (r->pos-r->roff)-cur->poff; /* includes \r\n */
-        cur->clen = 0;
-
         elements = readLongLong(p);
         root = (r->ridx == 0);
 
@@ -605,7 +590,7 @@ int redisReaderFeed(redisReader *r, const char *buf, size_t len) {
 
     /* Copy the provided buffer. */
     if (buf != NULL && len >= 1) {
-        /* Destroy buffer when it is empty and is quite large. */
+        /* Destroy internal buffer when it is empty and is quite large. */
         if (r->len == 0 && sdsavail(r->buf) > 16*1024) {
             sdsfree(r->buf);
             r->buf = sdsempty();
@@ -613,15 +598,6 @@ int redisReaderFeed(redisReader *r, const char *buf, size_t len) {
 
             /* r->buf should not be NULL since we just free'd a larger one. */
             assert(r->buf != NULL);
-        }
-
-        /* Discard consumed part of the buffer when the offset for the reply
-         * that is currently being read is high enough. */
-        if (r->roff >= 1024) {
-            r->buf = sdsrange(r->buf,r->roff,-1);
-            r->pos -= r->roff;
-            r->roff = 0;
-            r->len = sdslen(r->buf);
         }
 
         newbuf = sdscatlen(r->buf,buf,len);
@@ -659,7 +635,6 @@ int redisReaderGetReply(redisReader *r, void **reply) {
         r->rstack[0].parent = NULL;
         r->rstack[0].privdata = r->privdata;
         r->ridx = 0;
-        r->roff = r->pos; /* Start offset in buffer. */
     }
 
     /* Process items in reply. */
@@ -671,6 +646,14 @@ int redisReaderGetReply(redisReader *r, void **reply) {
     if (r->err)
         return REDIS_ERR;
 
+    /* Discard part of the buffer when we've consumed at least 1k, to avoid
+     * doing unnecessary calls to memmove() in sds.c. */
+    if (r->pos >= 1024) {
+        r->buf = sdsrange(r->buf,r->pos,-1);
+        r->pos = 0;
+        r->len = sdslen(r->buf);
+    }
+
     /* Emit a reply when there is one. */
     if (r->ridx == -1) {
         if (reply != NULL)
@@ -678,17 +661,6 @@ int redisReaderGetReply(redisReader *r, void **reply) {
         r->reply = NULL;
     }
     return REDIS_OK;
-}
-
-const char *redisReaderGetRaw(redisReader *r, size_t *len) {
-    /* ridx == -1: No or a full reply has been read. */
-    /* pos > roff: Buffer position is larger than start offset, meaning
-     *   the buffer has not yet been truncated. */
-    if (r->ridx == -1 && r->pos > r->roff) {
-        if (len) *len = (r->pos-r->roff);
-        return r->buf+r->roff;
-    }
-    return NULL;
 }
 
 /* Calculate the number of bytes needed to represent an integer as string. */
@@ -777,6 +749,7 @@ int redisvFormatCommand(char **target, const char *format, va_list ap) {
             default:
                 /* Try to detect printf format */
                 {
+                    static const char intfmts[] = "diouxX";
                     char _format[16];
                     const char *_p = c+1;
                     size_t _l = 0;
@@ -798,33 +771,79 @@ int redisvFormatCommand(char **target, const char *format, va_list ap) {
                         while (*_p != '\0' && isdigit(*_p)) _p++;
                     }
 
-                    /* Modifiers */
-                    if (*_p != '\0') {
-                        if (*_p == 'h' || *_p == 'l') {
-                            /* Allow a single repetition for these modifiers */
-                            if (_p[0] == _p[1]) _p++;
-                            _p++;
-                        }
+                    /* Copy va_list before consuming with va_arg */
+                    va_copy(_cpy,ap);
+
+                    /* Integer conversion (without modifiers) */
+                    if (strchr(intfmts,*_p) != NULL) {
+                        va_arg(ap,int);
+                        goto fmt_valid;
                     }
 
-                    /* Conversion specifier */
-                    if (*_p != '\0' && strchr("diouxXeEfFgGaA",*_p) != NULL) {
-                        _l = (_p+1)-c;
-                        if (_l < sizeof(_format)-2) {
-                            memcpy(_format,c,_l);
-                            _format[_l] = '\0';
-                            va_copy(_cpy,ap);
-                            newarg = sdscatvprintf(curarg,_format,_cpy);
-                            va_end(_cpy);
-
-                            /* Update current position (note: outer blocks
-                             * increment c twice so compensate here) */
-                            c = _p-1;
-                        }
+                    /* Double conversion (without modifiers) */
+                    if (strchr("eEfFgGaA",*_p) != NULL) {
+                        va_arg(ap,double);
+                        goto fmt_valid;
                     }
 
-                    /* Consume and discard vararg */
-                    va_arg(ap,void);
+                    /* Size: char */
+                    if (_p[0] == 'h' && _p[1] == 'h') {
+                        _p += 2;
+                        if (*_p != '\0' && strchr(intfmts,*_p) != NULL) {
+                            va_arg(ap,int); /* char gets promoted to int */
+                            goto fmt_valid;
+                        }
+                        goto fmt_invalid;
+                    }
+
+                    /* Size: short */
+                    if (_p[0] == 'h') {
+                        _p += 1;
+                        if (*_p != '\0' && strchr(intfmts,*_p) != NULL) {
+                            va_arg(ap,int); /* short gets promoted to int */
+                            goto fmt_valid;
+                        }
+                        goto fmt_invalid;
+                    }
+
+                    /* Size: long long */
+                    if (_p[0] == 'l' && _p[1] == 'l') {
+                        _p += 2;
+                        if (*_p != '\0' && strchr(intfmts,*_p) != NULL) {
+                            va_arg(ap,long long);
+                            goto fmt_valid;
+                        }
+                        goto fmt_invalid;
+                    }
+
+                    /* Size: long */
+                    if (_p[0] == 'l') {
+                        _p += 1;
+                        if (*_p != '\0' && strchr(intfmts,*_p) != NULL) {
+                            va_arg(ap,long);
+                            goto fmt_valid;
+                        }
+                        goto fmt_invalid;
+                    }
+
+                fmt_invalid:
+                    va_end(_cpy);
+                    goto err;
+
+                fmt_valid:
+                    _l = (_p+1)-c;
+                    if (_l < sizeof(_format)-2) {
+                        memcpy(_format,c,_l);
+                        _format[_l] = '\0';
+                        newarg = sdscatvprintf(curarg,_format,_cpy);
+
+                        /* Update current position (note: outer blocks
+                         * increment c twice so compensate here) */
+                        c = _p-1;
+                    }
+
+                    va_end(_cpy);
+                    break;
                 }
             }
 
@@ -1079,10 +1098,10 @@ int redisBufferRead(redisContext *c) {
  *
  * Returns REDIS_OK when the buffer is empty, or (a part of) the buffer was
  * succesfully written to the socket. When the buffer is empty after the
- * write operation, "wdone" is set to 1 (if given).
+ * write operation, "done" is set to 1 (if given).
  *
  * Returns REDIS_ERR if an error occured trying to write and sets
- * c->error to hold the appropriate error string.
+ * c->errstr to hold the appropriate error string.
  */
 int redisBufferWrite(redisContext *c, int *done) {
     int nwritten;
@@ -1133,7 +1152,6 @@ int redisGetReply(redisContext *c, void **reply) {
 
     /* For the blocking context, flush output buffer and read reply */
     if (aux == NULL && c->flags & REDIS_BLOCK) {
-	printf("BLOCKING CONTEXT\n");
         /* Write until done */
         do {
             if (redisBufferWrite(c,&wdone) == REDIS_ERR)

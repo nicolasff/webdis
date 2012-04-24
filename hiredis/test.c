@@ -1,3 +1,4 @@
+#include "fmacros.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +32,7 @@ struct config {
 /* The following lines make up our testing "framework" :) */
 static int tests = 0, fails = 0;
 #define test(_s) { printf("#%02d ", ++tests); printf(_s); }
-#define test_cond(_c) if(_c) printf("PASSED\n"); else {printf("FAILED\n"); fails++;}
+#define test_cond(_c) if(_c) printf("\033[0;32mPASSED\033[0;0m\n"); else {printf("\033[0;31mFAILED\033[0;0m\n"); fails++;}
 
 static long long usec(void) {
     struct timeval tv;
@@ -77,7 +78,7 @@ static void disconnect(redisContext *c) {
 }
 
 static redisContext *connect(struct config config) {
-    redisContext *c;
+    redisContext *c = NULL;
 
     if (config.type == CONN_TCP) {
         c = redisConnect(config.tcp.host, config.tcp.port);
@@ -141,29 +142,43 @@ static void test_format_commands(void) {
         len == 4+4+(3+2)+4+(1+2)+4+(1+2));
     free(cmd);
 
-    test("Format command with printf-delegation (long long): ");
-    len = redisFormatCommand(&cmd,"key:%08lld",1234ll);
-    test_cond(strncmp(cmd,"*1\r\n$12\r\nkey:00001234\r\n",len) == 0 &&
-        len == 4+5+(12+2));
-    free(cmd);
+    /* Vararg width depends on the type. These tests make sure that the
+     * width is correctly determined using the format and subsequent varargs
+     * can correctly be interpolated. */
+#define INTEGER_WIDTH_TEST(fmt, type) do {                                                \
+    type value = 123;                                                                     \
+    test("Format command with printf-delegation (" #type "): ");                          \
+    len = redisFormatCommand(&cmd,"key:%08" fmt " str:%s", value, "hello");               \
+    test_cond(strncmp(cmd,"*2\r\n$12\r\nkey:00000123\r\n$9\r\nstr:hello\r\n",len) == 0 && \
+        len == 4+5+(12+2)+4+(9+2));                                                       \
+    free(cmd);                                                                            \
+} while(0)
 
-    test("Format command with printf-delegation (float): ");
-    len = redisFormatCommand(&cmd,"v:%06.1f",12.34f);
-    test_cond(strncmp(cmd,"*1\r\n$8\r\nv:0012.3\r\n",len) == 0 &&
-        len == 4+4+(8+2));
-    free(cmd);
+#define FLOAT_WIDTH_TEST(type) do {                                                       \
+    type value = 123.0;                                                                   \
+    test("Format command with printf-delegation (" #type "): ");                          \
+    len = redisFormatCommand(&cmd,"key:%08.3f str:%s", value, "hello");                   \
+    test_cond(strncmp(cmd,"*2\r\n$12\r\nkey:0123.000\r\n$9\r\nstr:hello\r\n",len) == 0 && \
+        len == 4+5+(12+2)+4+(9+2));                                                       \
+    free(cmd);                                                                            \
+} while(0)
 
-    test("Format command with printf-delegation and extra interpolation: ");
-    len = redisFormatCommand(&cmd,"key:%d %b",1234,"foo",3);
-    test_cond(strncmp(cmd,"*2\r\n$8\r\nkey:1234\r\n$3\r\nfoo\r\n",len) == 0 &&
-        len == 4+4+(8+2)+4+(3+2));
-    free(cmd);
+    INTEGER_WIDTH_TEST("d", int);
+    INTEGER_WIDTH_TEST("hhd", char);
+    INTEGER_WIDTH_TEST("hd", short);
+    INTEGER_WIDTH_TEST("ld", long);
+    INTEGER_WIDTH_TEST("lld", long long);
+    INTEGER_WIDTH_TEST("u", unsigned int);
+    INTEGER_WIDTH_TEST("hhu", unsigned char);
+    INTEGER_WIDTH_TEST("hu", unsigned short);
+    INTEGER_WIDTH_TEST("lu", unsigned long);
+    INTEGER_WIDTH_TEST("llu", unsigned long long);
+    FLOAT_WIDTH_TEST(float);
+    FLOAT_WIDTH_TEST(double);
 
-    test("Format command with wrong printf format and extra interpolation: ");
-    len = redisFormatCommand(&cmd,"key:%08p %b",1234,"foo",3);
-    test_cond(strncmp(cmd,"*2\r\n$6\r\nkey:8p\r\n$3\r\nfoo\r\n",len) == 0 &&
-        len == 4+4+(6+2)+4+(3+2));
-    free(cmd);
+    test("Format command with invalid printf format: ");
+    len = redisFormatCommand(&cmd,"key:%08p %b",(void*)1234,"foo",3);
+    test_cond(len == -1);
 
     const char *argv[3];
     argv[0] = "SET";
@@ -210,8 +225,9 @@ static void test_reply_reader(void) {
               strcasecmp(reader->errstr,"Protocol error, got \"@\" as reply type byte") == 0);
     redisReaderFree(reader);
 
-    test("Set error on nested multi bulks with depth > 1: ");
+    test("Set error on nested multi bulks with depth > 2: ");
     reader = redisReaderCreate();
+    redisReaderFeed(reader,(char*)"*1\r\n",4);
     redisReaderFeed(reader,(char*)"*1\r\n",4);
     redisReaderFeed(reader,(char*)"*1\r\n",4);
     redisReaderFeed(reader,(char*)"*1\r\n",4);
@@ -261,105 +277,14 @@ static void test_reply_reader(void) {
     redisReaderFree(reader);
 }
 
-static void *test_create_string(const redisReadTask *task, char *str, size_t len) {
-    redisReader *r = (redisReader*)task->privdata;
-    const char *roff = r->buf+r->roff;
-    ((void)str); ((void)len);
-
-    assert(task->plen > 0);
-    assert(task->clen > 0);
-    switch(task->type) {
-    case REDIS_REPLY_STATUS:
-        assert(strncmp("+status\r\n", roff+task->poff, task->plen) == 0);
-        assert(strncmp("status", roff+task->coff, task->clen) == 0);
-        break;
-    case REDIS_REPLY_ERROR:
-        assert(strncmp("-error\r\n", roff+task->poff, task->plen) == 0);
-        assert(strncmp("error", roff+task->coff, task->clen) == 0);
-        break;
-    case REDIS_REPLY_STRING: /* bulk */
-        assert(strncmp("$4\r\nbulk\r\n", roff+task->poff, task->plen) == 0);
-        assert(strncmp("bulk", roff+task->coff, task->clen) == 0);
-        break;
-    default:
-        assert(NULL);
-    }
-    return (void*)1;
-}
-
-static void *test_create_array(const redisReadTask *task, int len) {
-    redisReader *r = (redisReader*)task->privdata;
-    const char *roff = r->buf+r->roff;
-    ((void)len);
-
-    assert(task->plen > 0);
-    assert(task->clen == 0);
-    assert(strncmp("*5\r\n", roff+task->poff, task->plen) == 0);
-    return (void*)1;
-}
-
-static void *test_create_integer(const redisReadTask *task, long long value) {
-    redisReader *r = (redisReader*)task->privdata;
-    const char *roff = r->buf+r->roff;
-    ((void)value);
-
-    assert(task->plen > 0);
-    assert(task->clen > 0);
-    assert(strncmp(":1234\r\n", roff+task->poff, task->plen) == 0);
-    assert(strncmp("1234", roff+task->coff, task->clen) == 0);
-    return (void*)1;
-}
-
-static void *test_create_nil(const redisReadTask *task) {
-    redisReader *r = (redisReader*)task->privdata;
-    const char *roff = r->buf+r->roff;
-
-    assert(task->plen > 0);
-    assert(task->clen == 0);
-    assert(strncmp("$-1\r\n", roff+task->poff, task->plen) == 0);
-    return (void*)1;
-}
-
-static redisReplyObjectFunctions test_reader_fn = {
-    test_create_string,
-    test_create_array,
-    test_create_integer,
-    test_create_nil,
-    NULL
-};
-
-static void test_reader_functions(void) {
-    redisReader *reader;
-    const char *input;
-    int ret;
-    void *obj;
-
-    input =
-        "*5\r\n"
-        "$-1\r\n"
-        ":1234\r\n"
-        "+status\r\n"
-        "-error\r\n"
-        "$4\r\nbulk\r\n";
-
-    test("Custom object functions in reply reader: ");
-    reader = redisReaderCreate();
-    reader->fn = &test_reader_fn;
-    reader->privdata = reader;
-
-    redisReaderFeed(reader,input,strlen(input));
-    ret = redisReaderGetReply(reader,&obj);
-    test_cond(ret == REDIS_OK && obj == (void*)1);
-    redisReaderFree(reader);
-}
-
 static void test_blocking_connection_errors(void) {
     redisContext *c;
 
     test("Returns error when host cannot be resolved: ");
     c = redisConnect((char*)"idontexist.local", 6379);
     test_cond(c->err == REDIS_ERR_OTHER &&
-        strcmp(c->errstr,"Can't resolve: idontexist.local") == 0);
+        (strcmp(c->errstr,"Name or service not known") == 0 ||
+         strcmp(c->errstr,"Can't resolve: idontexist.local") == 0));
     redisFree(c);
 
     test("Returns error when the port is not open: ");
@@ -455,6 +380,7 @@ static void test_blocking_connection(struct config config) {
 static void test_blocking_io_errors(struct config config) {
     redisContext *c;
     redisReply *reply;
+    void *_reply;
     int major, minor;
 
     /* Connect to target given by config. */
@@ -478,7 +404,7 @@ static void test_blocking_io_errors(struct config config) {
         /* > 2.0 returns OK on QUIT and read() should be issued once more
          * to know the descriptor is at EOF. */
         test_cond(strcasecmp(reply->str,"OK") == 0 &&
-            redisGetReply(c,(void**)&reply) == REDIS_ERR);
+            redisGetReply(c,&_reply) == REDIS_ERR);
         freeReplyObject(reply);
     } else {
         test_cond(reply == NULL);
@@ -497,7 +423,7 @@ static void test_blocking_io_errors(struct config config) {
     test("Returns I/O error on socket timeout: ");
     struct timeval tv = { 0, 1000 };
     assert(redisSetTimeout(c,tv) == REDIS_OK);
-    test_cond(redisGetReply(c,(void**)&reply) == REDIS_ERR &&
+    test_cond(redisGetReply(c,&_reply) == REDIS_ERR &&
         c->err == REDIS_ERR_IO && errno == EAGAIN);
     redisFree(c);
 }
@@ -704,7 +630,6 @@ int main(int argc, char **argv) {
 
     test_format_commands();
     test_reply_reader();
-    test_reader_functions();
     test_blocking_connection_errors();
 
     printf("\nTesting against TCP connection (%s:%d):\n", cfg.tcp.host, cfg.tcp.port);

@@ -22,11 +22,11 @@ pool_new(struct worker *w, int count) {
 }
 
 static void
-pool_on_connect(const redisAsyncContext *ac) {
+pool_on_connect(const redisAsyncContext *ac, int status) {
 	struct pool *p = ac->data;
 	int i = 0;
 
-	if(!p || ac->err) {
+	if(!p || status == REDIS_ERR || ac->err) {
 		return;
 	}
 	/* connected to redis! */
