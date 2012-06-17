@@ -145,7 +145,7 @@ server_daemonize(void) {
 int
 server_start(struct server *s) {
 
-	int i;
+	int i, ret;
 
 	/* initialize libevent */
 	s->base = event_base_new();
@@ -180,7 +180,12 @@ server_start(struct server *s) {
 	/* start http server */
 	event_set(&s->ev, s->fd, EV_READ | EV_PERSIST, server_can_accept, s);
 	event_base_set(s->base, &s->ev);
-	event_add(&s->ev, NULL);
+	ret = event_add(&s->ev, NULL);
+
+	if(ret < 0) {
+		slog(s, WEBDIS_ERROR, "Error calling event_add on socket", 0);
+		return -1;
+	}
 
 	event_base_dispatch(s->base);
 
