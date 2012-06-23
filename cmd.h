@@ -41,6 +41,7 @@ struct cmd {
 	int started_responding;
 	int is_websocket;
 	int http_version;
+	int database;
 
 	struct http_client *pub_sub_client;
 	redisAsyncContext *ac;

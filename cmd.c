@@ -136,7 +136,7 @@ cmd_run(struct worker *w, struct http_client *client,
 
 	char *qmark = memchr(uri, '?', uri_len);
 	char *slash;
-	const char *p;
+	const char *p, *cmd_name = uri;
 	int cmd_len;
 	int param_count = 0, cur_param = 1;
 
@@ -160,6 +160,7 @@ cmd_run(struct worker *w, struct http_client *client,
 
 	cmd = cmd_new(param_count);
 	cmd->fd = client->fd;
+	cmd->database = w->s->cfg->database;
 
 	/* get output formatting function */
 	uri_len = cmd_select_format(client, cmd, uri, uri_len, &f_format);
@@ -170,14 +171,40 @@ cmd_run(struct worker *w, struct http_client *client,
 	/* check if we only have one command or more. */
 	slash = memchr(uri, '/', uri_len);
 	if(slash) {
-		cmd_len = slash - uri;
+
+		/* detect DB number by checking if first arg is only numbers */
+		int has_db = 1;
+		int db_num = 0;
+		for(p = uri; p < slash; ++p) {
+			if(*p < '0' || *p > '9') {
+				has_db = 0;
+				break;
+			}
+			db_num = db_num * 10 + (*p - '0');
+		}
+
+		/* shift to next arg if a db was set up */
+		if(has_db) {
+			char *next;
+			cmd->database = db_num;
+			cmd->count--; /* overcounted earlier */
+			cmd_name = slash + 1;
+
+			if((next = memchr(cmd_name, '/', uri_len - (slash - uri)))) {
+				cmd_len = next - cmd_name;
+			} else {
+				cmd_len = uri_len - (slash - uri + 1);
+			}
+		} else {
+			cmd_len = slash - uri;
+		}
 	} else {
 		cmd_len = uri_len;
 	}
 
 	/* there is always a first parameter, it's the command name */
 	cmd->argv[0] = malloc(cmd_len);
-	memcpy(cmd->argv[0], uri, cmd_len);
+	memcpy(cmd->argv[0], cmd_name, cmd_len);
 	cmd->argv_len[0] = cmd_len;
 
 	/* check that the client is able to run this command */
@@ -188,11 +215,14 @@ cmd_run(struct worker *w, struct http_client *client,
 
 	if(cmd_is_subscribe(cmd)) {
 		/* create a new connection to Redis */
-		cmd->ac = (redisAsyncContext*)pool_connect(w->pool, 0);
+		cmd->ac = (redisAsyncContext*)pool_connect(w->pool, cmd->database, 0);
 
 		/* register with the client, used upon disconnection */
 		client->pub_sub = cmd;
 		cmd->pub_sub_client = client;
+	} else if(cmd->database != w->s->cfg->database) {
+		/* create a new connection to Redis for custom DBs */
+		cmd->ac = (redisAsyncContext*)pool_connect(w->pool, cmd->database, 0);
 	} else {
 		/* get a connection from the pool */
 		cmd->ac = (redisAsyncContext*)pool_get_context(w->pool);
@@ -208,7 +238,7 @@ cmd_run(struct worker *w, struct http_client *client,
 				(const char **)cmd->argv, cmd->argv_len);
 		return CMD_SENT;
 	}
-	p = slash + 1;
+	p = cmd_name + cmd_len + 1;
 	while(p < uri + uri_len) {
 
 		const char *arg = p;

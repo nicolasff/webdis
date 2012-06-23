@@ -270,5 +270,27 @@ class TestETag(TestWebdis):
 		f = self.query('GET/hello.txt', None, {'If-None-Match': '"'+ h +'"'})
 		self.assertTrue(f.read() == 'world')
 
+class TestDbSwitch(TestWebdis):
+	def test_db(self):
+		"Test database change"
+		self.query('0/SET/key/val0')
+		self.query('1/SET/key/val1')
+		f = self.query('0/GET/key.txt')
+		self.assertTrue(f.read() == "val0")
+		f = self.query('1/GET/key.txt')
+		self.assertTrue(f.read() == "val1")
+		f = self.query('GET/key.txt')
+		self.assertTrue(f.read() == "val0")
+
+	def test_max_db(self):
+		"test large number for the DB"
+
+		try:
+			f = self.query('4096/GET/hello.txt')
+		except urllib2.HTTPError as e:
+			self.assertTrue(e.code == 400)
+			return
+		self.assertTrue(False) # we should have received a 400.
+
 if __name__ == '__main__':
 	unittest.main()
