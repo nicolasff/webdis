@@ -42,6 +42,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Optional daemonize.
 * Default root object: Add `"default_root": "/GET/index.html"` in webdis.json to substitute the request to `/` with a Redis request.
 * HTTP request limit with `http_max_request_size` (in bytes, set to 128MB by default).
+* Database selection in the URL, using e.g. `/7/GET/key` to run the command on DB 7.
 
 # Ideas, TODO...
 * Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands?
@@ -51,8 +52,6 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Enrich config file:
 	* Provide timeout (maybe for some commands only?). What should the response be? 504 Gateway Timeout? 503 Service Unavailable?
 * Multi-server support, using consistent hashing.
-* Database selection in the URL? e.g. `/7/GET/key` to run the command on DB 7.
-	* This might not be very useful, databases will be deprecated from Redis at some point.
 * SSL?
 	* Not sure if this is such a good idea.
 * SPDY?
