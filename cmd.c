@@ -139,7 +139,6 @@ cmd_run(struct worker *w, struct http_client *client,
 	const char *p, *cmd_name = uri;
 	int cmd_len;
 	int param_count = 0, cur_param = 1;
-	int db_num = w->s->cfg->database;
 
 	struct cmd *cmd;
 	formatting_fun f_format;
@@ -161,6 +160,7 @@ cmd_run(struct worker *w, struct http_client *client,
 
 	cmd = cmd_new(param_count);
 	cmd->fd = client->fd;
+	cmd->database = w->s->cfg->database;
 
 	/* get output formatting function */
 	uri_len = cmd_select_format(client, cmd, uri, uri_len, &f_format);
@@ -174,6 +174,7 @@ cmd_run(struct worker *w, struct http_client *client,
 
 		/* detect DB number by checking if first arg is only numbers */
 		int has_db = 1;
+		int db_num = 0;
 		for(p = uri; p < slash; ++p) {
 			if(*p < '0' || *p > '9') {
 				has_db = 0;
@@ -185,10 +186,12 @@ cmd_run(struct worker *w, struct http_client *client,
 		/* shift to next arg if a db was set up */
 		if(has_db) {
 			char *next;
+			cmd->database = db_num;
+			cmd->count--; /* overcounted earlier */
 			cmd_name = slash + 1;
 
 			if((next = memchr(cmd_name, '/', uri_len - (slash - uri)))) {
-				cmd_len = next - uri;
+				cmd_len = next - cmd_name;
 			} else {
 				cmd_len = uri_len - (slash - uri + 1);
 			}
@@ -212,11 +215,14 @@ cmd_run(struct worker *w, struct http_client *client,
 
 	if(cmd_is_subscribe(cmd)) {
 		/* create a new connection to Redis */
-		cmd->ac = (redisAsyncContext*)pool_connect(w->pool, 0);
+		cmd->ac = (redisAsyncContext*)pool_connect(w->pool, cmd->database, 0);
 
 		/* register with the client, used upon disconnection */
 		client->pub_sub = cmd;
 		cmd->pub_sub_client = client;
+	} else if(cmd->database != w->s->cfg->database) {
+		/* create a new connection to Redis for custom DBs */
+		cmd->ac = (redisAsyncContext*)pool_connect(w->pool, cmd->database, 0);
 	} else {
 		/* get a connection from the pool */
 		cmd->ac = (redisAsyncContext*)pool_get_context(w->pool);

@@ -57,7 +57,7 @@ pool_can_connect(int fd, short event, void *ptr) {
 
 	free(pr);
 
-	pool_connect(p, 1);
+	pool_connect(p, p->cfg->database, 1);
 }
 static void
 pool_schedule_reconnect(struct pool *p) {
@@ -104,7 +104,7 @@ pool_on_disconnect(const redisAsyncContext *ac, int status) {
  * Create new connection.
  */
 redisAsyncContext *
-pool_connect(struct pool *p, int attach) {
+pool_connect(struct pool *p, int db_num, int attach) {
 
 	struct redisAsyncContext *ac;
 	if(p->cfg->redis_host[0] == '/') { /* unix socket */
@@ -134,11 +134,11 @@ pool_connect(struct pool *p, int attach) {
 	redisAsyncSetConnectCallback(ac, pool_on_connect);
 	redisAsyncSetDisconnectCallback(ac, pool_on_disconnect);
 
-	if (p->cfg->redis_auth) { /* authenticate. */
+	if(p->cfg->redis_auth) { /* authenticate. */
 		redisAsyncCommand(ac, NULL, NULL, "AUTH %s", p->cfg->redis_auth);
 	}
-	if (p->cfg->database) { /* change database. */
-		redisAsyncCommand(ac, NULL, NULL, "SELECT %d", p->cfg->database);
+	if(db_num) { /* change database. */
+		redisAsyncCommand(ac, NULL, NULL, "SELECT %d", db_num);
 	}
 	return ac;
 }

@@ -130,7 +130,7 @@ worker_pool_connect(struct worker *w) {
 	int i;
 	/* create connections */
 	for(i = 0; i < w->pool->count; ++i) {
-		pool_connect(w->pool, 1);
+		pool_connect(w->pool, w->s->cfg->database, 1);
 	}
 
 }

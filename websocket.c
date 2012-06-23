@@ -200,7 +200,7 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 			} else if (cmd_is_subscribe(cmd)) {
 				/* New subscribe command; make new Redis context
 				 * for this client */
-				cmd->ac = pool_connect(c->w->pool, 0);
+				cmd->ac = pool_connect(c->w->pool, cmd->database, 0);
 				c->pub_sub = cmd;
 				cmd->pub_sub_client = c;
 			} else {

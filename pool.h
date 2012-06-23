@@ -22,7 +22,7 @@ struct pool *
 pool_new(struct worker *w, int count);
 
 redisAsyncContext *
-pool_connect(struct pool *p, int attach);
+pool_connect(struct pool *p, int db_num, int attach);
 
 const redisAsyncContext *
 pool_get_context(struct pool *p);
