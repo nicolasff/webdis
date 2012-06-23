@@ -4,8 +4,11 @@ LDFLAGS=-levent -lpthread -lrt
 
 all: $(OUT) Makefile
 
-%: %.o Makefile
-	$(CC) $(LDFLAGS) -o $@ $<
+websocket: websocket.o
+	$(CC) -o $@ $< $(LDFLAGS)
+
+pubsub: pubsub.o
+	$(CC) -o $@ $< $(LDFLAGS)
 
 %.o: %.c Makefile
 	$(CC) -c $(CFLAGS) -o $@ $<
