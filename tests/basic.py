@@ -282,15 +282,5 @@ class TestDbSwitch(TestWebdis):
 		f = self.query('GET/key.txt')
 		self.assertTrue(f.read() == "val0")
 
-	def test_max_db(self):
-		"test large number for the DB"
-
-		try:
-			f = self.query('4096/GET/hello.txt')
-		except urllib2.HTTPError as e:
-			self.assertTrue(e.code == 400)
-			return
-		self.assertTrue(False) # we should have received a 400.
-
 if __name__ == '__main__':
 	unittest.main()
