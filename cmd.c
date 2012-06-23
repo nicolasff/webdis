@@ -136,9 +136,10 @@ cmd_run(struct worker *w, struct http_client *client,
 
 	char *qmark = memchr(uri, '?', uri_len);
 	char *slash;
-	const char *p;
+	const char *p, *cmd_name = uri;
 	int cmd_len;
 	int param_count = 0, cur_param = 1;
+	int db_num = w->s->cfg->database;
 
 	struct cmd *cmd;
 	formatting_fun f_format;
@@ -170,14 +171,37 @@ cmd_run(struct worker *w, struct http_client *client,
 	/* check if we only have one command or more. */
 	slash = memchr(uri, '/', uri_len);
 	if(slash) {
-		cmd_len = slash - uri;
+
+		/* detect DB number by checking if first arg is only numbers */
+		int has_db = 1;
+		for(p = uri; p < slash; ++p) {
+			if(*p < '0' || *p > '9') {
+				has_db = 0;
+				break;
+			}
+			db_num = db_num * 10 + (*p - '0');
+		}
+
+		/* shift to next arg if a db was set up */
+		if(has_db) {
+			char *next;
+			cmd_name = slash + 1;
+
+			if((next = memchr(cmd_name, '/', uri_len - (slash - uri)))) {
+				cmd_len = next - uri;
+			} else {
+				cmd_len = uri_len - (slash - uri + 1);
+			}
+		} else {
+			cmd_len = slash - uri;
+		}
 	} else {
 		cmd_len = uri_len;
 	}
 
 	/* there is always a first parameter, it's the command name */
 	cmd->argv[0] = malloc(cmd_len);
-	memcpy(cmd->argv[0], uri, cmd_len);
+	memcpy(cmd->argv[0], cmd_name, cmd_len);
 	cmd->argv_len[0] = cmd_len;
 
 	/* check that the client is able to run this command */
@@ -208,7 +232,7 @@ cmd_run(struct worker *w, struct http_client *client,
 				(const char **)cmd->argv, cmd->argv_len);
 		return CMD_SENT;
 	}
-	p = slash + 1;
+	p = cmd_name + cmd_len + 1;
 	while(p < uri + uri_len) {
 
 		const char *arg = p;
