@@ -26,6 +26,7 @@ http_response_init(struct worker *w, int code, const char *msg) {
 	/* Cross-Origin Resource Sharing, CORS. */
 	http_response_set_header(r, "Allow", "GET,POST,PUT,OPTIONS");
 	http_response_set_header(r, "Access-Control-Allow-Origin", "*");
+	http_response_set_header(r, "Access-Control-Allow-Headers", "*");
 
 	return r;
 }
