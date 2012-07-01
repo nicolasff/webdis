@@ -1,2 +1,5 @@
 script: "make clean all"
-install: "make install"
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install libevent-dev
+install: "make clean all install
