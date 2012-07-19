@@ -25,10 +25,13 @@ socket_setup(const char *ip, short port) {
 	struct sockaddr_in addr;
 	int fd, ret;
 
+	memset(&addr, 0, sizeof(addr));
+#if defined __APPLE__ && defined __MACH__
+	addr.sin_len = sizeof(struct sockaddr_in);
+#endif
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 
-	memset(&(addr.sin_addr), 0, sizeof(addr.sin_addr));
 	addr.sin_addr.s_addr = inet_addr(ip);
 
 	/* this sad list of tests could use a Maybe monad... */
