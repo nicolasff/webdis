@@ -26,7 +26,7 @@ socket_setup(const char *ip, short port) {
 	int fd, ret;
 
 	memset(&addr, 0, sizeof(addr));
-#if defined __APPLE__ && defined __MACH__
+#if defined __BSD__
 	addr.sin_len = sizeof(struct sockaddr_in);
 #endif
 	addr.sin_family = AF_INET;
