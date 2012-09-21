@@ -2,10 +2,6 @@
 import urllib2, unittest, json, hashlib
 from functools import wraps
 try:
-	import bson
-except:
-	bson = None
-try:
 	import msgpack
 except:
 	msgpack = None
@@ -142,61 +138,6 @@ class TestRaw(TestWebdis):
 		"error return type"
 		f = self.query('UNKNOWN/COMMAND.raw')
 		self.assertTrue(f.read().startswith("-ERR "))
-
-def need_bson(fn):
-	def wrapper(self):
-		if bson:
-			fn(self)
-	return wrapper
-
-class TestBSon(TestWebdis):
-
-	@need_bson
-	def test_set(self):
-		"success type (+OK)"
-		self.query('DEL/hello')
-		f = self.query('SET/hello/world.bson')
-		self.assertTrue(f.headers.getheader('Content-Type') == 'application/bson')
-		obj = bson.decode_all(f.read())
-		self.assertTrue(obj == [{u'SET': [True, bson.Binary('OK', 0)]}])
-
-	@need_bson
-	def test_get(self):
-		"string type"
-		self.query('SET/hello/world')
-		f = self.query('GET/hello.bson')
-		obj = bson.decode_all(f.read())
-		self.assertTrue(obj == [{u'GET': bson.Binary('world', 0)}])
-
-	@need_bson
-	def test_incr(self):
-		"integer type"
-		self.query('DEL/hello')
-		f = self.query('INCR/hello.bson')
-		obj = bson.decode_all(f.read())
-		self.assertTrue(obj == [{u'INCR': 1L}])
-
-	@need_bson
-	def test_list(self):
-		"list type"
-		self.query('DEL/hello')
-		self.query('RPUSH/hello/abc')
-		self.query('RPUSH/hello/def')
-		f = self.query('LRANGE/hello/0/-1.bson')
-		obj = bson.decode_all(f.read())
-		self.assertTrue(obj == [{u'LRANGE': [bson.Binary('abc', 0), bson.Binary('def', 0)]}])
-
-	@need_bson
-	def test_error(self):
-		"error return type"
-		f = self.query('UNKNOWN/COMMAND.bson')
-		obj = bson.decode_all(f.read())
-		self.assertTrue(len(obj) == 1)
-		self.assertTrue(u'UNKNOWN' in obj[0])
-		self.assertTrue(isinstance(obj[0], dict))
-		self.assertTrue(isinstance(obj[0][u'UNKNOWN'], list))
-		self.assertTrue(obj[0]['UNKNOWN'][0] == False)
-		self.assertTrue(isinstance(obj[0]['UNKNOWN'][1], bson.Binary))
 
 def need_msgpack(fn):
 	def wrapper(self):

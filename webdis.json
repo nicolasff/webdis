@@ -6,7 +6,9 @@
 
 	"http_host":	"0.0.0.0",
 	"http_port":	7379,
-	"threads":	3,
+
+	"threads":	5,
+	"pool_size": 20,
 
 	"daemonize":	false,
 	"websockets":	false,
