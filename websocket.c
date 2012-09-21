@@ -5,6 +5,7 @@
 #include "cmd.h"
 #include "worker.h"
 #include "pool.h"
+#include "http.h"
 
 /* message parsers */
 #include "formats/json.h"
@@ -88,7 +89,6 @@ ws_handshake_reply(struct http_client *c) {
 	char template0[] = "HTTP/1.1 101 Switching Protocols\r\n"
 		"Upgrade: websocket\r\n"
 		"Connection: Upgrade\r\n"
-		"Sec-WebSocket-Protocol: chat\r\n"
 		"Sec-WebSocket-Origin: "; /* %s */
 	char template1[] = "\r\n"
 		"Sec-WebSocket-Location: ws://"; /* %s%s */
@@ -330,9 +330,11 @@ ws_add_data(struct http_client *c) {
 int
 ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 
-	int ret;
 	char *frame = malloc(sz + 8); /* create frame by prepending header */
 	size_t frame_sz = 0;
+	struct http_response *r;
+	if (frame == NULL)
+		return -1;
 
 	/*
       The length of the "Payload data", in bytes: if 0-125, that is the
@@ -361,14 +363,14 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 	}
 
 	/* send WS frame */
-	ret = write(cmd->fd, frame, frame_sz);
-	free(frame);
+	r = http_response_init(cmd->w, 0, NULL);
+	if (r == NULL)
+		return -1;
 
+	r->out = frame;
+	r->out_sz = frame_sz;
+	r->sent = 0;
+	http_schedule_write(cmd->fd, r);
 
-	if(ret == (int)frame_sz) { /* success */
-		return 0;
-	}
-
-	/* write fail */
-	return -1;
+	return 0;
 }
