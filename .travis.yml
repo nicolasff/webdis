@@ -6,4 +6,4 @@ compiler:
 before_install:
   - sudo apt-get update
   - sudo apt-get install libevent-dev
-install: "sudo make install
+install: "sudo make install"
