@@ -364,6 +364,10 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 
 	/* send WS frame */
 	r = http_response_init(cmd->w, 0, NULL);
+	if (cmd_is_subscribe(cmd)) {
+		r->keep_alive = 1;
+	}
+	
 	if (r == NULL)
 		return -1;
 
