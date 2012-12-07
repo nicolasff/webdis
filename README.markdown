@@ -290,3 +290,31 @@ JSON socket connected!
 JSON received: {"SET":[true,"OK"]}
 JSON received: {"GET":"world"}
 </pre>
+
+# Pub/Sub with chunked transfer encoding
+Webdis exposes Redis PUB/SUB channels to HTTP clients, forwarding messages in the channel as they are published by Redis. This is done using chunked transfer encoding.
+
+**Example using XMLHttpRequest**:
+<pre>
+var previous_response_length = 0
+xhr = new XMLHttpRequest()
+xhr.open("GET", "http://127.0.0.1:7379/SUBSCRIBE/hello", true);
+xhr.onreadystatechange = checkData;
+xhr.send(null);
+
+function checkData() {
+	if(xhr.readyState == 3)  {
+    	response = xhr.responseText;
+    	chunk = response.slice(previous_response_length);
+    	previous_response_length = response.length;
+    	console.log(chunk);
+    }
+};
+</pre>
+
+Publish messages to redis to see output similar to the following:
+<pre>
+{"SUBSCRIBE":["subscribe","hello",1]}
+{"SUBSCRIBE":["message","hello","some message"]}
+{"SUBSCRIBE":["message","hello","some other message"]} 
+</pre>
