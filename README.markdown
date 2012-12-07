@@ -315,6 +315,6 @@ function checkData() {
 Publish messages to redis to see output similar to the following:
 <pre>
 {"SUBSCRIBE":["subscribe","hello",1]}
-{"SUBSCRIBE":["message","hello","<some message>"]}
-{"SUBSCRIBE":["message","hello","<some other message>"]} 
+{"SUBSCRIBE":["message","hello","some message"]}
+{"SUBSCRIBE":["message","hello","some other message"]} 
 </pre>
