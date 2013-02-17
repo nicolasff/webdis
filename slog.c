@@ -8,6 +8,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include "slog.h"
 #include "server.h"
@@ -24,9 +25,14 @@ slog_init(struct server *s) {
 	if(s->cfg->logfile) {
 		s->log.fd = open(s->cfg->logfile,
 			O_WRONLY | O_APPEND | O_CREAT, S_IRUSR|S_IWUSR);
-	} else {
-		s->log.fd = 2; /* stderr */
+
+		if (s->log.fd != -1)
+			return;
+
+		fprintf(stderr, "Could not open %s: %s\n", s->cfg->logfile,
+				strerror(errno));
 	}
+	s->log.fd = 2; /* stderr */
 }
 
 /**
