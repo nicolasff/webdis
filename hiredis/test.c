@@ -88,7 +88,10 @@ static redisContext *connect(struct config config) {
         assert(NULL);
     }
 
-    if (c->err) {
+    if (c == NULL) {
+        printf("Connection error: can't allocate redis context\n");
+        exit(1);
+    } else if (c->err) {
         printf("Connection error: %s\n", c->errstr);
         exit(1);
     }
@@ -204,6 +207,7 @@ static void test_reply_reader(void) {
     redisReader *reader;
     void *reply;
     int ret;
+    int i;
 
     test("Error handling in reply parser: ");
     reader = redisReaderCreate();
@@ -225,12 +229,13 @@ static void test_reply_reader(void) {
               strcasecmp(reader->errstr,"Protocol error, got \"@\" as reply type byte") == 0);
     redisReaderFree(reader);
 
-    test("Set error on nested multi bulks with depth > 2: ");
+    test("Set error on nested multi bulks with depth > 7: ");
     reader = redisReaderCreate();
-    redisReaderFeed(reader,(char*)"*1\r\n",4);
-    redisReaderFeed(reader,(char*)"*1\r\n",4);
-    redisReaderFeed(reader,(char*)"*1\r\n",4);
-    redisReaderFeed(reader,(char*)"*1\r\n",4);
+
+    for (i = 0; i < 9; i++) {
+        redisReaderFeed(reader,(char*)"*1\r\n",4);
+    }
+
     ret = redisReaderGetReply(reader,NULL);
     test_cond(ret == REDIS_ERR &&
               strncasecmp(reader->errstr,"No support for",14) == 0);
