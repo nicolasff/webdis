@@ -20,7 +20,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 </pre>
 
 # Features
-* GET and POST are supported, as well as `PUT` for file uploads.
+* `GET` and `POST` are supported, as well as `PUT` for file uploads.
 * JSON output by default, optional JSONP parameter (`?jsonp=myFunction` or `?callback=myFunction`).
 * Raw Redis 2.0 protocol output with `.raw` suffix
 * MessagePack output with `.msg` suffix
@@ -67,10 +67,11 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 	* Unauthorized command (disabled in config file): 403 Forbidden.
 
 # Command format
-The URI `/COMMAND/arg0/arg1/.../argN.ext` executes the command on Redis and returns the response to the client. GET and POST are supported:
+The URI `/COMMAND/arg0/arg1/.../argN.ext` executes the command on Redis and returns the response to the client. GET, POST, and PUT are supported:
 
 * `GET /COMMAND/arg0/.../argN.ext`
 * `POST /` with `COMMAND/arg0/.../argN` in the HTTP body.
+* `PUT /COMMAND/arg0.../argN-1` with `argN` in the HTTP body (see section on [file uploads](#file-upload).)
 
 `.ext` is an optional extension; it is not read as part of the last argument but only represents the output format. Several formats are available (see below).
 
