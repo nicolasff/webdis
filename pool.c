@@ -4,6 +4,7 @@
 #include "server.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <event.h>
 #include <hiredis/adapters/libevent.h>
 
@@ -120,11 +121,14 @@ pool_connect(struct pool *p, int db_num, int attach) {
 	}
 
 	if(ac->err) {
-		/*
-		const char err[] = "Connection failed";
-		slog(s, WEBDIS_ERROR, err, sizeof(err)-1);
-		*/
-		/* fprintf(stderr, "Error: %s\n", ac->errstr); */
+		char msg[] = "Connection failed: %s";
+		size_t errlen = strlen(ac->errstr);
+		char *err = malloc(sizeof(msg) + errlen);
+		if (err) {
+			size_t sz = sprintf(err, msg, ac->errstr);
+			slog(p->w->s, WEBDIS_ERROR, err, sz);
+			free(err);
+		}
 		redisAsyncFree(ac);
 		pool_schedule_reconnect(p);
 		return NULL;
