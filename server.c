@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -19,7 +20,7 @@
  * Sets up a non-blocking socket
  */
 static int
-socket_setup(const char *ip, short port) {
+socket_setup(struct server *s, const char *ip, short port) {
 
 	int reuse = 1;
 	struct sockaddr_in addr;
@@ -39,35 +40,35 @@ socket_setup(const char *ip, short port) {
 	/* create socket */
 	fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (-1 == fd) {
-		/*syslog(LOG_ERR, "Socket error: %m\n");*/
+		slog(s, WEBDIS_ERROR, strerror(errno), 0);
 		return -1;
 	}
 
 	/* reuse address if we've bound to it before. */
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse,
 				sizeof(reuse)) < 0) {
-		/* syslog(LOG_ERR, "setsockopt error: %m\n"); */
+		slog(s, WEBDIS_ERROR, strerror(errno), 0);
 		return -1;
 	}
 
 	/* set socket as non-blocking. */
 	ret = fcntl(fd, F_SETFD, O_NONBLOCK);
 	if (0 != ret) {
-		/* syslog(LOG_ERR, "fcntl error: %m\n"); */
+		slog(s, WEBDIS_ERROR, strerror(errno), 0);
 		return -1;
 	}
 
 	/* bind */
 	ret = bind(fd, (struct sockaddr*)&addr, sizeof(addr));
 	if (0 != ret) {
-		/* syslog(LOG_ERR, "Bind error: %m\n"); */
+		slog(s, WEBDIS_ERROR, strerror(errno), 0);
 		return -1;
 	}
 
 	/* listen */
 	ret = listen(fd, SOMAXCONN);
 	if (0 != ret) {
-		/* syslog(LOG_DEBUG, "Listen error: %m\n"); */
+		slog(s, WEBDIS_ERROR, strerror(errno), 0);
 		return -1;
 	}
 
@@ -175,7 +176,7 @@ server_start(struct server *s) {
 	}
 
 	/* create socket */
-	s->fd = socket_setup(s->cfg->http_host, s->cfg->http_port);
+	s->fd = socket_setup(s, s->cfg->http_host, s->cfg->http_port);
 	if(s->fd < 0) {
 		return -1;
 	}
