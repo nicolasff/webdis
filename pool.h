@@ -21,6 +21,9 @@ struct pool {
 struct pool *
 pool_new(struct worker *w, int count);
 
+void
+pool_free_context(redisAsyncContext *ac);
+
 redisAsyncContext *
 pool_connect(struct pool *p, int db_num, int attach);
 

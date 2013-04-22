@@ -6,6 +6,7 @@
 #include "worker.h"
 #include "http.h"
 #include "server.h"
+#include "slog.h"
 
 #include "formats/json.h"
 #include "formats/raw.h"
@@ -51,6 +52,11 @@ cmd_free(struct cmd *c) {
 	free(c->if_none_match);
 	if(c->mime_free) free(c->mime);
 
+	if (c->ac && /* we have a connection */
+		(c->database != c->w->s->cfg->database /* custom DB */
+		|| cmd_is_subscribe(c))) {
+		pool_free_context(c->ac);
+	}
 
 	free(c);
 }

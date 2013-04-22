@@ -22,6 +22,15 @@ pool_new(struct worker *w, int count) {
 	return p;
 }
 
+void
+pool_free_context(redisAsyncContext *ac) {
+
+	if (ac)	{
+		redisAsyncDisconnect(ac);
+		redisAsyncFree(ac);
+	}
+}
+
 static void
 pool_on_connect(const redisAsyncContext *ac, int status) {
 	struct pool *p = ac->data;
