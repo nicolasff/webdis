@@ -44,8 +44,6 @@ cmd_free(struct cmd *c) {
 	for(i = 0; i < c->count; ++i) {
 		free((char*)c->argv[i]);
 	}
-	free(c->argv);
-	free(c->argv_len);
 
 	free(c->jsonp);
 	free(c->separator);
@@ -57,6 +55,8 @@ cmd_free(struct cmd *c) {
 		|| cmd_is_subscribe(c))) {
 		pool_free_context(c->ac);
 	}
+	free(c->argv);
+	free(c->argv_len);
 
 	free(c);
 }
