@@ -25,8 +25,20 @@ http_response_init(struct worker *w, int code, const char *msg) {
 
 	/* Cross-Origin Resource Sharing, CORS. */
 	http_response_set_header(r, "Allow", "GET,POST,PUT,OPTIONS");
+        /*
+          Chrome doesn't support Allow and requires 
+          Access-Control-Allow-Methods
+        */
+	http_response_set_header(r, "Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS");
 	http_response_set_header(r, "Access-Control-Allow-Origin", "*");
+        /* 
+          According to 
+        http://www.w3.org/TR/cors/#access-control-allow-headers-response-header
+          Access-Control-Allow-Headers cannot be a wildcard and must be set
+          with explicit names
 	http_response_set_header(r, "Access-Control-Allow-Headers", "*");
+        */
+	http_response_set_header(r, "Access-Control-Allow-Headers", "X-Requested-With, Content-Type");
 
 	return r;
 }
