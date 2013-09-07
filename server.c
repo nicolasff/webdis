@@ -155,6 +155,35 @@ server_daemonize(const char *pidfile) {
 	}
 }
 
+/* global pointer to the server object, used in signal handlers */
+static struct server *__server;
+
+static void
+server_handle_signal(int id) {
+
+	switch(id) {
+		case SIGHUP:
+			slog_init(__server);
+			break;
+		case SIGTERM:
+		case SIGINT:
+			slog(__server, WEBDIS_INFO, "Webdis terminating", 0);
+			exit(0);
+			break;
+		default:
+			break;
+	}
+}
+
+static void
+server_install_signal_handlers(struct server *s) {
+	__server = s;
+
+	signal(SIGHUP,  server_handle_signal);
+	signal(SIGTERM, server_handle_signal);
+	signal(SIGINT,  server_handle_signal);
+}
+
 int
 server_start(struct server *s) {
 
@@ -179,8 +208,8 @@ server_start(struct server *s) {
 
 	slog_init(s);
 
-	/* install signal handler to reload logs */
-	signal(SIGHUP, slog_reload);
+	/* install signal handlers */
+	server_install_signal_handlers(s);
 
 	/* start worker threads */
 	for(i = 0; i < s->cfg->http_threads; ++i) {
@@ -203,6 +232,7 @@ server_start(struct server *s) {
 		return -1;
 	}
 
+	slog(s, WEBDIS_INFO, "Webdis up and running", 0);
 	event_base_dispatch(s->base);
 
 	return 0;
