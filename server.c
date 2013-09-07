@@ -2,6 +2,7 @@
 #include "worker.h"
 #include "client.h"
 #include "conf.h"
+#include "version.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -232,7 +233,7 @@ server_start(struct server *s) {
 		return -1;
 	}
 
-	slog(s, WEBDIS_INFO, "Webdis up and running", 0);
+	slog(s, WEBDIS_INFO, "Webdis " WEBDIS_VERSION " up and running", 0);
 	event_base_dispatch(s->base);
 
 	return 0;
