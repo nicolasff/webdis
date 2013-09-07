@@ -37,6 +37,7 @@ conf_read(const char *filename) {
 	conf->logfile = "webdis.log";
 	conf->verbosity = WEBDIS_NOTICE;
 	conf->daemonize = 0;
+	conf->pidfile = "webdis.pid";
 	conf->database = 0;
 	conf->pool_size_per_thread = 2;
 
@@ -86,6 +87,8 @@ conf_read(const char *filename) {
 			else conf->verbosity = (log_level)tmp;
 		} else if(strcmp(json_object_iter_key(kv), "daemonize") == 0 && json_typeof(jtmp) == JSON_TRUE) {
 			conf->daemonize = 1;
+		} else if(strcmp(json_object_iter_key(kv),"pidfile") == 0 && json_typeof(jtmp) == JSON_STRING){
+			conf->pidfile = strdup(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "websockets") == 0 && json_typeof(jtmp) == JSON_TRUE) {
 			conf->websockets = 1;
 		} else if(strcmp(json_object_iter_key(kv), "database") == 0 && json_typeof(jtmp) == JSON_INTEGER) {

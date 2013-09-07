@@ -22,6 +22,7 @@ struct conf {
 
 	/* daemonize process, off by default */
 	int daemonize;
+	char *pidfile;
 
 	/* WebSocket support, off by default */
 	int websockets;

@@ -38,7 +38,7 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * Cross-origin requests, usable with XMLHttpRequest2 (Cross-Origin Resource Sharing - CORS).
 * File upload with PUT.
 * With the JSON output, the return value of INFO is parsed and transformed into an object.
-* Optional daemonize.
+* Optional daemonize: set `"daemonize": true` and `"pidfile": "/var/run/webdis.pid"` in webdis.json.
 * Default root object: Add `"default_root": "/GET/index.html"` in webdis.json to substitute the request to `/` with a Redis request.
 * HTTP request limit with `http_max_request_size` (in bytes, set to 128MB by default).
 * Database selection in the URL, using e.g. `/7/GET/key` to run the command on DB 7.

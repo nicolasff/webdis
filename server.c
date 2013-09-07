@@ -130,7 +130,7 @@ server_can_accept(int fd, short event, void *ptr) {
  * (taken from Redis)
  */
 static void
-server_daemonize(void) {
+server_daemonize(const char *pidfile) {
 	int fd;
 
 	if (fork() != 0) exit(0); /* parent exits */
@@ -143,8 +143,16 @@ server_daemonize(void) {
 		dup2(fd, STDERR_FILENO);
 		if (fd > STDERR_FILENO) close(fd);
 	}
-}
 
+	/* write pidfile */
+	if (pidfile) {
+		FILE *f = fopen(pidfile, "w");
+		if (f) {
+			fprintf(f, "%d\n", (int)getpid());
+			fclose(f);
+		}
+	}
+}
 
 int
 server_start(struct server *s) {
@@ -155,7 +163,7 @@ server_start(struct server *s) {
 	s->base = event_base_new();
 
 	if(s->cfg->daemonize) {
-		server_daemonize();
+		server_daemonize(s->cfg->pidfile);
 
 		/* sometimes event mech gets lost on fork */
 		if(event_reinit(s->base) != 0) {
