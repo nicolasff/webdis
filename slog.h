@@ -12,6 +12,9 @@ typedef enum {
 struct server;
 
 void
+slog_reload();
+
+void
 slog_init(struct server *s);
 
 void slog(struct server *s, log_level level,

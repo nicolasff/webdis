@@ -82,6 +82,7 @@ server_new(const char *cfg_file) {
 	int i;
 	struct server *s = calloc(1, sizeof(struct server));
 
+	s->log.fd = -1;
 	s->cfg = conf_read(cfg_file);
 
 	/* workers */
@@ -177,6 +178,9 @@ server_start(struct server *s) {
 #endif
 
 	slog_init(s);
+
+	/* install signal handler to reload logs */
+	signal(SIGHUP, slog_reload);
 
 	/* start worker threads */
 	for(i = 0; i < s->cfg->http_threads; ++i) {

@@ -14,17 +14,29 @@
 #include "server.h"
 #include "conf.h"
 
+/* global pointer to the server objects, used to reload logs */
+static struct server *__server;
+
 /**
  * Initialize log writer.
  */
 void
 slog_init(struct server *s) {
 
+	__server = s;
 	s->log.self = getpid();
 
 	if(s->cfg->logfile) {
+
+		int old_fd = s->log.fd;
+
 		s->log.fd = open(s->cfg->logfile,
 			O_WRONLY | O_APPEND | O_CREAT, S_IRUSR|S_IWUSR);
+
+		/* close old log */
+		if (old_fd != -1) {
+			close(old_fd);
+		}
 
 		if (s->log.fd != -1)
 			return;
@@ -33,6 +45,14 @@ slog_init(struct server *s) {
 				strerror(errno));
 	}
 	s->log.fd = 2; /* stderr */
+}
+
+/**
+ * Reload log file on SIGHUP
+ */
+void
+slog_reload() {
+	slog_init(__server);
 }
 
 /**
