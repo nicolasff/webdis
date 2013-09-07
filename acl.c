@@ -39,7 +39,7 @@ acl_match_client(struct acl *a, struct http_client *client, in_addr_t *ip) {
 int
 acl_allow_command(struct cmd *cmd, struct conf *cfg, struct http_client *client) {
 
-	char *always_off[] = {"MULTI", "EXEC", "WATCH", "DISCARD"};
+	char *always_off[] = {"MULTI", "EXEC", "WATCH", "DISCARD", "SELECT"};
 
 	unsigned int i;
 	int authorized = 1;
