@@ -2,7 +2,7 @@
 #define VERSION_H
 
 #ifndef WEBDIS_VERSION
-#define WEBDIS_VERSION "0.1.0"
+#define WEBDIS_VERSION "0.1.1-dev"
 #endif
 
 #endif /* VERSION_H */
