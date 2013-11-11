@@ -1,8 +1,12 @@
 #!/bin/bash
 CLIENTS=100
 REQUESTS=100000
-HOST=127.0.0.1
-PORT=7379
+
+HOST=$WEBDIS_HOST
+PORT=$WEBDIS_PORT
+
+[ -n $HOST ] && HOST=127.0.0.1
+[ -n $PORT ] && PORT=7379
 
 info() {
 	echo "Testing on $HOST:$PORT with $CLIENTS clients in parallel, for a total of $REQUESTS requests per benchmark."

@@ -2,8 +2,9 @@
 import socket
 import unittest
 
-HOST = "127.0.0.1"
-PORT = 7379
+import os
+HOST = os.getenv('WEBDIS_HOST', '127.0.0.1')
+PORT = int(os.getenv('WEBDIS_PORT', 7379))
 
 class BlockingSocket:
 
