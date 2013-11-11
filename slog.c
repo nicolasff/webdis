@@ -1,4 +1,3 @@
-/* A slog is a simple log. Basically extracted from antirez/redis. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
