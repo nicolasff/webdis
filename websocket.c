@@ -1,5 +1,5 @@
 #include "sha1/sha1.h"
-#include "libb64/cencode.h"
+#include <b64/cencode.h>
 #include "websocket.h"
 #include "client.h"
 #include "cmd.h"

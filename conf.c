@@ -9,7 +9,7 @@
 
 #include <jansson.h>
 #include <evhttp.h>
-#include <libb64/cencode.h>
+#include <b64/cencode.h>
 #include "conf.h"
 #include "acl.h"
 
