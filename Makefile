@@ -49,3 +49,17 @@ clean:
 install: $(OUT) $(INSTALL_DIRS)
 	cp $(OUT) $(DESTDIR)/$(PREFIX)/bin
 	cp webdis.prod.json $(CONFDIR)
+
+
+WEBDIS_PORT ?= 7379
+
+test_all: test perftest
+
+test:
+	python tests/basic.py
+	python tests/limits.py
+	./tests/pubsub -p $(WEBDIS_PORT)
+
+perftest:
+	# This is a performance test that requires apache2-utils and curl
+	./tests/bench.sh
