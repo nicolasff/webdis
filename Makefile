@@ -4,8 +4,8 @@ JANSSON_OBJ=jansson/src/dump.o jansson/src/error.o jansson/src/hashtable.o janss
 FORMAT_OBJS=formats/json.o formats/raw.o formats/common.o formats/custom-type.o
 HTTP_PARSER_OBJS=http-parser/http_parser.o
 
-CFLAGS=-O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
-LDFLAGS=-levent -pthread
+CFLAGS ?= -O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
+LDFLAGS ?= -levent -pthread
 
 # check for MessagePack
 MSGPACK_LIB=$(shell ls /usr/lib/libmsgpack.so 2>/dev/null)
