@@ -6,9 +6,9 @@ try:
 except:
 	msgpack = None
 
-
-host = '127.0.0.1'
-port = 7379
+import os
+host = os.getenv('WEBDIS_HOST', '127.0.0.1')
+port = int(os.getenv('WEBDIS_PORT', 7379))
 
 class TestWebdis(unittest.TestCase):
 
