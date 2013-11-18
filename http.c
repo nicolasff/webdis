@@ -37,7 +37,7 @@ http_response_init(struct worker *w, int code, const char *msg) {
 	Access-Control-Allow-Headers cannot be a wildcard and must be set
 	with explicit names
 	*/
-	http_response_set_header(r, "Access-Control-Allow-Headers", "X-Requested-With, Content-Type");
+	http_response_set_header(r, "Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization");
 
 	return r;
 }
