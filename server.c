@@ -222,6 +222,10 @@ server_start(struct server *s) {
 	if(s->fd < 0) {
 		return -1;
 	}
+	
+	/*set keepalive socket option to do with half connection*/
+        int keep_alive = 1;
+        setsockopt(s->fd , SOL_SOCKET, SO_KEEPALIVE, (void*)&keep_alive, sizeof(keep_alive));
 
 	/* start http server */
 	event_set(&s->ev, s->fd, EV_READ | EV_PERSIST, server_can_accept, s);
