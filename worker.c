@@ -208,6 +208,7 @@ worker_process_client(struct http_client *c) {
 
 		case HTTP_OPTIONS:
 			http_send_options(c);
+			return;
 
 		default:
 			slog(w->s, WEBDIS_DEBUG, "405", 3);
