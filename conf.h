@@ -8,13 +8,13 @@ struct conf {
 
 	/* connection to Redis */
 	char *redis_host;
-	short redis_port;
+	int redis_port;
 	char *redis_auth;
 
 	/* HTTP server interface */
 	char *http_host;
-	short http_port;
-	short http_threads;
+	int http_port;
+	int http_threads;
 	size_t http_max_request_size;
 
 	/* pool size, one pool per worker thread */

@@ -21,7 +21,7 @@
  * Sets up a non-blocking socket
  */
 static int
-socket_setup(struct server *s, const char *ip, short port) {
+socket_setup(struct server *s, const char *ip, int port) {
 
 	int reuse = 1;
 	struct sockaddr_in addr;
