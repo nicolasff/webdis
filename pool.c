@@ -8,6 +8,9 @@
 #include <event.h>
 #include <hiredis/adapters/libevent.h>
 
+static void
+pool_schedule_reconnect(struct pool* p);
+
 struct pool *
 pool_new(struct worker *w, int count) {
 
@@ -37,6 +40,9 @@ pool_on_connect(const redisAsyncContext *ac, int status) {
 	int i = 0;
 
 	if(!p || status == REDIS_ERR || ac->err) {
+		if (p) {
+			pool_schedule_reconnect(p);
+		}
 		return;
 	}
 	/* connected to redis! */
