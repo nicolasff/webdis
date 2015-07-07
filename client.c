@@ -180,9 +180,9 @@ http_client_on_message_complete(struct http_parser *p) {
 	struct http_client *c = p->data;
 
 	/* keep-alive detection */
-    if (c->parser.flags & F_CONNECTION_CLOSE) {
-        c->keep_alive = 0;
-    } else if(c->parser.http_major == 1 && c->parser.http_minor == 1) { /* 1.1 */
+	if (c->parser.flags & F_CONNECTION_CLOSE) {
+		c->keep_alive = 0;
+	} else if(c->parser.http_major == 1 && c->parser.http_minor == 1) { /* 1.1 */
 		c->keep_alive = 1;
 	}
 	c->http_version = c->parser.http_minor;

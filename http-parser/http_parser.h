@@ -165,7 +165,6 @@ enum flags
   };
 
 
-
 void http_parser_init(http_parser *parser, enum http_parser_type type);
 
 
