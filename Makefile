@@ -5,7 +5,7 @@ B64_OBJS?=b64/cencode.o
 FORMAT_OBJS?=formats/json.o formats/raw.o formats/common.o formats/custom-type.o
 HTTP_PARSER_OBJS?=http-parser/http_parser.o
 
-CFLAGS ?= -g3 -O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
+CFLAGS ?= -O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
 LDFLAGS ?= -levent -pthread
 
 # check for MessagePack
