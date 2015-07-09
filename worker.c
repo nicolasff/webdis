@@ -63,6 +63,8 @@ worker_can_read(int fd, short event, void *p) {
 		if(c->failed_alloc) {
 			slog(c->w->s, WEBDIS_DEBUG, "503", 3);
 			http_send_error(c, 503, "Service Unavailable");
+		} else if (c->parser.flags & F_CONNECTION_CLOSE) {
+			c->broken = 1;
 		} else if(c->is_websocket) {
 			/* we need to use the remaining (unparsed) data as the body. */
 			if(nparsed < ret) {
