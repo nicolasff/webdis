@@ -127,7 +127,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 int
 integer_length(long long int i) {
 	int sz = 0;
-	int ci = abs(i);
+	int ci = llabs(i);
 	while (ci > 0) {
 		ci = (ci/10);
 		sz += 1;
