@@ -1,0 +1,90 @@
+### 0.13.1 - May 03, 2015
+
+This is a bug fix release.
+The new `reconnect` method introduced new struct members, which clashed with pre-defined names in pre-C99 code.
+Another commit forced C99 compilation just to make it work, but of course this is not desirable for outside projects.
+Other non-C99 code can now use hiredis as usual again.
+Sorry for the inconvenience.
+
+* Fix memory leak in async reply handling (Salvatore Sanfilippo)
+* Rename struct member to avoid name clash with pre-c99 code (Alex Balashov, ncopa)
+
+### 0.13.0 - April 16, 2015
+
+This release adds a minimal Windows compatibility layer.
+The parser, standalone since v0.12.0, can now be compiled on Windows
+(and thus used in other client libraries as well)
+
+* Windows compatibility layer for parser code (tzickel)
+* Properly escape data printed to PKGCONF file (Dan Skorupski)
+* Fix tests when assert() undefined (Keith Bennett, Matt Stancliff)
+* Implement a reconnect method for the client context, this changes the structure of `redisContext` (Aaron Bedra)
+
+### 0.12.1 - January 26, 2015
+
+* Fix `make install`: DESTDIR support, install all required files, install PKGCONF in proper location
+* Fix `make test` as 32 bit build on 64 bit platform
+
+### 0.12.0 - January 22, 2015
+
+* Add optional KeepAlive support
+
+* Try again on EINTR errors
+
+* Add libuv adapter
+
+* Add IPv6 support
+
+* Remove possiblity of multiple close on same fd
+
+* Add ability to bind source address on connect
+
+* Add redisConnectFd() and redisFreeKeepFd()
+
+* Fix getaddrinfo() memory leak
+
+* Free string if it is unused (fixes memory leak)
+
+* Improve redisAppendCommandArgv performance 2.5x
+
+* Add support for SO_REUSEADDR
+
+* Fix redisvFormatCommand format parsing
+
+* Add GLib 2.0 adapter
+
+* Refactor reading code into read.c
+
+* Fix errno error buffers to not clobber errors
+
+* Generate pkgconf during build
+
+* Silence _BSD_SOURCE warnings
+
+* Improve digit counting for multibulk creation
+
+
+### 0.11.0
+
+* Increase the maximum multi-bulk reply depth to 7.
+
+* Increase the read buffer size from 2k to 16k.
+
+* Use poll(2) instead of select(2) to support large fds (>= 1024).
+
+### 0.10.1
+
+* Makefile overhaul. Important to check out if you override one or more
+  variables using environment variables or via arguments to the "make" tool.
+
+* Issue #45: Fix potential memory leak for a multi bulk reply with 0 elements
+  being created by the default reply object functions.
+
+* Issue #43: Don't crash in an asynchronous context when Redis returns an error
+  reply after the connection has been made (this happens when the maximum
+  number of connections is reached).
+
+### 0.10.0
+
+* See commit log.
+
