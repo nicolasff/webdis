@@ -5,8 +5,13 @@ B64_OBJS?=b64/cencode.o
 FORMAT_OBJS?=formats/json.o formats/raw.o formats/common.o formats/custom-type.o
 HTTP_PARSER_OBJS?=http-parser/http_parser.o
 
-CFLAGS ?= -O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
-LDFLAGS ?= -levent -pthread
+ifeq ($(shell uname -s), Darwin)
+	CFLAGS ?= -O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser -I/usr/local/include
+	LDFLAGS ?= -levent -pthread -L/usr/local/lib
+else
+	CFLAGS ?= -O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
+	LDFLAGS ?= -levent -pthread
+endif
 
 # check for MessagePack
 MSGPACK_LIB=$(shell ls /usr/lib/libmsgpack.so 2>/dev/null)
