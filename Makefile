@@ -9,11 +9,17 @@ CFLAGS ?= -O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
 LDFLAGS ?= -levent -pthread
 
 # check for MessagePack
-MSGPACK_LIB=$(shell ls /usr/lib/libmsgpack.so 2>/dev/null)
-ifneq ($(strip $(MSGPACK_LIB)),)
+ifneq ($(findstring yes,$(shell pkg-config --exists msgpack && echo yes)),)
 	FORMAT_OBJS += formats/msgpack.o
-	CFLAGS += -DMSGPACK=1
-	LDFLAGS += -lmsgpack
+	CFLAGS += -DMSGPACK=1 $(shell pkg-config --cflags msgpack)
+	LDFLAGS += $(shell pkg-config --libs msgpack)
+else
+	MSGPACK_LIB=$(shell ls /usr/lib/libmsgpack.so 2>/dev/null)
+	ifneq ($(strip $(MSGPACK_LIB)),)
+		FORMAT_OBJS += formats/msgpack.o
+		CFLAGS += -DMSGPACK=1
+		LDFLAGS += -lmsgpack
+	endif
 endif
 
 
