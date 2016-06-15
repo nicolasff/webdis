@@ -8,6 +8,18 @@
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 
+/* msgpack-c versions >= 1.0 changed to support the v5 msgpack spec.
+ * As part of doing this, the (un)pack_raw functions were replaced with
+ * more explicit (un)pack_str and (un)pack_bin.  1.2.0 introduced the
+ * (un)pack_v4raw functions to retain compatibility.
+ */
+#if defined(MSGPACK_VERSION_MAJOR) && defined(MSGPACK_VERSION_MINOR) \
+	&& MSGPACK_VERSION_MAJOR > 1 \
+	|| (MSGPACK_VERSION_MAJOR == 1 && MSGPACK_VERSION_MINOR >= 2)
+#define msgpack_pack_raw msgpack_pack_v4raw
+#define msgpack_pack_raw_body msgpack_pack_v4raw_body
+#endif
+
 struct msg_out {
 	char *p;
 	size_t sz;
