@@ -14,11 +14,11 @@ ifneq ($(findstring yes,$(shell pkg-config --exists msgpack && echo yes)),)
 	CFLAGS += -DMSGPACK=1 $(shell pkg-config --cflags msgpack)
 	LDFLAGS += $(shell pkg-config --libs msgpack)
 else
-	MSGPACK_LIB=$(shell ls /usr/lib/libmsgpack.so 2>/dev/null)
+	MSGPACK_LIB=$(shell ls /usr/lib/libmsgpackc.so /usr/lib/*/libmsgpackc.so 2>/dev/null)
 	ifneq ($(strip $(MSGPACK_LIB)),)
 		FORMAT_OBJS += formats/msgpack.o
 		CFLAGS += -DMSGPACK=1
-		LDFLAGS += -lmsgpack
+		LDFLAGS += -lmsgpackc
 	endif
 endif
 
