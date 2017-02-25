@@ -309,6 +309,11 @@ function checkData() {
     	chunk = response.slice(previous_response_length);
     	previous_response_length = response.length;
     	console.log(chunk);
+//if you get messages faster than you can parse one at a time- convert to valid json first
+      var replacedChunk = chunk.replace(/}{"SUBSCRIBE":/g, '},{"SUBSCRIBE":     ');
+      var validJSON = '['+replacedChunk+']'
+      var json = JSON.parse(validJSON);
+      console.log(json);
     }
 };
 </pre>
