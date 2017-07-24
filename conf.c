@@ -54,18 +54,18 @@ conf_read(const char *filename) {
 			free(conf->redis_host);
 			conf->redis_host = strdup(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "redis_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
-			conf->redis_port = (short)json_integer_value(jtmp);
+			conf->redis_port = (int)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "redis_auth") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			conf->redis_auth = strdup(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "http_host") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			free(conf->http_host);
 			conf->http_host = strdup(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "http_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
-			conf->http_port = (short)json_integer_value(jtmp);
+			conf->http_port = (int)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "http_max_request_size") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->http_max_request_size = (size_t)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "threads") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
-			conf->http_threads = (short)json_integer_value(jtmp);
+			conf->http_threads = (int)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "acl") == 0 && json_typeof(jtmp) == JSON_ARRAY) {
 			conf->perms = conf_parse_acls(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "user") == 0 && json_typeof(jtmp) == JSON_STRING) {
