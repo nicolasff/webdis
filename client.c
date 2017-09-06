@@ -280,9 +280,24 @@ http_client_read(struct http_client *c) {
 
 	char buffer[4096];
 	int ret;
+	int total_read = 0;
 
-	ret = read(c->fd, buffer, sizeof(buffer));
-	if(ret <= 0) {
+	while ((ret = read(c->fd, buffer, sizeof(buffer))) > 0) {
+		total_read += ret;
+		/* save what we've just read */
+		c->buffer = realloc(c->buffer, c->sz + ret);
+		if(!c->buffer) {
+			return (int)CLIENT_OOM;
+		}
+		memcpy(c->buffer + c->sz, buffer, ret);
+		c->sz += ret;
+
+		/* keep track of total sent */
+		c->request_sz += ret;
+	}
+
+	/* If `read` results in EWOULDBLOCK, we've read all we can. */
+	if((ret < 0 && !(ret == -1 && errno == EWOULDBLOCK)) || !total_read) {
 		/* broken link, free buffer and client object */
 
 		/* disconnect pub/sub client if there is one. */
@@ -304,18 +319,7 @@ http_client_read(struct http_client *c) {
 		return (int)CLIENT_DISCONNECTED;
 	}
 
-	/* save what we've just read */
-	c->buffer = realloc(c->buffer, c->sz + ret);
-	if(!c->buffer) {
-		return (int)CLIENT_OOM;
-	}
-	memcpy(c->buffer + c->sz, buffer, ret);
-	c->sz += ret;
-
-	/* keep track of total sent */
-	c->request_sz += ret;
-
-	return ret;
+	return total_read;
 }
 
 int
