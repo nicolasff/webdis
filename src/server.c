@@ -25,6 +25,7 @@ socket_setup(struct server *s, const char *ip, int port) {
 
 	int reuse = 1;
 	struct sockaddr_in addr;
+	socklen_t len = sizeof(addr);
 	int fd, ret;
 
 	memset(&addr, 0, sizeof(addr));
@@ -60,7 +61,7 @@ socket_setup(struct server *s, const char *ip, int port) {
 	}
 
 	/* bind */
-	ret = bind(fd, (struct sockaddr*)&addr, sizeof(addr));
+	ret = bind(fd, (struct sockaddr*)&addr, len);
 	if (0 != ret) {
 		slog(s, WEBDIS_ERROR, strerror(errno), 0);
 		return -1;
@@ -72,6 +73,18 @@ socket_setup(struct server *s, const char *ip, int port) {
 		slog(s, WEBDIS_ERROR, strerror(errno), 0);
 		return -1;
 	}
+
+	if (getsockname(fd, (struct sockaddr *)&addr, &len) != -1) {
+		const char* comment = "Webdis listening on port %d";
+		int port_num = ntohs(addr.sin_port);
+
+		char* buffer = malloc(strlen(comment) -2 + strlen("65535") + 1);
+		sprintf(buffer, comment, port_num);
+
+		slog(s, WEBDIS_INFO, buffer , 0);
+
+        free(buffer);
+    }
 
 	/* there you go, ready to accept! */
 	return fd;
