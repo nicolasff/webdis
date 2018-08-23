@@ -154,7 +154,7 @@ class TestMsgPack(TestWebdis):
 		f = self.query('SET/hello/world.msg')
 		self.assertTrue(f.headers.getheader('Content-Type') == 'application/x-msgpack')
 		obj = msgpack.loads(f.read())
-		self.assertTrue(obj == {'SET': (True, 'OK')})
+		self.assertTrue(obj == {'SET': [True, 'OK']})
 
 	@need_msgpack
 	def test_get(self):
@@ -180,7 +180,7 @@ class TestMsgPack(TestWebdis):
 		self.query('RPUSH/hello/def')
 		f = self.query('LRANGE/hello/0/-1.msg')
 		obj = msgpack.loads(f.read())
-		self.assertTrue(obj == {'LRANGE': ('abc', 'def')})
+		self.assertTrue(obj == {'LRANGE': ['abc', 'def']})
 
 	@need_msgpack
 	def test_error(self):
@@ -189,7 +189,7 @@ class TestMsgPack(TestWebdis):
 		obj = msgpack.loads(f.read())
 		self.assertTrue('UNKNOWN' in obj)
 		self.assertTrue(isinstance(obj, dict))
-		self.assertTrue(isinstance(obj['UNKNOWN'], tuple))
+		self.assertTrue(isinstance(obj['UNKNOWN'], list))
 		self.assertTrue(obj['UNKNOWN'][0] == False)
 		self.assertTrue(isinstance(obj['UNKNOWN'][1], str))
 
