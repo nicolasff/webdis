@@ -8,6 +8,9 @@ HTTP_PARSER_OBJS?=http-parser/http_parser.o
 CFLAGS ?= -O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
 LDFLAGS ?= -levent -pthread
 
+# Pass preprocessor macros to the compile invocation
+CFLAGS += $(CPPFLAGS)
+
 # check for MessagePack
 MSGPACK_LIB=$(shell ls /usr/lib/libmsgpack.so 2>/dev/null)
 ifneq ($(strip $(MSGPACK_LIB)),)
