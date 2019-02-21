@@ -291,7 +291,8 @@ http_client_read(struct http_client *c) {
 
 			/* disconnect from all channels */
 			redisAsyncDisconnect(c->pub_sub->ac);
-			if(c->pub_sub) c->pub_sub->ac = NULL;
+			// c->pub_sub might be already cleared by an event handler in redisAsyncDisconnect
+			cmd->ac = NULL;
 			c->pub_sub = NULL;
 
 			/* delete command object */
