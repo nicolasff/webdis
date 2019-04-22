@@ -1,0 +1,14 @@
+version: '3'
+
+services: 
+  redis:
+    image: redis:5-alpine
+    container_name: redis
+    restart: always
+  webdis:
+    build: 
+      context: ./
+    container_name: webdis
+    restart: always
+    ports: 
+      - 7379:7379

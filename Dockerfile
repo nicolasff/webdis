@@ -1,14 +1,21 @@
-FROM tianon/debian:wheezy
-MAINTAINER Nicolas Favre-Felix <n.favrefelix@gmail.com>
+FROM alpine AS builder
 
-RUN apt-get -y --force-yes install wget make gcc libevent-dev
-RUN apt-get -y --force-yes install redis-server
-RUN wget --no-check-certificate https://github.com/nicolasff/webdis/archive/0.1.1.tar.gz -O webdis-0.1.1.tar.gz
-RUN tar -xvzf webdis-0.1.1.tar.gz
-RUN cd webdis-0.1.1 && make && make install && cd ..
-RUN rm -rf webdis-0.1.1 webdis-0.1.1.tag.gz
-RUN apt-get remove -y wget make gcc
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
+    && apk add --no-cache --virtual .build-deps make gcc g++ bsd-compat-headers libevent-dev
 
-CMD /etc/init.d/redis-server start && /usr/local/bin/webdis /etc/webdis.prod.json && bash
+COPY . /tmp
+
+WORKDIR /tmp
+
+RUN make
+
+FROM alpine
+COPY --from=builder /tmp/webdis /usr/bin/
+COPY --from=builder /tmp/webdis.prod.json /etc/
+
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
+    && apk add --no-cache libevent-dev
+
+ENTRYPOINT [ "/usr/bin/webdis", "/etc/webdis.prod.json" ]
 
 EXPOSE 7379
