@@ -43,6 +43,11 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 * HTTP request limit with `http_max_request_size` (in bytes, set to 128MB by default).
 * Database selection in the URL, using e.g. `/7/GET/key` to run the command on DB 7.
 
+# Docker support
+
+* Run `docker build -t webdis .` to build docker image, and then execute `docker run -d --name webdis --link redis:redis -p 7379:7379 webdis` to link your redis container to run webdis.
+* If you use `docker-compose`, just execute `docker-compose up -d` and then the program up.
+
 # Ideas, TODO...
 * Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands?
 	* This could be done using a “strict mode” with a table of commands and the verbs that can/must be used with each command. Strict mode would be optional, configurable. How would webdis know of new commands remains to be determined.
