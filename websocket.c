@@ -310,7 +310,7 @@ ws_add_data(struct http_client *c) {
 
 	state = ws_parse_data(c->buffer, c->sz, &c->frame);
 
-	if(state == WS_MSG_COMPLETE) {
+	while(state == WS_MSG_COMPLETE) {
 		int ret = ws_execute(c, c->frame->payload, c->frame->payload_sz);
 
 		/* remove frame from client buffer */
@@ -323,6 +323,7 @@ ws_add_data(struct http_client *c) {
 			/* can't process frame. */
 			return WS_ERROR;
 		}
+		state = ws_parse_data(c->buffer, c->sz, &c->frame);
 	}
 	return state;
 }
