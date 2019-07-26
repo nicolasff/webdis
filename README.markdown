@@ -19,6 +19,24 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 
 </pre>
 
+# Try in Docker
+Clone the repository and open a terminal in the webdis directory, then run:
+<pre>
+$ docker build -t webdis .
+[...]
+
+$ docker run --rm -d -p 7379:7379 webdis
+f0a2763fd456ac1f7ebff80eeafd6a5cd0fc7f06c69d0f7717fb2bdcec65926e
+
+$ curl http://127.0.0.1:7379/PING
+{"PING":[true,"PONG"]}
+
+# To stop it:
+$ docker kill $(docker ps | grep webdis | cut -c 1-12)
+f0a2763fd456
+</pre>
+
+
 # Features
 * `GET` and `POST` are supported, as well as `PUT` for file uploads.
 * JSON output by default, optional JSONP parameter (`?jsonp=myFunction` or `?callback=myFunction`).
