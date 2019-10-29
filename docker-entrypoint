@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+set -o errexit
+set -o pipefail
+
+# For debugging
+[[ "${DEBUG}" = 'true' ]] && set -o xtrace
+
+_apply_environment_configuration_to_webdis () {
+  sed -i -e 's/"daemonize":.*true,/"daemonize": false,/g' ${APP_FOLDER}/webdis.prod.json
+  sed -i -e 's/"redis_host":.*"127.0.0.1",/"redis_host": "'"${REDIS_HOST}"'",/g' ${APP_FOLDER}/webdis.prod.json
+  sed -i -e 's/"http_port":.*7379,/"http_port": '"${PORT}"',/g' ${APP_FOLDER}/webdis.prod.json
+}
+
+first_argument=${1:-};
+
+if [[ "${first_argument}" = 'webdis' ]]; then
+  shift
+  remaining_arguments=${*:-}
+
+  _apply_environment_configuration_to_webdis
+  exec "$(command -v webdis)" ${remaining_arguments}
+else
+  exec "${@}"
+fi

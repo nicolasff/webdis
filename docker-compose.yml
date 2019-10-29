@@ -1,0 +1,14 @@
+version: '3.6'
+
+services:
+  redis:
+    image: redis:5-alpine
+    restart: always
+  webdis:
+    build:
+      context: ./
+    restart: always
+    depends_on:
+      - redis
+    ports:
+      - 7379:7379
