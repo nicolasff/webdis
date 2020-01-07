@@ -5,7 +5,7 @@ B64_OBJS?=b64/cencode.o
 FORMAT_OBJS?=formats/json.o formats/raw.o formats/common.o formats/custom-type.o
 HTTP_PARSER_OBJS?=http-parser/http_parser.o
 
-CFLAGS ?= -O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser
+CFLAGS ?= -O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser -MD
 LDFLAGS ?= -levent -pthread
 
 # check for MessagePack
@@ -17,6 +17,8 @@ ifneq ($(strip $(MSGPACK_LIB)),)
 endif
 
 
+
+OBJS_DEPS=$(wildcard *.d)
 DEPS=$(FORMAT_OBJS) $(HIREDIS_OBJ) $(JANSSON_OBJ) $(HTTP_PARSER_OBJS) $(B64_OBJS)
 OBJS=webdis.o cmd.o worker.o slog.o server.o acl.o md5/md5.o sha1/sha1.o http.o client.o websocket.o pool.o conf.o $(DEPS)
 
@@ -45,7 +47,7 @@ $(INSTALL_DIRS):
 	mkdir -p $@
 
 clean:
-	rm -f $(OBJS) $(OUT)
+	rm -f $(OBJS) $(OUT) $(OBJS_DEPS)
 
 install: $(OUT) $(INSTALL_DIRS)
 	cp $(OUT) $(DESTDIR)/$(PREFIX)/bin
@@ -64,3 +66,5 @@ test:
 perftest:
 	# This is a performance test that requires apache2-utils and curl
 	./tests/bench.sh
+
+-include $(OBJS:.o=.d)
