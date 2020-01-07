@@ -5,3 +5,4 @@ webdis
 websocket
 *.png
 pubsub
+*.d
