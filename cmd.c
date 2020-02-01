@@ -235,7 +235,7 @@ cmd_run(struct worker *w, struct http_client *client,
 	}
 
 	/* no args (e.g. INFO command) */
-	if(!slash) {
+	if(cmd->count==1) {
 		if(!cmd->ac) {
 			cmd_free(cmd);
 			return CMD_REDIS_UNAVAIL;
