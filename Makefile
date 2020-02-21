@@ -1,11 +1,11 @@
 OUT=webdis
-HIREDIS_OBJ?=hiredis/hiredis.o hiredis/sds.o hiredis/net.o hiredis/async.o hiredis/read.o hiredis/dict.o
-JANSSON_OBJ?=jansson/src/dump.o jansson/src/error.o jansson/src/hashtable.o jansson/src/load.o jansson/src/strbuffer.o jansson/src/utf.o jansson/src/value.o jansson/src/variadic.o
-B64_OBJS?=b64/cencode.o
-FORMAT_OBJS?=formats/json.o formats/raw.o formats/common.o formats/custom-type.o
-HTTP_PARSER_OBJS?=http-parser/http_parser.o
+HIREDIS_OBJ?=src/hiredis/hiredis.o src/hiredis/sds.o src/hiredis/net.o src/hiredis/async.o src/hiredis/read.o src/hiredis/dict.o
+JANSSON_OBJ?=src/jansson/src/dump.o src/jansson/src/error.o src/jansson/src/hashtable.o src/jansson/src/load.o src/jansson/src/strbuffer.o src/jansson/src/utf.o src/jansson/src/value.o src/jansson/src/variadic.o
+B64_OBJS?=src/b64/cencode.o
+FORMAT_OBJS?=src/formats/json.o src/formats/raw.o src/formats/common.o src/formats/custom-type.o
+HTTP_PARSER_OBJS?=src/http-parser/http_parser.o
 
-CFLAGS ?= -O0 -ggdb -Wall -Wextra -I. -Ijansson/src -Ihttp-parser -MD
+CFLAGS ?= -O3 -Wall -Wextra -Isrc -Isrc/jansson/src -Isrc/http-parser -MD
 LDFLAGS ?= -levent -pthread
 
 # check for MessagePack
@@ -20,7 +20,7 @@ endif
 
 OBJS_DEPS=$(wildcard *.d)
 DEPS=$(FORMAT_OBJS) $(HIREDIS_OBJ) $(JANSSON_OBJ) $(HTTP_PARSER_OBJS) $(B64_OBJS)
-OBJS=webdis.o cmd.o worker.o slog.o server.o acl.o md5/md5.o sha1/sha1.o http.o client.o websocket.o pool.o conf.o $(DEPS)
+OBJS=src/webdis.o src/cmd.o src/worker.o src/slog.o src/server.o src/acl.o src/md5/md5.o src/sha1/sha1.o src/http.o src/client.o src/websocket.o src/pool.o src/conf.o $(DEPS)
 
 
 
