@@ -14,14 +14,14 @@ ifneq ($(strip $(MSGPACK_LIB)),)
 	FORMAT_OBJS += src/formats/msgpack.o
 	CFLAGS += -DMSGPACK=1
 	LDFLAGS += -lmsgpack
-endif
-
+else
 # check for MessagePackC
 MSGPACKC_LIB=$(shell ls /usr/lib/libmsgpackc.so 2>/dev/null)
 ifneq ($(strip $(MSGPACKC_LIB)),)
 	FORMAT_OBJS += src/formats/msgpack.o
 	CFLAGS += -DMSGPACK=1
 	LDFLAGS += -lmsgpackc
+endif
 endif
 
 
