@@ -16,6 +16,13 @@ ifneq ($(strip $(MSGPACK_LIB)),)
 	LDFLAGS += -lmsgpack
 endif
 
+# check for MessagePackC
+MSGPACKC_LIB=$(shell ls /usr/lib/libmsgpackc.so 2>/dev/null)
+ifneq ($(strip $(MSGPACKC_LIB)),)
+	FORMAT_OBJS += src/formats/msgpack.o
+	CFLAGS += -DMSGPACK=1
+	LDFLAGS += -lmsgpackc
+endif
 
 
 OBJS_DEPS=$(wildcard *.d)
