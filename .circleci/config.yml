@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  build:
+  build-and-run-tests:
     docker:
       - image: ubuntu:14.04
       - image: redis:5.0.5-alpine
@@ -22,16 +22,10 @@ jobs:
 
       # Run tests
       - run: |
-          mkdir /tmp/artifacts &&
-          ./tests/basic.py 2>&1 > /tmp/artifacts/test-out.txt 
-
-      # Save artifacts
-      - store_artifacts:
-          path: /tmp/artifacts
-          destination: build
+          ./tests/basic.py
 
 workflows:
   version: 2
   build:
     jobs:
-      - build
+      - build-and-run-tests
