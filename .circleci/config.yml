@@ -14,7 +14,8 @@ jobs:
       - run: |
           apt-get -y update &&
           apt-get -y upgrade &&
-          apt-get -y --force-yes install wget make gcc libevent-dev libmsgpack-dev &&
+          apt-get -y --force-yes install wget make gcc libevent-dev libmsgpack-dev python2.7 &&
+          ln -s /usr/bin/python2.7 /usr/bin/python &&
           make &&
           sed -i -e 's/"daemonize":.*false,/"daemonize": true,/g' webdis.json &&
           ./webdis webdis.json
