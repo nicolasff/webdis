@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/nicolasff/webdis.svg?style=shield)](https://circleci.com/gh/nicolasff/webdis)
+
 # About
 
 A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson), [libevent](http://monkey.org/~provos/libevent/), and [http-parser](https://github.com/ry/http-parser/).
@@ -31,7 +33,7 @@ f0a2763fd456ac1f7ebff80eeafd6a5cd0fc7f06c69d0f7717fb2bdcec65926e
 $ curl http://127.0.0.1:7379/PING
 {"PING":[true,"PONG"]}
 
-# To stop it:
+# To stop it:
 $ docker kill $(docker ps | grep webdis | cut -c 1-12)
 f0a2763fd456
 </pre>
