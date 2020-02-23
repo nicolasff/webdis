@@ -16,7 +16,7 @@ jobs:
           apt-get -y upgrade &&
           apt-get -y --force-yes install wget make gcc libevent-dev libmsgpack-dev &&
           make &&
-          sed -i -e 's/"daemonize":.*true,/"daemonize": false,/g' webdis.json &&
+          sed -i -e 's/"daemonize":.*false,/"daemonize": true,/g' webdis.json &&
           ./webdis webdis.json
 
       # Run tests
