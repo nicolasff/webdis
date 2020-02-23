@@ -1,4 +1,5 @@
 #include "client.h"
+
 #include "http_parser.h"
 #include "http.h"
 #include "server.h"
@@ -15,6 +16,7 @@
 #include <hiredis/async.h>
 
 #define CHECK_ALLOC(c, ptr) if(!(ptr)) { c->failed_alloc = 1; return -1;}
+
 
 static int
 http_client_on_url(struct http_parser *p, const char *at, size_t sz) {
