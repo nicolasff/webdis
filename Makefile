@@ -34,9 +34,8 @@ OBJS=src/webdis.o src/cmd.o src/worker.o src/slog.o src/server.o src/acl.o src/m
 PREFIX ?= /usr/local
 CONFDIR ?= $(DESTDIR)/etc
 
-INSTALL_DIRS = $(DESTDIR) \
-	       $(DESTDIR)/$(PREFIX) \
-	       $(DESTDIR)/$(PREFIX)/bin \
+INSTALL_DIRS = $(DESTDIR)$(PREFIX) \
+	       $(DESTDIR)$(PREFIX)/bin \
 	       $(CONFDIR)
 
 all: $(OUT) Makefile
@@ -57,7 +56,7 @@ clean:
 	rm -f $(OBJS) $(OUT) $(OBJS_DEPS)
 
 install: $(OUT) $(INSTALL_DIRS)
-	cp $(OUT) $(DESTDIR)/$(PREFIX)/bin
+	cp $(OUT) $(DESTDIR)$(PREFIX)/bin
 	cp webdis.prod.json $(CONFDIR)
 
 
