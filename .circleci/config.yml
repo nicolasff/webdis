@@ -8,21 +8,32 @@ jobs:
     working_directory: ~/webdis
 
     steps:
+      # Ubuntu setup (git needed for local execution with circleci)
+      - run:
+          name : Ubuntu update and Git install
+          command: |
+            apt-get -y update &&
+            apt-get -y upgrade &&
+            apt-get -y --force-yes install git
+
       - checkout
 
-      # Build & run
-      - run: |
-          apt-get -y update &&
-          apt-get -y upgrade &&
-          apt-get -y --force-yes install wget make gcc libevent-dev libmsgpack-dev python2.7 &&
-          ln -s /usr/bin/python2.7 /usr/bin/python &&
-          make &&
-          sed -i -e 's/"daemonize":.*false,/"daemonize": true,/g' webdis.json &&
-          ./webdis webdis.json
+      - run:
+          name : Set up build environment
+          command: |
+            apt-get -y --force-yes install wget make gcc libevent-dev libmsgpack-dev python2.7 &&
+            ln -s /usr/bin/python2.7 /usr/bin/python
 
-      # Run tests
-      - run: |
-          ./tests/basic.py
+      - run:
+          name: Build and run webdis
+          command: |
+            make &&
+            sed -i -e 's/"daemonize":.*false,/"daemonize": true,/g' webdis.json &&
+            ./webdis webdis.json
+
+      - run:
+          name: Run tests
+          command: ./tests/basic.py
 
 workflows:
   version: 2
