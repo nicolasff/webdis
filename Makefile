@@ -68,8 +68,8 @@ WEBDIS_PORT ?= 7379
 test_all: test perftest
 
 test:
-	python tests/basic.py
-	python tests/limits.py
+	python3 tests/basic.py
+	python3 tests/limits.py
 	./tests/pubsub -p $(WEBDIS_PORT)
 
 perftest:

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import socket
 import unittest
 
@@ -14,7 +14,7 @@ class BlockingSocket:
 		self.s.connect((HOST, PORT))
 
 	def recv(self):
-		out = ""
+		out = b""
 		while True:
 			try:
 				ret = self.s.recv(4096)
@@ -25,7 +25,7 @@ class BlockingSocket:
 			out += ret
 
 	def recv_until(self, limit):
-		out = ""
+		out = b""
 		while not limit in out:
 			try:
 				out += self.s.recv(4096)
@@ -58,7 +58,7 @@ class LargeString:
 
 	def __getitem__(self, chunk):
 		if chunk.start > self.len:
-			return ""
+			return b""
 		if chunk.start + chunk.stop > self.len:
 			return self.char * (self.len - chunk.start)
 		return self.char * chunk.stop
@@ -75,31 +75,31 @@ class TestHugeUrl(TestSocket):
 	def test_huge_url(self):
 		n = 1024*1024*1024	# 1GB query-string
 
-		start = "GET /GET/x"
-		end = " HTTP/1.0\r\n\r\n"
+		start = b"GET /GET/x"
+		end = b" HTTP/1.0\r\n\r\n"
 
 		ok = self.s.send(start)
-		fail1 = self.s.send(LargeString("A", n))
+		fail1 = self.s.send(LargeString(b"A", n))
 		fail2 = self.s.send(end)
 		out = self.s.recv()
 
 		self.assertTrue(ok)
-		self.assertTrue("400 Bad Request" in out)
+		self.assertTrue(b"400 Bad Request" in out)
 
 	def test_huge_upload(self):
 		n = 1024*1024*1024	# upload 1GB
 
-		start = "PUT /SET/x HTTP/1.0\r\n"\
-		+ ("Content-Length: %d\r\n" % (n))\
-		+ "Expect: 100-continue\r\n\r\n"
+		start = b"PUT /SET/x HTTP/1.0\r\n"\
+		+ ("Content-Length: %d\r\n" % (n)).encode('utf-8')\
+		+ b"Expect: 100-continue\r\n\r\n"
 
 		ok = self.s.send(start)
-		cont = self.s.recv_until("\r\n")
-		fail = self.s.send(LargeString("A", n))
+		cont = self.s.recv_until(b"\r\n")
+		fail = self.s.send(LargeString(b"A", n))
 
 		self.assertTrue(ok)
-		self.assertTrue("HTTP/1.1 100 Continue" in cont)
+		self.assertTrue(b"HTTP/1.1 100 Continue" in cont)
 		self.assertFalse(fail)
 
 if __name__ == '__main__':
-	unittest.main()
+	unittest.main(verbosity=5)

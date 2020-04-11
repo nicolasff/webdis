@@ -21,8 +21,7 @@ jobs:
       - run:
           name : Set up build environment
           command: |
-            apt-get -y --force-yes install wget make gcc libevent-dev libmsgpack-dev python2.7 &&
-            ln -s /usr/bin/python2.7 /usr/bin/python
+            apt-get -y --force-yes install wget make gcc libevent-dev libmsgpack-dev python3
 
       - run:
           name: Build and run webdis
