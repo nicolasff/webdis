@@ -65,6 +65,7 @@ f0a2763fd456
 * Connects to Redis using a TCP or UNIX socket.
 * Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Possible Redis authentication in the config file.
+* Environment variables can be used as values in the config file, starting with `$` and in all caps (e.g. `$REDIS_HOST`).
 * Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
 * Drop privileges on startup.
 * Custom Content-Type using a pre-defined file extension, or with `?type=some/thing`.
@@ -143,6 +144,19 @@ Examples:
 }
 </pre>
 ACLs are interpreted in order, later authorizations superseding earlier ones if a client matches several. The special value "*" matches all commands.
+
+# Environment variables
+
+Environment variables can be used in `webdis.json` to read values from the environment instead of using constant values.
+For this, the value must be a string starting with a dollar symbol and written in all caps. For example, to make the redis host and port configurable via environment variables, use the following:
+
+<pre>
+{
+	"redis_host": "$REDIS_HOST",
+	"redis_port": "$REDIS_PORT",
+	[...]
+}
+</pre>
 
 # JSON output
 JSON is the default output format. Each command returns a JSON object with the command as a key and the result as a value.

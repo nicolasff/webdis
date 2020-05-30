@@ -16,6 +16,49 @@
 static struct acl *
 conf_parse_acls(json_t *jtab);
 
+int
+conf_str_allcaps(const char *s, const size_t sz) {
+	size_t i;
+	for(i = 0; i < sz; i++) {
+		if(s[i] != toupper(s[i])) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+char *
+conf_string_or_envvar(const char *val) {
+	if(!val) {
+		return strdup(""); /* safe value for atoi/aol */
+	}
+	size_t val_len = strlen(val);
+	if(val_len >= 2 && val[0] == '$' && conf_str_allcaps(val+1, val_len-1)) {
+		char *env_val = getenv(val + 1);
+		if(env_val) { /* found in environment */
+			return strdup(env_val);
+		} else {
+			fprintf(stderr, "No value found for env var %s\n", val+1);
+		}
+	}
+	/* duplicate string coming from JSON parser */
+	return strdup(val);
+}
+
+int
+atoi_free(char *s) {
+	int val = atoi(s);
+	free(s);
+	return val;
+}
+
+int
+is_true_free(char *s) {
+	int val = strcasecmp(s, "true") == 0 ? 1 : 0;
+	free(s);
+	return val;
+}
+
 struct conf *
 conf_read(const char *filename) {
 
@@ -52,34 +95,42 @@ conf_read(const char *filename) {
 
 		if(strcmp(json_object_iter_key(kv), "redis_host") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			free(conf->redis_host);
-			conf->redis_host = strdup(json_string_value(jtmp));
+			conf->redis_host = conf_string_or_envvar(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "redis_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->redis_port = (int)json_integer_value(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "redis_port") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->redis_port = atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv), "redis_auth") == 0 && json_typeof(jtmp) == JSON_STRING) {
-			conf->redis_auth = strdup(json_string_value(jtmp));
+			conf->redis_auth = conf_string_or_envvar(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "http_host") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			free(conf->http_host);
-			conf->http_host = strdup(json_string_value(jtmp));
+			conf->http_host = conf_string_or_envvar(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "http_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->http_port = (int)json_integer_value(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "http_port") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->http_port = atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv), "http_max_request_size") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->http_max_request_size = (size_t)json_integer_value(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "http_max_request_size") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->http_max_request_size = (size_t) atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv), "threads") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->http_threads = (int)json_integer_value(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "threads") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->http_threads = atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv), "acl") == 0 && json_typeof(jtmp) == JSON_ARRAY) {
 			conf->perms = conf_parse_acls(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "user") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			struct passwd *u;
-			if((u = getpwnam(json_string_value(jtmp)))) {
+			if((u = getpwnam(conf_string_or_envvar(json_string_value(jtmp))))) {
 				conf->user = u->pw_uid;
 			}
 		} else if(strcmp(json_object_iter_key(kv), "group") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			struct group *g;
-			if((g = getgrnam(json_string_value(jtmp)))) {
+			if((g = getgrnam(conf_string_or_envvar(json_string_value(jtmp))))) {
 				conf->group = g->gr_gid;
 			}
 		} else if(strcmp(json_object_iter_key(kv),"logfile") == 0 && json_typeof(jtmp) == JSON_STRING){
-			conf->logfile = strdup(json_string_value(jtmp));
+			conf->logfile = conf_string_or_envvar(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv),"verbosity") == 0 && json_typeof(jtmp) == JSON_INTEGER){
 			int tmp = json_integer_value(jtmp);
 			if(tmp < 0) conf->verbosity = WEBDIS_ERROR;
@@ -87,16 +138,24 @@ conf_read(const char *filename) {
 			else conf->verbosity = (log_level)tmp;
 		} else if(strcmp(json_object_iter_key(kv), "daemonize") == 0 && json_typeof(jtmp) == JSON_TRUE) {
 			conf->daemonize = 1;
+		} else if(strcmp(json_object_iter_key(kv), "daemonize") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->daemonize = is_true_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv),"pidfile") == 0 && json_typeof(jtmp) == JSON_STRING){
-			conf->pidfile = strdup(json_string_value(jtmp));
+			conf->pidfile = conf_string_or_envvar(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv), "websockets") == 0 && json_typeof(jtmp) == JSON_TRUE) {
 			conf->websockets = 1;
+		} else if(strcmp(json_object_iter_key(kv), "websockets") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->websockets = is_true_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv), "database") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->database = json_integer_value(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "database") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->database = atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv), "pool_size") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->pool_size_per_thread = json_integer_value(jtmp);
+		} else if(strcmp(json_object_iter_key(kv), "pool_size") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->pool_size_per_thread = atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv), "default_root") == 0 && json_typeof(jtmp) == JSON_STRING) {
-			conf->default_root = strdup(json_string_value(jtmp));
+			conf->default_root = conf_string_or_envvar(json_string_value(jtmp));
 		}
 	}
 
@@ -127,7 +186,7 @@ acl_read_commands(json_t *jlist, struct acl_commands *ac) {
 		json_t *jelem = json_array_get(jlist, i);
 		if(json_typeof(jelem) == JSON_STRING) {
 			size_t sz;
-			const char *s = json_string_value(jelem);
+			const char *s = conf_string_or_envvar(json_string_value(jelem));
 			sz = strlen(s);
 
 			ac->commands[cur] = calloc(1 + sz, 1);
@@ -150,7 +209,7 @@ conf_parse_acl(json_t *j) {
 		const char *s;
 		char *p, *ip;
 
-		s = json_string_value(jcidr);
+		s = conf_string_or_envvar(json_string_value(jcidr));
 		p = strchr(s, '/');
 		if(!p) {
 			ip = strdup(s);
@@ -172,7 +231,7 @@ conf_parse_acl(json_t *j) {
 		base64_encodestate b64;
 		int pos;
 		char *p;
-		const char *plain = json_string_value(jbasic);
+		const char *plain = conf_string_or_envvar(json_string_value(jbasic));
 		size_t len, plain_len = strlen(plain) + 0;
 		len = (plain_len + 8) * 8 / 6;
 		a->http_basic_auth = calloc(len, 1);
