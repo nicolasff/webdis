@@ -1,0 +1,16 @@
+version: '3'
+services:
+  redis:
+    image: "redis:6-alpine"
+  webdis:
+    build:
+      context: . 
+      dockerfile: Dockerfile.compose
+    ports:
+      - "7379:7379"
+    expose:
+      - "7379"
+    links:
+      - redis
+    environment:
+      WEBDIS_CREDENTIALS: "webdis_user:webdis_p4$$w0rD"

@@ -35,6 +35,19 @@ $ docker stop $(docker ps | grep webdis | cut -c 1-12)
 0d2ce311a483
 </pre>
 
+# Try in Docker-compose
+
+<pre>
+$ docker-compose build
+[...]
+
+$ docker-compose up
+[...]
+
+$ curl http://127.0.0.1:7379/PING
+{"PING":[true,"PONG"]}
+</pre>
+
 # Build and run Docker image locally
 
 Clone the repository and open a terminal in the webdis directory, then run:
