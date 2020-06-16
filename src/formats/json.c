@@ -181,7 +181,7 @@ json_singlestream_list(const redisReply *r) {
 	const redisReply *id, *msg;
 	const redisReply *e;
 
-	/* reply on XRANGE / XREVRAGE / XCLAIM and one substream from XREAD / XREADGROUP */ 
+	/* reply on XRANGE / XREVRANGE / XCLAIM and one substream of XREAD / XREADGROUP */ 
 	jlist = json_array();
 	for(i = 0; i < r->elements; i++) {
 		e=r->element[i];
@@ -207,7 +207,7 @@ json_xreadstream_list(const redisReply *r) {
 	const redisReply *sid, *msglist;
 	const redisReply *e;
 
-	/* reply on XPEAD / XREADGROUP */ 
+	/* reply on XREAD / XREADGROUP */ 
 	if(r->elements) jobj = json_object();
 	for(i = 0; i < r->elements; i++) {
 		e=r->element[i];
