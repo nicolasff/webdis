@@ -25,7 +25,7 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 		return;
 	}
 
-	if (reply == NULL) { /* broken Redis link */
+	if(reply == NULL) { /* broken Redis link */
 		format_send_error(cmd, 503, "Service Unavailable");
 		return;
 	}
@@ -89,7 +89,7 @@ json_info_reply(const char *s) {
 }
 
 static json_t *
-json_exand_array(const redisReply *r);
+json_expand_array(const redisReply *r);
 
 static json_t *
 json_array_to_keyvalue_reply(const redisReply *r) {
@@ -105,7 +105,7 @@ json_array_to_keyvalue_reply(const redisReply *r) {
 	for(i = 0; i < r->elements; i += 2) {
 		redisReply *k = r->element[i], *v = r->element[i+1];
 
-		/* keys and values need to be strings */
+		/* keys need to be strings */
 		if(k->type != REDIS_REPLY_STRING) {
 			json_decref(jroot);
 			return NULL;
@@ -124,8 +124,9 @@ json_array_to_keyvalue_reply(const redisReply *r) {
 			break;
 			
 		case REDIS_REPLY_ARRAY:
-			if (!(jlist=json_exand_array(v)))
+			if(!(jlist = json_expand_array(v))) {
 				jlist = json_null();
+			}
 
 			json_object_set_new(jroot, k->str, jlist);
 			break;
@@ -133,14 +134,14 @@ json_array_to_keyvalue_reply(const redisReply *r) {
 		default:
 			json_decref(jroot);
 			return NULL;
-		} 
+		}
 		
 	}
 	return jroot;
 }
 
 static json_t *
-json_exand_array(const redisReply *r) {
+json_expand_array(const redisReply *r) {
 
 	unsigned int i;
 	json_t *jlist, *sublist;
@@ -159,8 +160,9 @@ json_exand_array(const redisReply *r) {
 			break;
 			
 		case REDIS_REPLY_ARRAY:
-			if(!(sublist=json_exand_array(e)))
+			if(!(sublist = json_expand_array(e))) {
 				sublist = json_null();
+			}
 			json_array_append_new(jlist, sublist);
 			break;
 			
@@ -181,18 +183,26 @@ json_singlestream_list(const redisReply *r) {
 	const redisReply *id, *msg;
 	const redisReply *e;
 
-	/* reply on XRANGE / XREVRANGE / XCLAIM and one substream of XREAD / XREADGROUP */ 
+	/* reply on XRANGE / XREVRANGE / XCLAIM and one substream of XREAD / XREADGROUP */
 	jlist = json_array();
 	for(i = 0; i < r->elements; i++) {
-		e=r->element[i];
-		if(e->type!=REDIS_REPLY_ARRAY || e->elements<2) continue;
-		id = e->element[0]; msg = e->element[1];
-		if(id->type!=REDIS_REPLY_STRING || id->len<1) continue;
-		if(msg->type!=REDIS_REPLY_ARRAY || msg->elements<2) continue;
+		e = r->element[i];
+		if(e->type != REDIS_REPLY_ARRAY || e->elements < 2) {
+			continue;
+		}
+		id = e->element[0];
+		msg = e->element[1];
+		if(id->type != REDIS_REPLY_STRING || id->len < 1) {
+			continue;
+		}
+		if(msg->type != REDIS_REPLY_ARRAY || msg->elements < 2) {
+			continue;
+		}
 		jmsg = json_object();
 		json_object_set_new(jmsg, "id", json_string(id->str));
-		if(!(jsubmsg=json_array_to_keyvalue_reply(msg)))
-			jsubmsg=json_null();
+		if(!(jsubmsg = json_array_to_keyvalue_reply(msg))) {
+			jsubmsg = json_null();
+		}
 		json_object_set_new(jmsg, "msg", jsubmsg);
 		json_array_append_new(jlist, jmsg);
 	}
@@ -203,20 +213,29 @@ static json_t *
 json_xreadstream_list(const redisReply *r) {
 
 	unsigned int i;
-	json_t *jobj=NULL, *jlist;
+	json_t *jobj = NULL, *jlist;
 	const redisReply *sid, *msglist;
 	const redisReply *e;
 
-	/* reply on XREAD / XREADGROUP */ 
-	if(r->elements) jobj = json_object();
+	/* reply on XREAD / XREADGROUP */
+	if(r->elements) {
+		jobj = json_object();
+	}
 	for(i = 0; i < r->elements; i++) {
-		e=r->element[i];
-		if(e->type!=REDIS_REPLY_ARRAY || e->elements<2) continue;
+		e = r->element[i];
+		if(e->type != REDIS_REPLY_ARRAY || e->elements < 2) {
+			continue;
+		}
 		sid = e->element[0]; msglist = e->element[1];
-		if(sid->type!=REDIS_REPLY_STRING || sid->len<1) continue;
-		if(msglist->type!=REDIS_REPLY_ARRAY) continue;
-		if(!(jlist=json_singlestream_list(msglist)))
-			jlist=json_null();
+		if(sid->type != REDIS_REPLY_STRING || sid->len < 1) {
+			continue;
+		}
+		if(msglist->type != REDIS_REPLY_ARRAY) {
+			continue;
+		}
+		if(!(jlist = json_singlestream_list(msglist))) {
+			jlist = json_null();
+		}
 		json_object_set_new(jobj, sid->str, jlist);
 	}
 	return jobj;
@@ -230,22 +249,30 @@ json_xpending_list(const redisReply *r) {
 	const redisReply *own, *msgs;
 	const redisReply *e;
 
-	if (r->elements >= 4 && r->element[0]->type == REDIS_REPLY_INTEGER) {
-		/* reply on XPENDING  stream1 group1 */ 
-		jobj=json_object();
+	if(r->elements >= 4 && r->element[0]->type == REDIS_REPLY_INTEGER) {
+		/* reply on XPENDING <key> <consumergroup> */
+		jobj = json_object();
 		json_object_set_new(jobj, "msgs", json_integer(r->element[0]->integer));
-		if (r->element[1]->type == REDIS_REPLY_STRING)
+		if(r->element[1]->type == REDIS_REPLY_STRING) {
 			json_object_set_new(jobj, "idmin", json_string(r->element[1]->str));
-		if (r->element[2]->type == REDIS_REPLY_STRING)
+		}
+		if(r->element[2]->type == REDIS_REPLY_STRING) {
 			json_object_set_new(jobj, "idmax", json_string(r->element[2]->str));
-		if (r->element[3]->type != REDIS_REPLY_ARRAY)
+		}
+		if(r->element[3]->type != REDIS_REPLY_ARRAY) {
 			return jobj;
-		jown=json_object();
+		}
+		jown = json_object();
 		for(i = 0; i < r->element[3]->elements; i++) {
-			e=r->element[3]->element[i];
-			if(e->type!=REDIS_REPLY_ARRAY || e->elements<2) continue;
-			own = e->element[0]; msgs = e->element[1];
-			if(own->type != REDIS_REPLY_STRING) continue;
+			e = r->element[3]->element[i];
+			if(e->type != REDIS_REPLY_ARRAY || e->elements < 2) {
+				continue;
+			}
+			own = e->element[0];
+			msgs = e->element[1];
+			if(own->type != REDIS_REPLY_STRING) {
+				continue;
+			}
 			switch(msgs->type){
 				case REDIS_REPLY_STRING:
 					json_object_set_new(jown, own->str, json_string(msgs->str));
@@ -256,25 +283,31 @@ json_xpending_list(const redisReply *r) {
 					break;
 			}
 		}
-		json_object_set_new(jobj, "msgsperowner", jown);
+		json_object_set_new(jobj, "msgsperconsumer", jown);
 		
 		return jobj;
 	}
 
-	/* reply on XPENDING  stream1 group1 - + count */ 
+	/* reply on XPENDING <key> <consumergroup> <minid> <maxid> <count> ... */
 	jlist = json_array();
 	for(i = 0; i < r->elements; i++) {
-		e=r->element[i];
-		if(e->type != REDIS_REPLY_ARRAY || e->elements < 4) continue;
-		jobj=json_object();
-		if (e->element[0]->type == REDIS_REPLY_STRING)
+		e = r->element[i];
+		if(e->type != REDIS_REPLY_ARRAY || e->elements < 4) {
+			continue;
+		}
+		jobj = json_object();
+		if(e->element[0]->type == REDIS_REPLY_STRING) {
 			json_object_set_new(jobj, "id", json_string(e->element[0]->str));
-		if (e->element[1]->type == REDIS_REPLY_STRING)
+		}
+		if(e->element[1]->type == REDIS_REPLY_STRING) {
 			json_object_set_new(jobj, "owner", json_string(e->element[1]->str));
-		if (e->element[2]->type == REDIS_REPLY_INTEGER)
+		}
+		if(e->element[2]->type == REDIS_REPLY_INTEGER) {
 			json_object_set_new(jobj, "elapsedtime", json_integer(e->element[2]->integer));
-		if (e->element[3]->type == REDIS_REPLY_INTEGER)
-			json_object_set_new(jobj, "delivers", json_integer(e->element[3]->integer));
+		}
+		if(e->element[3]->type == REDIS_REPLY_INTEGER) {
+			json_object_set_new(jobj, "deliveries", json_integer(e->element[3]->integer));
+		}
 		json_array_append_new(jlist, jobj);
 	}
 
@@ -285,16 +318,18 @@ static json_t *
 json_georadius_with_list(const redisReply *r) {
 
 	unsigned int i, j;
-	json_t *jobj, *jlist=NULL, *jcoo;
+	json_t *jobj, *jlist = NULL, *jcoo;
 	const redisReply *e;
 
-	/* reply on GEORADIUS* ... WITHCOORD | WITHDIST | WITHHASH */ 
+	/* reply on GEORADIUS* ... WITHCOORD | WITHDIST | WITHHASH */
 	jlist = json_array();
 	for(i = 0; i < r->elements; i++) {
-		e=r->element[i];
-		if(e->type!=REDIS_REPLY_ARRAY || e->elements<1) continue;
+		e = r->element[i];
+		if(e->type != REDIS_REPLY_ARRAY || e->elements < 1) {
+			continue;
+		}
 		jobj = json_object();
-		json_object_set_new(jobj, "member", json_string(e->element[0]->str));
+		json_object_set_new(jobj, "name", json_string(e->element[0]->str));
 		for(j = 1; j < e->elements; j++) {
 			switch(e->element[j]->type) {
 				case REDIS_REPLY_INTEGER:
@@ -306,12 +341,16 @@ json_georadius_with_list(const redisReply *r) {
 					break;
 					
 				case REDIS_REPLY_ARRAY:
-					if(e->element[j]->type!=REDIS_REPLY_ARRAY || e->element[j]->elements<2) continue; 
-					if(e->element[j]->element[0]->type!=REDIS_REPLY_STRING || e->element[j]->element[1]->type!=REDIS_REPLY_STRING) continue; 
+					if(e->element[j]->type != REDIS_REPLY_ARRAY || e->element[j]->elements != 2) {
+						continue;
+					}
+					if(e->element[j]->element[0]->type != REDIS_REPLY_STRING || e->element[j]->element[1]->type != REDIS_REPLY_STRING) {
+						continue;
+					}
 					jcoo = json_array();
 					json_array_append_new(jcoo, json_string(e->element[j]->element[0]->str));
 					json_array_append_new(jcoo, json_string(e->element[j]->element[1]->str));
-					json_object_set_new(jobj, "coord", jcoo);
+					json_object_set_new(jobj, "coords", jcoo);
 					break;
 			}
 		
@@ -361,38 +400,40 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 		case REDIS_REPLY_ARRAY:
 			if(strcasecmp(verb, "HGETALL") == 0) {
 				jobj = json_array_to_keyvalue_reply(r);
-				if(jobj)
+				if(jobj) {
 					json_object_set_new(jroot, verb, jobj);
+				}
 				break;
-			}else
-			if(strcasecmp(verb, "XRANGE") == 0 || strcasecmp(verb, "XREVRANGE") == 0 ||
+			} else if(strcasecmp(verb, "XRANGE") == 0 || strcasecmp(verb, "XREVRANGE") == 0 ||
 					(strcasecmp(verb, "XCLAIM") == 0 &&  r->elements > 0 && r->element[0]->type == REDIS_REPLY_ARRAY)) {
 				jobj = json_singlestream_list(r);
-				if(jobj)
+				if(jobj) {
 					json_object_set_new(jroot, verb, jobj);
+				}
 				break;
-			}else
-			if(strcasecmp(verb, "XREAD") == 0 || strcasecmp(verb, "XREADGROUP") == 0) {
+			} else if(strcasecmp(verb, "XREAD") == 0 || strcasecmp(verb, "XREADGROUP") == 0) {
 				jobj = json_xreadstream_list(r);
-				if(jobj)
+				if(jobj) {
 					json_object_set_new(jroot, verb, jobj);
+				}
 				break;
-			}else
-			if(strcasecmp(verb, "XPENDING") == 0) {
+			} else if(strcasecmp(verb, "XPENDING") == 0) {
 				jobj = json_xpending_list(r);
-				if(jobj)
+				if(jobj) {
 					json_object_set_new(jroot, verb, jobj);
+				}
 				break;
-			}else
-			if(strncasecmp(verb, "GEORADIUS", 9) == 0 &&  r->elements > 0 && r->element[0]->type == REDIS_REPLY_ARRAY) {
+			} else if(strncasecmp(verb, "GEORADIUS", 9) == 0 && r->elements > 0 && r->element[0]->type == REDIS_REPLY_ARRAY) {
 				jobj = json_georadius_with_list(r);
-				if(jobj)
+				if(jobj) {
 					json_object_set_new(jroot, verb, jobj);
+				}
 				break;
 			}
 			
-			if (!(jlist=json_exand_array(r)))
+			if(!(jlist = json_expand_array(r))) {
 				jlist = json_null();
+			}
 
 			json_object_set_new(jroot, verb, jlist);
 			break;
@@ -421,7 +462,7 @@ json_string_output(json_t *j, const char *jsonp) {
 		char *ret = calloc(1 + ret_len, 1);
 
 		memcpy(ret, jsonp, jsonp_len);
-		ret[jsonp_len]='(';
+		ret[jsonp_len] = '(';
 		memcpy(ret + jsonp_len + 1, json_reply, json_len);
 		memcpy(ret + jsonp_len + 1 + json_len, ");\n", 3);
 		free(json_reply);
@@ -511,4 +552,3 @@ json_ws_extract(struct http_client *c, const char *p, size_t sz) {
 	json_decref(j);
 	return cmd;
 }
- 
