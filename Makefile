@@ -24,6 +24,14 @@ ifneq ($(strip $(MSGPACKC_LIB)),)
 	FORMAT_OBJS += src/formats/msgpack.o
 	CFLAGS += -DMSGPACK=1
 	LDFLAGS += -lmsgpackc
+else
+# check for MessagePack on macOS
+MSGPACK_OSX_LIB=$(shell ls /usr/local/lib/libmsgpackc.dylib 2>/dev/null)
+ifneq ($(strip $(MSGPACK_OSX_LIB)),)
+	FORMAT_OBJS += src/formats/msgpack.o
+	CFLAGS += -DMSGPACK=1
+	LDFLAGS += -lmsgpackc
+endif
 endif
 endif
 
