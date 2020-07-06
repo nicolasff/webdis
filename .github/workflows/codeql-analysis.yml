@@ -32,19 +32,9 @@ jobs:
       uses: github/codeql-action/init@v1
       # Override language selection by uncommenting this and choosing your languages
       with:
-        languages: c
+        languages: cpp
 
-    # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
-    # If this step fails, then you should remove it and run the build manually (see below)
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v1
-
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 https://git.io/JvXDl
-
-    #- run: |
-    #   make bootstrap
-    #   make release
+    - run: make clean all
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
