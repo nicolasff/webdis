@@ -34,7 +34,5 @@ jobs:
       with:
         languages: cpp
 
-    - run: make clean all
-
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
