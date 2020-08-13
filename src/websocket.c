@@ -77,10 +77,26 @@ ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 	return 0;
 }
 
+
+void
+ws_write_all(int socket, void *buffer, size_t length) {
+    size_t written = 0;
+    int n;
+    while (written < length) {
+        int n = write(socket, (char*)buffer + written, length - written);
+        if (n <= 0) {
+            if (errno == EINTR || errno == EAGAIN)
+                continue;
+            err(EXIT_FAILURE, "Could not write() data");
+        }
+        written += n;
+    }
+}
+
+
 int
 ws_handshake_reply(struct http_client *c) {
 
-	int ret;
 	char sha1_handshake[40];
 	char *buffer = NULL, *p;
 	const char *origin = NULL, *host = NULL;
@@ -159,8 +175,7 @@ ws_handshake_reply(struct http_client *c) {
 	p += sizeof(template4)-1;
 
 	/* send data to client */
-	ret = write(c->fd, buffer, sz);
-	(void)ret;
+	ws_write_all(c->fd, buffer, sz);
 	free(buffer);
 
 	return 0;
