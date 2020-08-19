@@ -61,7 +61,7 @@ msgpack_reply(redisAsyncContext *c, void *r, void *privdata) {
 }
 
 static int
-on_msgpack_write(void *data, const char *s, unsigned int sz) {
+on_msgpack_write(void *data, const char *s, size_t sz) {
 
 	struct msg_out *out = data;
 

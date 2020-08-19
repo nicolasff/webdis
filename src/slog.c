@@ -51,6 +51,7 @@ slog(struct server *s, log_level level,
 
 	const char *c = ".-*#";
 	time_t now;
+	struct tm now_tm, *lt_ret;
 	char time_buf[64];
 	char msg[124];
 	char line[256]; /* bounds are checked. */
@@ -66,7 +67,13 @@ slog(struct server *s, log_level level,
 
 	/* get current time */
 	now = time(NULL);
-	strftime(time_buf, sizeof(time_buf), "%d %b %H:%M:%S", localtime(&now));
+	lt_ret = localtime_r(&now, &now_tm);
+	if(lt_ret) {
+		strftime(time_buf, sizeof(time_buf), "%d %b %H:%M:%S", lt_ret);
+	} else {
+		const char err_msg[] = "(NO TIME AVAILABLE)";
+		strncpy(time_buf, err_msg, sizeof(err_msg));
+	}
 
 	/* generate output line. */
 	line_sz = snprintf(line, sizeof(line),

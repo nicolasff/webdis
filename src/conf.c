@@ -237,7 +237,11 @@ conf_parse_acl(json_t *j) {
 		a->http_basic_auth = calloc(len, 1);
 		
 		base64_init_encodestate(&b64);
-		pos = base64_encode_block(plain, (int)plain_len, a->http_basic_auth, &b64); /* FIXME: check return value */
+		pos = base64_encode_block(plain, (int)plain_len, a->http_basic_auth, &b64);
+		if(!pos) { /* nothing was encoded */
+			fprintf(stderr, "Error: could not encode credentials as HTTP basic auth header\n");
+			exit(1);
+		}
 		base64_encode_blockend(a->http_basic_auth + pos, &b64);
 
 		/* end string with \0 rather than \n */
