@@ -349,7 +349,7 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 		frame[1] = sz;
 		memcpy(frame + 2, p, sz);
 		frame_sz = sz + 2;
-	} else if (sz > 125 && sz <= 65536) {
+	} else if (sz <= 65536) {
 		uint16_t sz16 = htons(sz);
 		frame[1] = 126;
 		memcpy(frame + 2, &sz16, 2);
