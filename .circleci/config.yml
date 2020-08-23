@@ -24,15 +24,15 @@ jobs:
             apt-get -y --force-yes install wget make gcc libevent-dev libmsgpack-dev python3
 
       - run:
-          name: Build and run webdis
-          command: |
-            make &&
-            sed -i -e 's/"daemonize":.*false,/"daemonize": true,/g' webdis.json &&
-            ./webdis webdis.json
+          name: Build
+          command: make clean all
 
       - run:
-          name: Run tests
-          command: ./tests/basic.py
+          name: Run webdis and trigger tests
+          command: |
+            sed -i -e 's/"daemonize":.*false,/"daemonize": true,/g' webdis.json &&
+            ./webdis webdis.json &&
+            ./tests/basic.py
 
 workflows:
   version: 2
