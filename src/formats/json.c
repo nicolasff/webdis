@@ -5,6 +5,7 @@
 #include "client.h"
 
 #include <string.h>
+#include <strings.h>
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 

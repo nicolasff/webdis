@@ -17,6 +17,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 #include <ctype.h>

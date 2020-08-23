@@ -5,7 +5,7 @@ B64_OBJS?=src/b64/cencode.o
 FORMAT_OBJS?=src/formats/json.o src/formats/raw.o src/formats/common.o src/formats/custom-type.o
 HTTP_PARSER_OBJS?=src/http-parser/http_parser.o
 
-CFLAGS ?= -std=c99 -O3 -Wall -Wextra -Isrc -Isrc/jansson/src -Isrc/http-parser -MD -Wno-unused-function
+CFLAGS ?= -std=c99 -O3 -Wall -Wextra -Isrc -Isrc/jansson/src -Isrc/http-parser -MD -Wno-unused-function -Wimplicit-function-declaration
 LDFLAGS ?= -levent -pthread
 
 # Pass preprocessor macros to the compile invocation
