@@ -5,7 +5,7 @@ B64_OBJS?=src/b64/cencode.o
 FORMAT_OBJS?=src/formats/json.o src/formats/raw.o src/formats/common.o src/formats/custom-type.o
 HTTP_PARSER_OBJS?=src/http-parser/http_parser.o
 
-CFLAGS ?= -O3 -Wall -Wextra -Isrc -Isrc/jansson/src -Isrc/http-parser -MD
+CFLAGS ?= -Wall -Wextra -Isrc -Isrc/jansson/src -Isrc/http-parser -MD
 LDFLAGS ?= -levent -pthread
 
 # Pass preprocessor macros to the compile invocation
@@ -49,7 +49,15 @@ INSTALL_DIRS = $(DESTDIR)$(PREFIX) \
 	       $(DESTDIR)$(PREFIX)/bin \
 	       $(CONFDIR)
 
-all: $(OUT) Makefile
+# entry point, release build
+all: CFLAGS += -O3
+all: bld
+
+# alternative: debug build
+debug: CFLAGS += -DDEBUG -g -O0
+debug: bld
+
+bld: $(OUT) Makefile
 
 $(OUT): $(OBJS) Makefile
 	$(CC) -o $(OUT) $(OBJS) $(LDFLAGS)
