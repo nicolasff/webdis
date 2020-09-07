@@ -91,7 +91,7 @@ f0a2763fd456
 	* Not sure if this is such a good idea.
 * SPDY?
 	* SPDY is mostly useful for parallel fetches. Not sure if it would make sense for Webdis.
-* Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by mail to n.favrefelix@gmail.com.
+* Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by e-mail to n.favrefelix@gmail.com.
 
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed.
