@@ -51,7 +51,7 @@ int utf8_check_first(char byte)
     if(u < 0x80)
         return 1;
 
-    if(0x80 <= u && u <= 0xBF) {
+    if(u <= 0xBF) {
         /* second, third or fourth byte of a multi-byte
            sequence, i.e. a "continuation byte" */
         return 0;
