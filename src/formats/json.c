@@ -114,15 +114,15 @@ json_array_to_keyvalue_reply(const redisReply *r) {
 		case REDIS_REPLY_NIL:
 			json_object_set_new(jroot, k->str, json_null());
 			break;
-			
+
 		case REDIS_REPLY_STRING:
 			json_object_set_new(jroot, k->str, json_string(v->str));
 			break;
-			
+
 		case REDIS_REPLY_INTEGER:
 			json_object_set_new(jroot, k->str, json_integer(v->integer));
 			break;
-			
+
 		case REDIS_REPLY_ARRAY:
 			if(!(jlist = json_expand_array(v))) {
 				jlist = json_null();
@@ -130,12 +130,12 @@ json_array_to_keyvalue_reply(const redisReply *r) {
 
 			json_object_set_new(jroot, k->str, jlist);
 			break;
-			
+
 		default:
 			json_decref(jroot);
 			return NULL;
 		}
-		
+
 	}
 	return jroot;
 }
@@ -154,18 +154,18 @@ json_expand_array(const redisReply *r) {
 		case REDIS_REPLY_STRING:
 			json_array_append_new(jlist, json_string(e->str));
 			break;
-			
+
 		case REDIS_REPLY_INTEGER:
 			json_array_append_new(jlist, json_integer(e->integer));
 			break;
-			
+
 		case REDIS_REPLY_ARRAY:
 			if(!(sublist = json_expand_array(e))) {
 				sublist = json_null();
 			}
 			json_array_append_new(jlist, sublist);
 			break;
-			
+
 		case REDIS_REPLY_NIL:
 		default:
 			json_array_append_new(jlist, json_null());
@@ -277,14 +277,14 @@ json_xpending_list(const redisReply *r) {
 				case REDIS_REPLY_STRING:
 					json_object_set_new(jown, own->str, json_string(msgs->str));
 					break;
-					
+
 				case REDIS_REPLY_INTEGER:
 					json_object_set_new(jown, own->str, json_integer(msgs->integer));
 					break;
 			}
 		}
 		json_object_set_new(jobj, "msgsperconsumer", jown);
-		
+
 		return jobj;
 	}
 
@@ -335,11 +335,11 @@ json_georadius_with_list(const redisReply *r) {
 				case REDIS_REPLY_INTEGER:
 					json_object_set_new(jobj, "hash", json_integer(e->element[j]->integer));
 					break;
-					
+
 				case REDIS_REPLY_STRING:
 					json_object_set_new(jobj, "dist", json_string(e->element[j]->str));
 					break;
-					
+
 				case REDIS_REPLY_ARRAY:
 					if(e->element[j]->type != REDIS_REPLY_ARRAY || e->element[j]->elements != 2) {
 						continue;
@@ -353,7 +353,7 @@ json_georadius_with_list(const redisReply *r) {
 					json_object_set_new(jobj, "coords", jcoo);
 					break;
 			}
-		
+
 		}
 		json_array_append_new(jlist, jobj);
 	}
@@ -430,7 +430,7 @@ json_wrap_redis_reply(const struct cmd *cmd, const redisReply *r) {
 				}
 				break;
 			}
-			
+
 			if(!(jlist = json_expand_array(r))) {
 				jlist = json_null();
 			}

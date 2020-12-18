@@ -51,7 +51,7 @@ cmd_free(struct cmd *c) {
 		|| cmd_is_subscribe(c))) {
 		pool_free_context(c->ac);
 	}
-	
+
 	for(i = 0; i < c->count; ++i) {
 		free((char*)c->argv[i]);
 	}

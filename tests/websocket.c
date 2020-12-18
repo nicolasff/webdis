@@ -245,7 +245,7 @@ main(int argc, char *argv[]) {
 	struct host_info hi = {host_default, port_default};
 
 	struct worker_thread *workers;
-	
+
 	/* getopt */
 	while ((opt = getopt(argc, argv, "h:p:c:n:v")) != -1) {
 		switch (opt) {

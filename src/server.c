@@ -92,7 +92,7 @@ socket_setup(struct server *s, const char *ip, int port) {
 
 struct server *
 server_new(const char *cfg_file) {
-	
+
 	int i;
 	struct server *s = calloc(1, sizeof(struct server));
 
@@ -235,7 +235,7 @@ server_start(struct server *s) {
 	if(s->fd < 0) {
 		return -1;
 	}
-	
+
 	/*set keepalive socket option to do with half connection*/
         int keep_alive = 1;
         setsockopt(s->fd , SOL_SOCKET, SO_KEEPALIVE, (void*)&keep_alive, sizeof(keep_alive));

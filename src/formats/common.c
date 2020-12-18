@@ -117,7 +117,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			format_send_error(cmd, 503, "Service Unavailable");
 		}
 	}
-	
+
 	/* cleanup */
 	if(free_cmd) {
 		cmd_free(cmd);

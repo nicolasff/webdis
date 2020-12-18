@@ -235,7 +235,7 @@ conf_parse_acl(json_t *j) {
 		size_t len, plain_len = strlen(plain) + 0;
 		len = (plain_len + 8) * 8 / 6;
 		a->http_basic_auth = calloc(len, 1);
-		
+
 		base64_init_encodestate(&b64);
 		pos = base64_encode_block(plain, (int)plain_len, a->http_basic_auth, &b64);
 		if(!pos) { /* nothing was encoded */

@@ -136,7 +136,7 @@ reader_can_read(int fd, short event, void *ptr) {
 			}
 		} while(1);
 	}
-	
+
 	cx_install(c);
 }
 
@@ -320,7 +320,7 @@ main(int argc, char *argv[]) {
 
 	/* save time now */
 	clock_gettime(CLOCK_MONOTONIC, &t0);
-	
+
 	/* run test */
 	event_base_dispatch(base);
 

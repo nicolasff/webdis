@@ -118,9 +118,9 @@ http_can_write(int fd, short event, void *p) {
 	struct http_response *r = p;
 
 	(void)event;
-	
+
 	ret = write(fd, r->out + r->sent, r->out_sz - r->sent);
-	
+
 	if(ret > 0)
 		r->sent += ret;
 
@@ -152,7 +152,7 @@ format_chunk(const char *p, size_t sz, size_t *out_sz) {
 
 	/* calculate format size */
 	chunk_size = sprintf(tmp, "%x\r\n", (int)sz);
-	
+
 	*out_sz = chunk_size + sz + 2;
 	out = malloc(*out_sz);
 	memcpy(out, tmp, chunk_size);

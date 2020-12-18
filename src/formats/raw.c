@@ -101,7 +101,7 @@ end:
 
 static char *
 raw_array(const redisReply *r, size_t *sz) {
-	
+
 	unsigned int i;
 	char *ret, *p;
 

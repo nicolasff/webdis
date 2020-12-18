@@ -225,7 +225,7 @@ ws_msg_new() {
 
 static void
 ws_msg_add(struct ws_msg *m, const char *p, size_t psz, const unsigned char *mask) {
-	
+
 	/* add data to frame */
 	size_t i;
 	m->payload = realloc(m->payload, m->payload_sz + psz);
@@ -250,7 +250,7 @@ ws_msg_free(struct ws_msg **m) {
 
 static enum ws_state
 ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
-	
+
 	int has_mask;
 	uint64_t len;
 	const char *p;
@@ -368,7 +368,7 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 	if (cmd_is_subscribe(cmd)) {
 		r->keep_alive = 1;
 	}
-	
+
 	if (r == NULL)
 		return -1;
 
