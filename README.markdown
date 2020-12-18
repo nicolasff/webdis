@@ -24,14 +24,14 @@ curl -d "GET/hello" http://127.0.0.1:7379/
 # Try in Docker
 
 <pre>
-$ docker run --rm -d -p 7379:7379 nicolas/webdis
+$ docker run --name webdis-test --rm -d -p 7379:7379 nicolas/webdis
 0d2ce311a4834d403cc3e7cfd571b168ba40cede6a0e155a21507bb0bf7bee81
 
 $ curl http://127.0.0.1:7379/PING
 {"PING":[true,"PONG"]}
 
 # To stop it:
-$ docker stop $(docker ps | grep webdis | cut -c 1-12)
+$ docker stop webdis-test
 0d2ce311a483
 </pre>
 
@@ -42,14 +42,14 @@ Clone the repository and open a terminal in the webdis directory, then run:
 $ docker build -t webdis .
 [...]
 
-$ docker run --rm -d -p 7379:7379 webdis
+$ docker run --name webdis-test --rm -d -p 7379:7379 webdis
 f0a2763fd456ac1f7ebff80eeafd6a5cd0fc7f06c69d0f7717fb2bdcec65926e
 
 $ curl http://127.0.0.1:7379/PING
 {"PING":[true,"PONG"]}
 
 # To stop it:
-$ docker stop $(docker ps | grep webdis | cut -c 1-12)
+$ docker stop webdis-test
 f0a2763fd456
 </pre>
 
