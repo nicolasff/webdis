@@ -1,5 +1,5 @@
-FROM alpine:3.11.3 AS stage
-MAINTAINER Nicolas Favre-Felix <n.favrefelix@gmail.com>
+FROM alpine:3.12.3 AS stage
+LABEL maintainer="Nicolas Favre-Felix <n.favrefelix@gmail.com>"
 
 RUN apk update && apk add wget make gcc libevent-dev msgpack-c-dev musl-dev bsd-compat-headers jq
 RUN wget -q https://api.github.com/repos/nicolasff/webdis/tags -O /dev/stdout | jq '.[] | .name' | head -1  | sed 's/"//g' > latest
@@ -9,7 +9,7 @@ RUN cd webdis-$(cat latest) && make && make install && cd ..
 RUN sed -i -e 's/"daemonize":.*true,/"daemonize": false,/g' /etc/webdis.prod.json
 
 # main image
-FROM alpine:3.11.3
+FROM alpine:3.12.3
 RUN apk update && apk add libevent msgpack-c redis
 COPY --from=stage /usr/local/bin/webdis /usr/local/bin/
 COPY --from=stage /etc/webdis.prod.json /etc/webdis.prod.json
