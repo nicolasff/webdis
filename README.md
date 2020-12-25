@@ -2,7 +2,7 @@
 
 # About
 
-A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson), [libevent](http://monkey.org/~provos/libevent/), and [http-parser](https://github.com/ry/http-parser/).
+A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson), [libevent](https://monkey.org/~provos/libevent/), and [http-parser](https://github.com/ry/http-parser/).
 
 Webdis depends on libevent-dev. You can install it on Ubuntu by typing `sudo apt-get install libevent-dev` or on macOS by typing `brew install libevent`.
 <pre>
@@ -91,7 +91,7 @@ f0a2763fd456
 	* Not sure if this is such a good idea.
 * SPDY?
 	* SPDY is mostly useful for parallel fetches. Not sure if it would make sense for Webdis.
-* Send your ideas using the github tracker, on twitter [@yowgi](http://twitter.com/yowgi) or by e-mail to n.favrefelix@gmail.com.
+* Send your ideas using the github tracker, on twitter [@yowgi](https://twitter.com/yowgi) or by e-mail to n.favrefelix@gmail.com.
 
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed.
@@ -116,8 +116,8 @@ Special characters: `/` and `.` have special meanings, `/` separates arguments a
 # ACL
 Access control is configured in `webdis.json`. Each configuration tries to match a client profile according to two criterias:
 
-* [CIDR](http://en.wikipedia.org/wiki/CIDR) subnet + mask
-* [HTTP Basic Auth](http://en.wikipedia.org/wiki/Basic_access_authentication) in the format of "user:password".
+* [CIDR](https://en.wikipedia.org/wiki/CIDR) subnet + mask
+* [HTTP Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) in the format of "user:password".
 
 Each ACL contains two lists of commands, `enabled` and `disabled`. All commands being enabled by default, it is up to the administrator to disable or re-enable them on a per-profile basis.
 Examples:
@@ -222,13 +222,13 @@ $ curl http://127.0.0.1:7379/MAKE-ME-COFFEE.raw
 Several content-types are available:
 
 * `.json` for `application/json` (this is the default Content-Type).
-* `.msg` for `application/x-msgpack`. See [http://msgpack.org/](http://msgpack.org/) for the specs.
+* `.msg` for `application/x-msgpack`. See [https://msgpack.org/](https://msgpack.org/) for the specs.
 * `.txt` for `text/plain`
 * `.html` for `text/html`
-* `xhtml` for `application/xhtml+xml`
-* `xml` for `text/xml`
+* `.xhtml` for `application/xhtml+xml`
+* `.xml` for `text/xml`
 * `.png` for `image/png`
-* `jpg` or `jpeg` for `image/jpeg`
+* `.jpg` or `.jpeg` for `image/jpeg`
 * Any other with the `?type=anything/youwant` query string.
 * Add a custom separator for list responses with `?sep=,` query string.
 
@@ -311,7 +311,7 @@ $ md5sum redis-logo.png out.png
 The file was uploaded and re-downloaded properly: it has the same hash and the content-type was set properly thanks to the `.png` extension.
 
 # WebSockets
-Webdis supports WebSocket clients implementing [dixie-76](http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76).  
+Webdis supports WebSocket clients implementing [dixie-76](https://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76).
 Web Sockets are supported with the following formats, selected by the connection URL:
 
 * JSON (on `/` or `/.json`)
