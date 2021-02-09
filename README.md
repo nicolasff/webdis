@@ -5,25 +5,24 @@
 A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson), [libevent](https://monkey.org/~provos/libevent/), and [http-parser](https://github.com/ry/http-parser/).
 
 Webdis depends on libevent-dev. You can install it on Ubuntu by typing `sudo apt-get install libevent-dev` or on macOS by typing `brew install libevent`.
-<pre>
-make clean all
+```sh
+$ make clean all
 
-./webdis &
+$ ./webdis &
 
-curl http://127.0.0.1:7379/SET/hello/world
+$ curl http://127.0.0.1:7379/SET/hello/world
 → {"SET":[true,"OK"]}
 
-curl http://127.0.0.1:7379/GET/hello
+$ curl http://127.0.0.1:7379/GET/hello
 → {"GET":"world"}
 
-curl -d "GET/hello" http://127.0.0.1:7379/
+$ curl -d "GET/hello" http://127.0.0.1:7379/
 → {"GET":"world"}
-
-</pre>
+```
 
 # Try in Docker
 
-<pre>
+```sh
 $ docker run --name webdis-test --rm -d -p 7379:7379 nicolas/webdis
 0d2ce311a4834d403cc3e7cfd571b168ba40cede6a0e155a21507bb0bf7bee81
 
@@ -33,12 +32,30 @@ $ curl http://127.0.0.1:7379/PING
 # To stop it:
 $ docker stop webdis-test
 0d2ce311a483
-</pre>
+```
 
-# Build and run Docker image locally
+## Docker repositories
+
+Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/webdis) and [Amazon ECR](https://gallery.ecr.aws/s0s0y5j7/webdis).
+
+**Docker Hub**
+
+```sh
+$ docker pull nicolas/webdis:0.1.12
+$ docker pull nicolas/webdis:latest
+```
+
+**Amazon Elastic Container Registry (ECR)**
+
+```sh
+$ docker pull public.ecr.aws/s0s0y5j7/webdis:0.1.12
+$ docker pull public.ecr.aws/s0s0y5j7/webdis:latest
+```
+
+# Build and run a Docker image locally
 
 Clone the repository and open a terminal in the webdis directory, then run:
-<pre>
+```sh
 $ docker build -t webdis .
 [...]
 
@@ -51,7 +68,7 @@ $ curl http://127.0.0.1:7379/PING
 # To stop it:
 $ docker stop webdis-test
 f0a2763fd456
-</pre>
+```
 
 
 # Features
@@ -79,7 +96,7 @@ f0a2763fd456
 * HTTP request limit with `http_max_request_size` (in bytes, set to 128MB by default).
 * Database selection in the URL, using e.g. `/7/GET/key` to run the command on DB 7.
 
-# Ideas, TODO...
+# Ideas, TODO…
 * Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands?
 	* This could be done using a “strict mode” with a table of commands and the verbs that can/must be used with each command. Strict mode would be optional, configurable. How would webdis know of new commands remains to be determined.
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
@@ -121,7 +138,7 @@ Access control is configured in `webdis.json`. Each configuration tries to match
 
 Each ACL contains two lists of commands, `enabled` and `disabled`. All commands being enabled by default, it is up to the administrator to disable or re-enable them on a per-profile basis.
 Examples:
-<pre>
+```json
 {
 	"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
 },
@@ -142,7 +159,7 @@ Examples:
 	"ip": 		"192.168.10.0/24",
 	"enabled":	["SET", "DEL"]
 }
-</pre>
+```
 ACLs are interpreted in order, later authorizations superseding earlier ones if a client matches several. The special value "*" matches all commands.
 
 # Environment variables
@@ -150,19 +167,18 @@ ACLs are interpreted in order, later authorizations superseding earlier ones if 
 Environment variables can be used in `webdis.json` to read values from the environment instead of using constant values.
 For this, the value must be a string starting with a dollar symbol and written in all caps. For example, to make the redis host and port configurable via environment variables, use the following:
 
-<pre>
+```json
 {
 	"redis_host": "$REDIS_HOST",
 	"redis_port": "$REDIS_PORT",
-	[...]
 }
-</pre>
+```
 
 # JSON output
 JSON is the default output format. Each command returns a JSON object with the command as a key and the result as a value.
 
 **Examples:**
-<pre>
+```sh
 // string
 $ curl http://127.0.0.1:7379/GET/y
 {"GET":"41"}
@@ -186,19 +202,18 @@ $ curl http://127.0.0.1:7379/MAKE-ME-COFFEE
 // JSONP callback:
 $ curl  "http://127.0.0.1:7379/TYPE/y?jsonp=myCustomFunction"
 myCustomFunction({"TYPE":[true,"string"]})
-</pre>
+```
 
 # RAW output
 This is the raw output of Redis; enable it with the `.raw` suffix.
-<pre>
-
+```sh
 // string
 $ curl http://127.0.0.1:7379/GET/z.raw
 $5
 hello
 
 // number
-curl http://127.0.0.1:7379/INCR/a.raw
+$ curl http://127.0.0.1:7379/INCR/a.raw
 :2
 
 // list
@@ -216,7 +231,7 @@ $ curl http://127.0.0.1:7379/TYPE/y.raw
 // error, which is basically a status
 $ curl http://127.0.0.1:7379/MAKE-ME-COFFEE.raw
 -ERR unknown command 'MAKE-ME-COFFEE'
-</pre>
+```
 
 # Custom content-type
 Several content-types are available:
@@ -232,41 +247,41 @@ Several content-types are available:
 * Any other with the `?type=anything/youwant` query string.
 * Add a custom separator for list responses with `?sep=,` query string.
 
-<pre>
-curl -v "http://127.0.0.1:7379/GET/hello.html"
+```
+$ curl -v "http://127.0.0.1:7379/GET/hello.html"
 [...]
-&lt; HTTP/1.1 200 OK
-&lt; Content-Type: text/html
-&lt; Date: Mon, 03 Jan 2011 20:43:36 GMT
-&lt; Content-Length: 137
-&lt;
-&lt;!DOCTYPE html&gt;
-&lt;html&gt;
+< HTTP/1.1 200 OK
+< Content-Type: text/html
+< Date: Mon, 03 Jan 2011 20:43:36 GMT
+< Content-Length: 137
+<
+<!DOCTYPE html>
+<html>
 [...]
-&lt;/html&gt;
+</html>
 
-curl -v "http://127.0.0.1:7379/GET/hello.txt"
+$ curl -v "http://127.0.0.1:7379/GET/hello.txt"
 [...]
-&lt; HTTP/1.1 200 OK
-&lt; Content-Type: text/plain
-&lt; Date: Mon, 03 Jan 2011 20:43:36 GMT
-&lt; Content-Length: 137
+< HTTP/1.1 200 OK
+< Content-Type: text/plain
+< Date: Mon, 03 Jan 2011 20:43:36 GMT
+< Content-Length: 137
 [...]
 
-curl -v "http://127.0.0.1:7379/GET/big-file?type=application/pdf"
+$ curl -v "http://127.0.0.1:7379/GET/big-file?type=application/pdf"
 [...]
-&lt; HTTP/1.1 200 OK
-&lt; Content-Type: application/pdf
-&lt; Date: Mon, 03 Jan 2011 20:45:12 GMT
+< HTTP/1.1 200 OK
+< Content-Type: application/pdf
+< Date: Mon, 03 Jan 2011 20:45:12 GMT
 [...]
-</pre>
+```
 
 # File upload
 Webdis supports file upload using HTTP PUT. The command URI is slightly different, as the last argument is taken from the HTTP body.
 For example: instead of `/SET/key/value`, the URI becomes `/SET/key` and the value is the entirety of the body. This works for other commands such as LPUSH, etc.
 
 **Uploading a binary file to webdis**:
-<pre>
+```
 $ file redis-logo.png
 redis-logo.png: PNG image, 513 x 197, 8-bit/color RGBA, non-interlaced
 
@@ -275,38 +290,38 @@ $ wc -c redis-logo.png
 
 $ curl -v --upload-file redis-logo.png http://127.0.0.1:7379/SET/logo
 [...]
-&gt; PUT /SET/logo HTTP/1.1
-&gt; User-Agent: curl/7.19.7 (x86_64-pc-linux-gnu) libcurl/7.19.7 OpenSSL/0.9.8k zlib/1.2.3.3 libidn/1.15
-&gt; Host: 127.0.0.1:7379
-&gt; Accept: */*
-&gt; Content-Length: 16744
-&gt; Expect: 100-continue
-&gt;
-&lt; HTTP/1.1 100 Continue
-&lt; HTTP/1.1 200 OK
-&lt; Content-Type: application/json
-&lt; ETag: "0db1124cf79ffeb80aff6d199d5822f8"
-&lt; Date: Sun, 09 Jan 2011 16:48:19 GMT
-&lt; Content-Length: 19
-&lt;
+> PUT /SET/logo HTTP/1.1
+> User-Agent: curl/7.19.7 (x86_64-pc-linux-gnu) libcurl/7.19.7 OpenSSL/0.9.8k zlib/1.2.3.3 libidn/1.15
+> Host: 127.0.0.1:7379
+> Accept: */*
+> Content-Length: 16744
+> Expect: 100-continue
+>
+< HTTP/1.1 100 Continue
+< HTTP/1.1 200 OK
+< Content-Type: application/json
+< ETag: "0db1124cf79ffeb80aff6d199d5822f8"
+< Date: Sun, 09 Jan 2011 16:48:19 GMT
+< Content-Length: 19
+<
 {"SET":[true,"OK"]}
 
 $ curl -vs http://127.0.0.1:7379/GET/logo.png -o out.png
-&gt; GET /GET/logo.png HTTP/1.1
-&gt; User-Agent: curl/7.19.7 (x86_64-pc-linux-gnu) libcurl/7.19.7 OpenSSL/0.9.8k zlib/1.2.3.3 libidn/1.15
-&gt; Host: 127.0.0.1:7379
-&gt; Accept: */*
-&gt;
-&lt; HTTP/1.1 200 OK
-&lt; Content-Type: image/png
-&lt; ETag: "1991df597267d70bf9066a7d11969da0"
-&lt; Date: Sun, 09 Jan 2011 16:50:51 GMT
-&lt; Content-Length: 16744
+> GET /GET/logo.png HTTP/1.1
+> User-Agent: curl/7.19.7 (x86_64-pc-linux-gnu) libcurl/7.19.7 OpenSSL/0.9.8k zlib/1.2.3.3 libidn/1.15
+> Host: 127.0.0.1:7379
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< Content-Type: image/png
+< ETag: "1991df597267d70bf9066a7d11969da0"
+< Date: Sun, 09 Jan 2011 16:50:51 GMT
+< Content-Length: 16744
 
 $ md5sum redis-logo.png out.png
 1991df597267d70bf9066a7d11969da0  redis-logo.png
 1991df597267d70bf9066a7d11969da0  out.png
-</pre>
+```
 
 The file was uploaded and re-downloaded properly: it has the same hash and the content-type was set properly thanks to the `.png` extension.
 
@@ -318,7 +333,7 @@ Web Sockets are supported with the following formats, selected by the connection
 * Raw Redis wire protocol (on `/.raw`)
 
 **Example**:
-<pre>
+```javascript
 function testJSON() {
 	var jsonSocket = new WebSocket("ws://127.0.0.1:7379/.json");
 	jsonSocket.onopen = function() {
@@ -332,20 +347,20 @@ function testJSON() {
 	};
 }
 testJSON();
-</pre>
+```
 
 This produces the following output:
-<pre>
+```
 JSON socket connected!
 JSON received: {"SET":[true,"OK"]}
 JSON received: {"GET":"world"}
-</pre>
+```
 
 # Pub/Sub with chunked transfer encoding
 Webdis exposes Redis PUB/SUB channels to HTTP clients, forwarding messages in the channel as they are published by Redis. This is done using chunked transfer encoding.
 
 **Example using XMLHttpRequest**:
-<pre>
+```javascript
 var previous_response_length = 0
 xhr = new XMLHttpRequest()
 xhr.open("GET", "http://127.0.0.1:7379/SUBSCRIBE/hello", true);
@@ -360,11 +375,11 @@ function checkData() {
     	console.log(chunk);
     }
 };
-</pre>
+```
 
 Publish messages to redis to see output similar to the following:
-<pre>
+```json
 {"SUBSCRIBE":["subscribe","hello",1]}
 {"SUBSCRIBE":["message","hello","some message"]}
 {"SUBSCRIBE":["message","hello","some other message"]} 
-</pre>
+```
