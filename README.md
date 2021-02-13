@@ -44,6 +44,7 @@ Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/web
 $ docker pull nicolas/webdis:0.1.12
 $ docker pull nicolas/webdis:latest
 ```
+Starting from release `0.1.12`, Docker Hub images are signed ([download public key](nicolasff.pub)).
 
 **Amazon Elastic Container Registry (ECR)**
 
@@ -51,6 +52,7 @@ $ docker pull nicolas/webdis:latest
 $ docker pull public.ecr.aws/s0s0y5j7/webdis:0.1.12
 $ docker pull public.ecr.aws/s0s0y5j7/webdis:latest
 ```
+ECR images are not signed at this time, but they use the exact same hash as the Docker Hub images which _are_ signed.
 
 # Build and run a Docker image locally
 
