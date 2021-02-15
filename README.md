@@ -5,6 +5,9 @@
 A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson), [libevent](https://monkey.org/~provos/libevent/), and [http-parser](https://github.com/ry/http-parser/).
 
 Webdis depends on libevent-dev. You can install it on Ubuntu by typing `sudo apt-get install libevent-dev` or on macOS by typing `brew install libevent`.
+
+# Build and run from sources
+
 ```sh
 $ make clean all
 
@@ -23,7 +26,7 @@ $ curl -d "GET/hello" http://127.0.0.1:7379/
 # Try in Docker
 
 ```sh
-$ docker run --name webdis-test --rm -d -p 7379:7379 nicolas/webdis
+$ docker run --name webdis-test --rm -d -p 127.0.0.1:7379:7379 nicolas/webdis
 0d2ce311a4834d403cc3e7cfd571b168ba40cede6a0e155a21507bb0bf7bee81
 
 $ curl http://127.0.0.1:7379/PING
