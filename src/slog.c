@@ -49,7 +49,7 @@ void
 slog(struct server *s, log_level level,
 		const char *body, size_t sz) {
 
-	const char *c = ".-*#";
+	const char *c = "EWNID";
 	time_t now;
 	struct tm now_tm, *lt_ret;
 	char time_buf[64];
@@ -77,7 +77,7 @@ slog(struct server *s, log_level level,
 
 	/* generate output line. */
 	line_sz = snprintf(line, sizeof(line),
-		"[%d] %s %d %s\n", (int)s->log.self, time_buf, c[level], msg);
+		"[%d] %s %c %s\n", (int)s->log.self, time_buf, c[level], msg);
 
 	/* write to log and flush to disk. */
 	ret = write(s->log.fd, line, line_sz);
