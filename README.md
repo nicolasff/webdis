@@ -106,7 +106,7 @@ f0a2763fd456
 * WebSocket support (Currently using the “hixie-76” specification).
 * Connects to Redis using a TCP or UNIX socket.
 * Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
-* Possible Redis authentication in the config file.
+* Support for Redis authentication in the config file: set `redis_auth` to a single string to use a password value, or to an array of two strings to use username+password auth ([new in Redis 6.0](https://redis.io/commands/auth)).
 * Environment variables can be used as values in the config file, starting with `$` and in all caps (e.g. `$REDIS_HOST`).
 * Pub/Sub using `Transfer-Encoding: chunked`, works with JSONP as well. Webdis can be used as a Comet server.
 * Drop privileges on startup.

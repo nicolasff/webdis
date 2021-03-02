@@ -4,12 +4,19 @@
 #include <sys/types.h>
 #include "slog.h"
 
+struct auth {
+	/* 1 if only password is used, 0 for username + password */
+	int use_legacy_auth;
+	char *username;
+	char *password;
+};
+
 struct conf {
 
 	/* connection to Redis */
 	char *redis_host;
 	int redis_port;
-	char *redis_auth;
+	struct auth *redis_auth;
 
 	/* HTTP server interface */
 	char *http_host;

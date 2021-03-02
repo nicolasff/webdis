@@ -16,6 +16,14 @@
 static struct acl *
 conf_parse_acls(json_t *jtab);
 
+#define ACL_ERROR_PREFIX "Config error with 'redis_auth': "
+#define ACL_ERROR_SUFFIX ". Starting with auth disabled.\n"
+
+static struct auth *
+conf_auth_legacy(char *password);
+static struct auth *
+conf_auth_username_password(json_t *jarray);
+
 int
 conf_str_allcaps(const char *s, const size_t sz) {
 	size_t i;
@@ -100,8 +108,14 @@ conf_read(const char *filename) {
 			conf->redis_port = (int)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "redis_port") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			conf->redis_port = atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
-		} else if(strcmp(json_object_iter_key(kv), "redis_auth") == 0 && json_typeof(jtmp) == JSON_STRING) {
-			conf->redis_auth = conf_string_or_envvar(json_string_value(jtmp));
+		} else if(strcmp(json_object_iter_key(kv), "redis_auth") == 0) {
+			if(json_typeof(jtmp) == JSON_STRING) {
+				conf->redis_auth = conf_auth_legacy(conf_string_or_envvar(json_string_value(jtmp)));
+			} else if(json_typeof(jtmp) == JSON_ARRAY) {
+				conf->redis_auth = conf_auth_username_password(jtmp);
+			} else {
+				fprintf(stderr, ACL_ERROR_PREFIX "expected a string or an array of two strings" ACL_ERROR_SUFFIX);
+			}
 		} else if(strcmp(json_object_iter_key(kv), "http_host") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			free(conf->http_host);
 			conf->http_host = conf_string_or_envvar(json_string_value(jtmp));
@@ -293,4 +307,48 @@ conf_free(struct conf *conf) {
 	free(conf->http_host);
 
 	free(conf);
+}
+
+static struct auth *
+conf_auth_legacy(char *password) {
+	struct auth *ret = calloc(1, sizeof(struct auth));
+	if(!ret) {
+		free(password);
+		fprintf(stderr, ACL_ERROR_PREFIX "failed to allocate memory for credentials" ACL_ERROR_SUFFIX);
+		return NULL;
+	}
+	ret->use_legacy_auth = 1;
+	ret->password = password; /* already transformed to include decoded env vars */
+	return ret;
+}
+
+static struct auth *
+conf_auth_username_password(json_t *jarray) {
+	size_t array_size = json_array_size(jarray);
+	if(array_size != 2) {
+		fprintf(stderr, ACL_ERROR_PREFIX "expected two values, found %zu" ACL_ERROR_SUFFIX, array_size);
+		return NULL;
+	}
+	json_t *jusername = json_array_get(jarray, 0);
+	json_t *jpassword = json_array_get(jarray, 1);
+	if(json_typeof(jusername) != JSON_STRING || json_typeof(jpassword) != JSON_STRING) {
+		fprintf(stderr, ACL_ERROR_PREFIX "both values need to be strings" ACL_ERROR_SUFFIX);
+		return NULL;
+	}
+
+	char *username = conf_string_or_envvar(json_string_value(jusername));
+	char *password = conf_string_or_envvar(json_string_value(jpassword));
+	struct auth *ret = calloc(1, sizeof(struct auth));
+	if(!username || !password || !ret) {
+		free(username);
+		free(password);
+		free(ret);
+		fprintf(stderr, ACL_ERROR_PREFIX "failed to allocate memory for credentials" ACL_ERROR_SUFFIX);
+		return NULL;
+	}
+
+	ret->use_legacy_auth = 0;
+	ret->username = username;
+	ret->password = password;
+	return ret;
 }

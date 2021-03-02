@@ -154,7 +154,14 @@ pool_connect(struct pool *p, int db_num, int attach) {
 	redisAsyncSetDisconnectCallback(ac, pool_on_disconnect);
 
 	if(p->cfg->redis_auth) { /* authenticate. */
-		redisAsyncCommand(ac, NULL, NULL, "AUTH %s", p->cfg->redis_auth);
+		if(p->cfg->redis_auth->use_legacy_auth) {
+			redisAsyncCommand(ac, NULL, NULL, "AUTH %s",
+				p->cfg->redis_auth->password);
+		} else {
+			redisAsyncCommand(ac, NULL, NULL, "AUTH %s %s",
+				p->cfg->redis_auth->username,
+				p->cfg->redis_auth->password);
+		}
 	}
 	if(db_num) { /* change database. */
 		redisAsyncCommand(ac, NULL, NULL, "SELECT %d", db_num);
