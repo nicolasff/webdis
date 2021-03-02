@@ -113,7 +113,7 @@ conf_read(const char *filename) {
 				conf->redis_auth = conf_auth_legacy(conf_string_or_envvar(json_string_value(jtmp)));
 			} else if(json_typeof(jtmp) == JSON_ARRAY) {
 				conf->redis_auth = conf_auth_username_password(jtmp);
-			} else {
+			} else if(json_typeof(jtmp) != JSON_NULL) {
 				fprintf(stderr, ACL_ERROR_PREFIX "expected a string or an array of two strings" ACL_ERROR_SUFFIX);
 			}
 		} else if(strcmp(json_object_iter_key(kv), "http_host") == 0 && json_typeof(jtmp) == JSON_STRING) {
@@ -302,6 +302,10 @@ void
 conf_free(struct conf *conf) {
 
 	free(conf->redis_host);
+	if(conf->redis_auth) {
+		free(conf->redis_auth->username);
+		free(conf->redis_auth->password);
+	}
 	free(conf->redis_auth);
 
 	free(conf->http_host);
