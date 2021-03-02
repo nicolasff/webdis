@@ -104,6 +104,8 @@ server_new(const char *cfg_file) {
 	for(i = 0; i < s->cfg->http_threads; ++i) {
 		s->w[i] = worker_new(s);
 	}
+
+	pthread_mutex_init(&s->auth_log_mutex, NULL);
 	return s;
 }
 

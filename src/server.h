@@ -25,6 +25,10 @@ struct server {
 		pid_t self;
 		int fd;
 	} log;
+
+	/* used to log auth message only once */
+	pthread_mutex_t auth_log_mutex;
+	int auth_logged;
 };
 
 struct server *

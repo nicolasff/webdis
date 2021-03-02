@@ -116,6 +116,43 @@ pool_on_disconnect(const redisAsyncContext *ac, int status) {
 	pool_schedule_reconnect(p);
 }
 
+static void
+pool_log_auth(struct server *s, log_level level, const char *format, size_t format_len, const char *str) {
+	/* -2 for `%s`, 6 for "(null)", +1 for \0 */
+	size_t msg_size = format_len - 2 + (str ? strlen(str) : 6) + 1;
+	char *msg = calloc(1, msg_size);
+	if(msg) {
+		snprintf(msg, msg_size, format, str ? str : "(null)");
+		slog(s, level, msg, msg_size - 1);
+		free(msg);
+	}
+}
+
+static void
+pool_on_auth_complete(redisAsyncContext *c, void *r, void *data) {
+	redisReply *reply = r;
+	struct pool *p = data;
+	const char err_format[] = "Authentication failed: %s";
+	const char ok_format[] = "Authentication succeeded: %s";
+	struct server *s = p->w->s;
+	(void)c;
+	if(!reply) {
+		return;
+	}
+	pthread_mutex_lock(&s->auth_log_mutex);
+	if(s->auth_logged) {
+		pthread_mutex_unlock(&s->auth_log_mutex);
+		return;
+	}
+	if(reply->type == REDIS_REPLY_ERROR) {
+		pool_log_auth(s, WEBDIS_ERROR, err_format, sizeof(err_format) - 1, reply->str);
+	} else if(reply->type == REDIS_REPLY_STATUS) {
+		pool_log_auth(s, WEBDIS_INFO, ok_format, sizeof(ok_format) - 1, reply->str);
+	}
+	s->auth_logged++;
+	pthread_mutex_unlock(&s->auth_log_mutex);
+}
+
 /**
  * Create new connection.
  */
@@ -155,10 +192,10 @@ pool_connect(struct pool *p, int db_num, int attach) {
 
 	if(p->cfg->redis_auth) { /* authenticate. */
 		if(p->cfg->redis_auth->use_legacy_auth) {
-			redisAsyncCommand(ac, NULL, NULL, "AUTH %s",
+			redisAsyncCommand(ac, pool_on_auth_complete, p, "AUTH %s",
 				p->cfg->redis_auth->password);
 		} else {
-			redisAsyncCommand(ac, NULL, NULL, "AUTH %s %s",
+			redisAsyncCommand(ac, pool_on_auth_complete, p, "AUTH %s %s",
 				p->cfg->redis_auth->username,
 				p->cfg->redis_auth->password);
 		}
