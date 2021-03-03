@@ -200,11 +200,7 @@ acl_read_commands(json_t *jlist, struct acl_commands *ac) {
 		json_t *jelem = json_array_get(jlist, i);
 		if(json_typeof(jelem) == JSON_STRING) {
 			size_t sz;
-			const char *s = conf_string_or_envvar(json_string_value(jelem));
-			sz = strlen(s);
-
-			ac->commands[cur] = calloc(1 + sz, 1);
-			memcpy(ac->commands[cur], s, sz);
+			ac->commands[cur] = conf_string_or_envvar(json_string_value(jelem));
 			cur++;
 		}
 	}
@@ -252,6 +248,7 @@ conf_parse_acl(json_t *j) {
 
 		base64_init_encodestate(&b64);
 		pos = base64_encode_block(plain, (int)plain_len, a->http_basic_auth, &b64);
+		free(plain);
 		if(!pos) { /* nothing was encoded */
 			fprintf(stderr, "Error: could not encode credentials as HTTP basic auth header\n");
 			exit(1);
