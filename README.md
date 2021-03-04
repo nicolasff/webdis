@@ -155,6 +155,19 @@ The URI `/COMMAND/arg0/arg1/.../argN.ext` executes the command on Redis and retu
 
 Special characters: `/` and `.` have special meanings, `/` separates arguments and `.` changes the Content-Type. They can be replaced by `%2f` and `%2e`, respectively.
 
+# Redis authentication
+
+Webdis can connect to a Redis server that requires credentials.
+For Redis versions before 6.0, provide the password as a single string in `webdis.json` using the key `"redis_auth"`. For example:
+```json
+	"redis_auth": "enter-password-here"
+```
+Redis 6.0 introduces a more granular [access control system](https://redis.io/topics/acl) and switches from a single password to a pair of username and password. To use these two values with Webdis, set `"redis_auth"` to an array containing the two strings, e.g.
+```json
+	"redis_auth": ["my-username", "my-password"]
+```
+This new authentication system is only supported in Webdis 0.1.13 and above.
+
 # ACL
 Access control is configured in `webdis.json`. Each configuration tries to match a client profile according to two criterias:
 
