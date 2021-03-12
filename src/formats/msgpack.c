@@ -167,7 +167,7 @@ static void
 msgpack_wrap_redis_reply(const struct cmd *cmd, struct msg_out *out, const redisReply *r) {
 
 	unsigned int i;
-	msgpack_packer* pk = msgpack_packer_new(out, on_msgpack_write);
+	msgpack_packer* pk = msgpack_packer_new(out, (msgpack_packer_write)on_msgpack_write);
 
 	/* copy verb, as jansson only takes a char* but not its length. */
 	char *verb = "";
