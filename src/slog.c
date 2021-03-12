@@ -72,7 +72,7 @@ slog(struct server *s, log_level level,
 		strftime(time_buf, sizeof(time_buf), "%d %b %H:%M:%S", lt_ret);
 	} else {
 		const char err_msg[] = "(NO TIME AVAILABLE)";
-		strncpy(time_buf, err_msg, sizeof(err_msg));
+		memcpy(time_buf, err_msg, sizeof(err_msg));
 	}
 
 	/* generate output line. */
