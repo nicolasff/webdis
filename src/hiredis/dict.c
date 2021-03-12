@@ -39,6 +39,12 @@
 #include <limits.h>
 #include "dict.h"
 
+#ifdef __GNUC__
+#define __UNUSED_FUNCTION__ __attribute__ ((unused))
+#else
+#define __UNUSED_FUNCTION__
+#endif
+
 /* -------------------------- private prototypes ---------------------------- */
 
 static int _dictExpandIfNeeded(dict *ht);
@@ -50,6 +56,7 @@ static int _dictInit(dict *ht, dictType *type, void *privDataPtr);
 
 /* Generic hash function (a popular one from Bernstein).
  * I tested a few and this was the best. */
+__UNUSED_FUNCTION__
 static unsigned int dictGenHashFunction(const unsigned char *buf, int len) {
     unsigned int hash = 5381;
 
@@ -70,6 +77,7 @@ static void _dictReset(dict *ht) {
 }
 
 /* Create a new hash table */
+__UNUSED_FUNCTION__
 static dict *dictCreate(dictType *type, void *privDataPtr) {
     dict *ht = malloc(sizeof(*ht));
     _dictInit(ht,type,privDataPtr);
@@ -157,6 +165,7 @@ static int dictAdd(dict *ht, void *key, void *val) {
  * Return 1 if the key was added from scratch, 0 if there was already an
  * element with such key and dictReplace() just performed a value update
  * operation. */
+__UNUSED_FUNCTION__
 static int dictReplace(dict *ht, void *key, void *val) {
     dictEntry *entry, auxentry;
 
@@ -179,6 +188,7 @@ static int dictReplace(dict *ht, void *key, void *val) {
 }
 
 /* Search and remove an element */
+__UNUSED_FUNCTION__
 static int dictDelete(dict *ht, const void *key) {
     unsigned int h;
     dictEntry *de, *prevde;
@@ -235,6 +245,7 @@ static int _dictClear(dict *ht) {
 }
 
 /* Clear & Release the hash table */
+__UNUSED_FUNCTION__
 static void dictRelease(dict *ht) {
     _dictClear(ht);
     free(ht);
@@ -255,6 +266,7 @@ static dictEntry *dictFind(dict *ht, const void *key) {
     return NULL;
 }
 
+__UNUSED_FUNCTION__
 static dictIterator *dictGetIterator(dict *ht) {
     dictIterator *iter = malloc(sizeof(*iter));
 
@@ -265,6 +277,7 @@ static dictIterator *dictGetIterator(dict *ht) {
     return iter;
 }
 
+__UNUSED_FUNCTION__
 static dictEntry *dictNext(dictIterator *iter) {
     while (1) {
         if (iter->entry == NULL) {
@@ -285,6 +298,7 @@ static dictEntry *dictNext(dictIterator *iter) {
     return NULL;
 }
 
+__UNUSED_FUNCTION__
 static void dictReleaseIterator(dictIterator *iter) {
     free(iter);
 }
