@@ -199,7 +199,6 @@ acl_read_commands(json_t *jlist, struct acl_commands *ac) {
 	for(i = 0, cur = 0; i < json_array_size(jlist); ++i) {
 		json_t *jelem = json_array_get(jlist, i);
 		if(json_typeof(jelem) == JSON_STRING) {
-			size_t sz;
 			ac->commands[cur] = conf_string_or_envvar(json_string_value(jelem));
 			cur++;
 		}
@@ -241,7 +240,7 @@ conf_parse_acl(json_t *j) {
 		base64_encodestate b64;
 		int pos;
 		char *p;
-		const char *plain = conf_string_or_envvar(json_string_value(jbasic));
+		char *plain = conf_string_or_envvar(json_string_value(jbasic));
 		size_t len, plain_len = strlen(plain) + 0;
 		len = (plain_len + 8) * 8 / 6;
 		a->http_basic_auth = calloc(len, 1);
