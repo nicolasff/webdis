@@ -177,6 +177,7 @@ static struct server *__server;
 static void
 server_handle_signal(int id) {
 
+	int ret;
 	switch(id) {
 		case SIGHUP:
 			slog_init(__server);
@@ -184,6 +185,8 @@ server_handle_signal(int id) {
 		case SIGTERM:
 		case SIGINT:
 			slog(__server, WEBDIS_INFO, "Webdis terminating", 0);
+			ret = fsync(__server->log.fd);
+			(void)ret;
 			exit(0);
 			break;
 		default:
@@ -251,6 +254,9 @@ server_start(struct server *s) {
 		slog(s, WEBDIS_ERROR, "Error calling event_add on socket", 0);
 		return -1;
 	}
+
+	/* initialize fsync timer once libevent is set up */
+	slog_fsync_init(s);
 
 	slog(s, WEBDIS_INFO, "Webdis " WEBDIS_VERSION " up and running", 0);
 	event_base_dispatch(s->base);

@@ -47,6 +47,10 @@ struct conf {
 	/* Logging */
 	char *logfile;
 	log_level verbosity;
+	struct {
+		log_fsync_mode mode;
+		int period_millis; /* only used with LOG_FSYNC_MILLIS */
+	} log_fsync;
 
 	/* Request to serve on “/” */
 	char *default_root;

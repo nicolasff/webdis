@@ -24,6 +24,8 @@ struct server {
 	struct {
 		pid_t self;
 		int fd;
+		struct timeval fsync_tv;
+		struct event *fsync_ev;
 	} log;
 
 	/* used to log auth message only once */

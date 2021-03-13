@@ -86,6 +86,7 @@ conf_read(const char *filename) {
 	conf->user = getuid();
 	conf->group = getgid();
 	conf->logfile = "webdis.log";
+	conf->log_fsync.mode = LOG_FSYNC_AUTO;
 	conf->verbosity = WEBDIS_NOTICE;
 	conf->daemonize = 0;
 	conf->pidfile = "webdis.pid";
@@ -145,6 +146,17 @@ conf_read(const char *filename) {
 			}
 		} else if(strcmp(json_object_iter_key(kv),"logfile") == 0 && json_typeof(jtmp) == JSON_STRING){
 			conf->logfile = conf_string_or_envvar(json_string_value(jtmp));
+		} else if(strcmp(json_object_iter_key(kv),"log_fsync") == 0) {
+			if(json_typeof(jtmp) == JSON_STRING && strcmp(json_string_value(jtmp), "auto") == 0) {
+				conf->log_fsync.mode = LOG_FSYNC_AUTO;
+			} else if(json_typeof(jtmp) == JSON_STRING && strcmp(json_string_value(jtmp), "all") == 0) {
+				conf->log_fsync.mode = LOG_FSYNC_ALL;
+			} else if(json_typeof(jtmp) == JSON_INTEGER && json_integer_value(jtmp) > 0) {
+				conf->log_fsync.mode = LOG_FSYNC_MILLIS;
+				conf->log_fsync.period_millis = (int)json_integer_value(jtmp);
+			} else if(json_typeof(jtmp) != JSON_NULL) {
+				fprintf(stderr, "Unexpected value for \"log_fsync\", defaulting to \"auto\"\n");
+			}
 		} else if(strcmp(json_object_iter_key(kv),"verbosity") == 0 && json_typeof(jtmp) == JSON_INTEGER){
 			int tmp = json_integer_value(jtmp);
 			if(tmp < 0) conf->verbosity = WEBDIS_ERROR;

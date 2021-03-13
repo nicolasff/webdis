@@ -26,6 +26,6 @@
 		}
 	],
 
-        "verbosity": 6,
-        "logfile": "webdis.log"
+	"verbosity": 6,
+	"logfile": "webdis.log"
 }
