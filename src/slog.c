@@ -42,6 +42,40 @@ slog_init(struct server *s) {
 	s->log.fd = 2; /* stderr */
 }
 
+static void
+slog_fsync_tick(int fd, short event, void *data) {
+	struct server *s = data;
+	int ret = fsync(s->log.fd);
+	(void)fd;
+	(void)event;
+	(void)ret;
+}
+
+void
+slog_fsync_init(struct server *s) {
+	if (s->cfg->log_fsync.mode != LOG_FSYNC_MILLIS) {
+		return;
+	}
+	/* install a libevent timer for handling fsync */
+	s->log.fsync_ev = event_new(s->base, -1, EV_PERSIST, slog_fsync_tick, s);
+	if(s->log.fsync_ev == NULL) {
+		const char evnew_error[] = "fsync timer could not be created";
+		slog(s, WEBDIS_ERROR, evnew_error, sizeof(evnew_error)-1);
+		return;
+	}
+
+	int period_usec =s->cfg->log_fsync.period_millis * 1000;
+	s->log.fsync_tv.tv_sec = period_usec / 1000000;
+	s->log.fsync_tv.tv_usec = period_usec % 1000000;
+	int ret_ta = evtimer_add(s->log.fsync_ev, &s->log.fsync_tv);
+	if(ret_ta != 0) {
+		const char reason[] = "fsync timer could not be added: %d";
+		char error_msg[sizeof(reason) + 16]; /* plenty of extra space */
+		int error_len = snprintf(error_msg, sizeof(error_msg), reason, ret_ta);
+		slog(s, WEBDIS_ERROR, error_msg, (size_t)error_len);
+	}
+}
+
 /**
  * Write log message to disk, or stderr.
  */
@@ -79,9 +113,11 @@ slog(struct server *s, log_level level,
 	line_sz = snprintf(line, sizeof(line),
 		"[%d] %s %c %s\n", (int)s->log.self, time_buf, c[level], msg);
 
-	/* write to log and flush to disk. */
+	/* write to log and maybe flush to disk. */
 	ret = write(s->log.fd, line, line_sz);
-	ret = fsync(s->log.fd);
+	if(s->cfg->log_fsync.mode == LOG_FSYNC_ALL) {
+		ret = fsync(s->log.fd);
+	}
 
 	(void)ret;
 }

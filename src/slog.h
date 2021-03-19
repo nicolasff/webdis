@@ -9,6 +9,12 @@ typedef enum {
 	WEBDIS_DEBUG
 } log_level;
 
+typedef enum {
+	LOG_FSYNC_AUTO = 0,
+	LOG_FSYNC_MILLIS,
+	LOG_FSYNC_ALL
+} log_fsync_mode;
+
 struct server;
 
 void
@@ -16,6 +22,9 @@ slog_reload();
 
 void
 slog_init(struct server *s);
+
+void
+slog_fsync_init(struct server *s);
 
 void slog(struct server *s, log_level level,
 		const char *body, size_t sz);
