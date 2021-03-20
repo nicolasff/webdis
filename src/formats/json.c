@@ -151,6 +151,7 @@ json_expand_array(const redisReply *r) {
 	for(i = 0; i < r->elements; ++i) {
 		e = r->element[i];
 		switch(e->type) {
+		case REDIS_REPLY_STATUS:
 		case REDIS_REPLY_STRING:
 			json_array_append_new(jlist, json_string(e->str));
 			break;
