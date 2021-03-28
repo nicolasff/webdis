@@ -1,0 +1,32 @@
+name: Build
+
+# trigger the workflow on push or pull requests
+on: [push, pull_request]
+
+jobs:
+  build-and-run-tests:
+    runs-on: ubuntu-18.04     # this is a GitHub Runner, hosting the execution
+    container: ubuntu:18.04   # but this is a Docker Hub container, in which everything runs
+
+    services:
+      redis:
+        image: redis:6.2.1-alpine  # Docker Hub image used as a sidecar
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: |
+        apt-get -y update
+        apt-get -y --force-yes install make gcc libevent-dev libmsgpack-dev python3
+    - name: Build
+      run: make
+    - name: Run Webdis and test
+      run: |
+        ./webdis .github/workflows/webdis-ci.json
+        sleep 2
+        ./tests/basic.py
+    - name: Archive logs
+      uses: actions/upload-artifact@v2
+      with:
+        name: webdis.log
+        path: webdis.log
