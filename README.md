@@ -1,4 +1,6 @@
 [![CircleCI](https://circleci.com/gh/nicolasff/webdis.svg?style=shield)](https://circleci.com/gh/nicolasff/webdis)
+[![Build](https://github.com/nicolasff/webdis/actions/workflows/build.yml/badge.svg)](https://github.com/nicolasff/webdis/actions/workflows/build.yml)
+
 
 # About
 

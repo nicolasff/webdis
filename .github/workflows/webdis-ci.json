@@ -1,0 +1,27 @@
+{
+  "redis_host": "redis",
+  "redis_port": 6379,
+
+  "http_host": "0.0.0.0",
+  "http_port": 7379,
+
+  "threads": 5,
+  "pool_size": 20,
+
+  "daemonize": true,
+  "websockets": false,
+
+  "database": 0,
+  "acl": [
+    {
+      "disabled": [ "DEBUG" ]
+    },
+    {
+      "http_basic_auth": "user:password",
+      "enabled": [ "DEBUG" ]
+    }
+  ],
+
+  "verbosity": 6,
+  "logfile": "webdis.log"
+}
