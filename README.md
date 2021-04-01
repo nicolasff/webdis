@@ -56,7 +56,7 @@ $ docker trust inspect nicolas/webdis:0.1.14 --pretty
 Signatures for nicolas/webdis:0.1.14
 
 SIGNED TAG   DIGEST                                                             SIGNERS
-0.1.14       0a778d427099f7ec163107622b905cd5bad06cca35e1823e61e893f1d10b6807   nicolasff
+0.1.14       77a7b02490beadda996b7a7e54c79a24203e19701f32b3ebff91963f9d6fe9b8   nicolasff
 
 List of signers and their keys for nicolas/webdis:0.1.14
 
