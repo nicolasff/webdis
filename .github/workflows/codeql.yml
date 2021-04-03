@@ -1,0 +1,39 @@
+name: CodeQL
+
+# trigger the workflow on push or pull requests for some paths
+on:
+  push:
+    paths:
+    - 'src/**'
+    - '.github/**'
+    - 'Makefile'
+  pull_request:
+    paths:
+    - 'src/**'
+    - '.github/**'
+    - 'Makefile'
+
+jobs:
+  CodeQL-Build:
+    runs-on: ubuntu-latest    # GitHub Runner
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v1
+      with:
+        languages: cpp
+        queries: +security-and-quality
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get -y update
+        sudo apt-get -y --force-yes install make gcc libevent-dev libmsgpack-dev python3
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v1
+
+    - name: CodeQL Analysis
+      uses: github/codeql-action/analyze@v1
