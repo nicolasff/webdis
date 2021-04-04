@@ -40,7 +40,7 @@ $ docker stop webdis-test
 
 ## Docker repositories and Docker Content Trust
 
-Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/webdis) and [Amazon ECR](https://gallery.ecr.aws/s0s0y5j7/webdis).
+Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/webdis) and [Amazon ECR](https://gallery.ecr.aws/nicolas/webdis).
 
 **Docker Hub**
 
@@ -73,8 +73,8 @@ Administrative keys for nicolas/webdis:0.1.14
 **Amazon Elastic Container Registry (ECR)**
 
 ```sh
-$ docker pull public.ecr.aws/s0s0y5j7/webdis:0.1.14
-$ docker pull public.ecr.aws/s0s0y5j7/webdis:latest
+$ docker pull public.ecr.aws/nicolas/webdis:0.1.14
+$ docker pull public.ecr.aws/nicolas/webdis:latest
 ```
 ECR images are not signed at this time, but they use the exact same hash as the Docker Hub images which _are_ signed.
 
