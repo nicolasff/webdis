@@ -178,7 +178,7 @@ http_response_write(struct http_response *r, int fd) {
 
 	if(!r->chunked) {
 		if(r->code == 200 && r->body) {
-			char content_length[10];
+			char content_length[22];
 			sprintf(content_length, "%zd", r->body_len);
 			http_response_set_header(r, "Content-Length", content_length);
 		} else {
