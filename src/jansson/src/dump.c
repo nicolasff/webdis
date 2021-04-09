@@ -78,7 +78,7 @@ static int dump_string(const char *str, int ascii, dump_func dump, void *data)
     while(1)
     {
         const char *text;
-        char seq[13];
+        char seq[22];
         int length;
 
         while(*end)
