@@ -51,7 +51,7 @@ int utf8_check_first(char byte)
     if(u < 0x80)
         return 1;
 
-    if(0x80 <= u && u <= 0xBF) {
+    if(/* 0x80 <= u && */u <= 0xBF) {
         /* second, third or fourth byte of a multi-byte
            sequence, i.e. a "continuation byte" */
         return 0;
@@ -60,16 +60,16 @@ int utf8_check_first(char byte)
         /* overlong encoding of an ASCII byte */
         return 0;
     }
-    else if(0xC2 <= u && u <= 0xDF) {
+    else if(/*0xC2 <= u && */u <= 0xDF) {
         /* 2-byte sequence */
         return 2;
     }
 
-    else if(0xE0 <= u && u <= 0xEF) {
+    else if(/*0xE0 <= u && */u <= 0xEF) {
         /* 3-byte sequence */
         return 3;
     }
-    else if(0xF0 <= u && u <= 0xF4) {
+    else if(/*0xF0 <= u && */u <= 0xF4) {
         /* 4-byte sequence */
         return 4;
     }
