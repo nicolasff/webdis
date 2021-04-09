@@ -355,7 +355,7 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 		memcpy(frame + 2, &sz16, 2);
 		memcpy(frame + 4, p, sz);
 		frame_sz = sz + 4;
-	} else if (sz > 65536) {
+	} else { /* sz > 65536 */
 		char sz64[8] = webdis_htonl64(sz);
 		frame[1] = 127;
 		memcpy(frame + 2, sz64, 8);
