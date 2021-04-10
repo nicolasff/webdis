@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <limits.h>
 
 /**
  * Sets up a non-blocking socket
@@ -147,7 +148,7 @@ server_can_accept(int fd, short event, void *ptr) {
  * (taken from Redis)
  */
 static void
-server_daemonize(const char *pidfile) {
+server_daemonize(struct server *s, const char *pidfile) {
 	int fd;
 
 	if (fork() != 0) exit(0); /* parent exits */
@@ -162,11 +163,25 @@ server_daemonize(const char *pidfile) {
 	}
 
 	/* write pidfile */
-	if (pidfile) {
-		FILE *f = fopen(pidfile, "w");
-		if (f) {
-			fprintf(f, "%d\n", (int)getpid());
-			fclose(f);
+	if(pidfile) {
+		int pid_fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0600);
+		if(pid_fd > 0) {
+			char pid_buffer[(CHAR_BIT * sizeof(int) / 3) + 3]; /* max length for int */
+			int pid_sz = snprintf(pid_buffer, sizeof(pid_buffer), "%d\n", (int)getpid());
+			ssize_t written;
+			int written_total = 0;
+			while((written = write(pid_fd, pid_buffer + written_total, pid_sz - written_total)) > 0
+				&& written_total < pid_sz) {
+				written_total += written;
+			}
+			close(pid_fd);
+		} else {
+			const char err_msg[] = "Failed to create PID file";
+			slog(s, WEBDIS_ERROR, err_msg, sizeof(err_msg)-1);
+			if(errno) {
+				char *errno_msg = strerror(errno);
+				slog(s, WEBDIS_ERROR, errno_msg, strlen(errno_msg));
+			}
 		}
 	}
 }
@@ -211,8 +226,11 @@ server_start(struct server *s) {
 	/* initialize libevent */
 	s->base = event_base_new();
 
+	/* initialize logging before forking */
+	slog_init(s);
+
 	if(s->cfg->daemonize) {
-		server_daemonize(s->cfg->pidfile);
+		server_daemonize(s, s->cfg->pidfile);
 
 		/* sometimes event mech gets lost on fork */
 		if(event_reinit(s->base) != 0) {
@@ -224,8 +242,6 @@ server_start(struct server *s) {
 #ifdef SIGPIPE
 	signal(SIGPIPE, SIG_IGN);
 #endif
-
-	slog_init(s);
 
 	/* install signal handlers */
 	server_install_signal_handlers(s);
