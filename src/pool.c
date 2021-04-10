@@ -97,7 +97,14 @@ pool_on_disconnect(const redisAsyncContext *ac, int status) {
 	struct pool *p = ac->data;
 	int i = 0;
 	if (status != REDIS_OK) {
-		/* fprintf(stderr, "Error: %s\n", ac->errstr); */
+		char format[] = "Error disconnecting: %s";
+		size_t msg_sz = sizeof(format) - 2 + ((ac && ac->errstr) ? strlen(ac->errstr) : 6);
+		char *log_msg = calloc(msg_sz + 1, 1);
+		if(log_msg) {
+			snprintf(log_msg, msg_sz + 1, format, ((ac && ac->errstr) ? ac->errstr : "(null)"));
+			slog(p->w->s, WEBDIS_ERROR, log_msg, msg_sz-1);
+			free(log_msg);
+		}
 	}
 
 	if(p == NULL) { /* no need to clean anything here. */
