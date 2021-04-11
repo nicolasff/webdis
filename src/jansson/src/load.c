@@ -59,6 +59,13 @@ typedef struct {
 
 
 /*** error reporting ***/
+/* disable format truncation warnings for this function.
+  it's not a security issue; very long strings could just be truncated on error
+ */
+#if (defined(__GNUC__) && !defined(__clang__))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+#endif
 
 static void error_set(json_error_t *error, const lex_t *lex,
                       const char *msg, ...)
@@ -101,6 +108,9 @@ static void error_set(json_error_t *error, const lex_t *lex,
 
     jsonp_error_set(error, line, col, "%s", result);
 }
+#if (defined(__GNUC__) && !defined(__clang__))
+#pragma GCC diagnostic pop
+#endif
 
 
 /*** lexical analyzer ***/
@@ -261,7 +271,7 @@ static void lex_scan_string(lex_t *lex, json_error_t *error)
             /* control character */
             lex_unget_unsave(lex, c);
             if(c == '\n')
-                error_set(error, lex, "unexpected newline", c);
+                error_set(error, lex, "unexpected newline");
             else
                 error_set(error, lex, "control character 0x%x", c);
             goto out;

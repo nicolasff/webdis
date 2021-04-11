@@ -168,7 +168,6 @@ http_response_write(struct http_response *r, int fd) {
 	char *p;
 	int i, ret;
 
-	/*r->keep_alive = 0;*/
 	r->out_sz = sizeof("HTTP/1.x xxx ")-1 + strlen(r->msg) + 2;
 	r->out = calloc(r->out_sz + 1, 1);
 
@@ -178,7 +177,7 @@ http_response_write(struct http_response *r, int fd) {
 
 	if(!r->chunked) {
 		if(r->code == 200 && r->body) {
-			char content_length[10];
+			char content_length[22];
 			sprintf(content_length, "%zd", r->body_len);
 			http_response_set_header(r, "Content-Length", content_length);
 		} else {
