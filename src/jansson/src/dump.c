@@ -69,7 +69,7 @@ static int dump_indent(size_t flags, int depth, int space, dump_func dump, void 
 static int dump_string(const char *str, int ascii, dump_func dump, void *data)
 {
     const char *pos, *end;
-    int32_t codepoint;
+    int32_t codepoint = 0;
 
     if(dump("\"", 1, data))
         return -1;
