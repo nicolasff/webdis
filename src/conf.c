@@ -110,9 +110,9 @@ conf_read(const char *filename) {
 		} else if(strcmp(json_object_iter_key(kv), "redis_port") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			conf->redis_port = atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv), "redis_auth") == 0) {
-			if(json_typeof(jtmp) == JSON_STRING) {
+			if(json_typeof(jtmp) == JSON_STRING) { /* single password, potentially from env var */
 				conf->redis_auth = conf_auth_legacy(conf_string_or_envvar(json_string_value(jtmp)));
-			} else if(json_typeof(jtmp) == JSON_ARRAY) {
+			} else if(json_typeof(jtmp) == JSON_ARRAY) { /* pair of username and password, new in Redis 6 */
 				conf->redis_auth = conf_auth_username_password(jtmp);
 			} else if(json_typeof(jtmp) != JSON_NULL) {
 				fprintf(stderr, ACL_ERROR_PREFIX "expected a string or an array of two strings" ACL_ERROR_SUFFIX);
@@ -123,7 +123,7 @@ conf_read(const char *filename) {
 		} else if(strcmp(json_object_iter_key(kv), "http_port") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->http_port = (int)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "http_port") == 0 && json_typeof(jtmp) == JSON_STRING) {
-			conf->http_port = atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
+			conf->http_port = atoi_free(conf_string_or_envvar(json_string_value(jtmp))); /* Redis port in env. variable */
 		} else if(strcmp(json_object_iter_key(kv), "http_max_request_size") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->http_max_request_size = (size_t)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "http_max_request_size") == 0 && json_typeof(jtmp) == JSON_STRING) {
@@ -131,19 +131,35 @@ conf_read(const char *filename) {
 		} else if(strcmp(json_object_iter_key(kv), "threads") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
 			conf->http_threads = (int)json_integer_value(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "threads") == 0 && json_typeof(jtmp) == JSON_STRING) {
-			conf->http_threads = atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
+			conf->http_threads = atoi_free(conf_string_or_envvar(json_string_value(jtmp))); /* threads in env. variable */
 		} else if(strcmp(json_object_iter_key(kv), "acl") == 0 && json_typeof(jtmp) == JSON_ARRAY) {
 			conf->perms = conf_parse_acls(jtmp);
 		} else if(strcmp(json_object_iter_key(kv), "user") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			struct passwd *u;
-			if((u = getpwnam(conf_string_or_envvar(json_string_value(jtmp))))) {
+			char *username = conf_string_or_envvar(json_string_value(jtmp));
+			errno = 0; /* required before calling getpwnam if we want to distinguish b/w not found and error */
+			if((u = getpwnam(username))) {
 				conf->user = u->pw_uid;
+			} else if (errno) { /* an error happened while we looked up this user */
+				fprintf(stderr, "Could not find user ID for user '%s', an error occurred: %s\n",
+					username, strerror(errno));
+			} else {
+				fprintf(stderr, "Could not find user ID for unknown user '%s'\n", username);
 			}
+			free(username);
 		} else if(strcmp(json_object_iter_key(kv), "group") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			struct group *g;
-			if((g = getgrnam(conf_string_or_envvar(json_string_value(jtmp))))) {
+			char *groupname = conf_string_or_envvar(json_string_value(jtmp));
+			errno = 0; /* required before calling getgrnam if we want to distinguish b/w not found and error */
+			if((g = getgrnam(groupname))) {
 				conf->group = g->gr_gid;
+			} else if (errno) { /* an error happened while we looked up this group */
+				fprintf(stderr, "Could not find group ID for group '%s', an error occurred: %s\n",
+					groupname, strerror(errno));
+			} else {
+				fprintf(stderr, "Could not find group ID for unknown group '%s'\n", groupname);
 			}
+			free(groupname);
 		} else if(strcmp(json_object_iter_key(kv),"logfile") == 0 && json_typeof(jtmp) == JSON_STRING){
 			conf->logfile = conf_string_or_envvar(json_string_value(jtmp));
 		} else if(strcmp(json_object_iter_key(kv),"log_fsync") == 0) {
