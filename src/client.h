@@ -40,6 +40,7 @@ struct http_client {
 	/* various flags. */
 	char keep_alive;
 	char broken;
+	char fully_read;
 	char is_websocket;
 	char http_version;
 	char failed_alloc;

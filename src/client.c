@@ -182,6 +182,7 @@ http_client_on_message_complete(struct http_parser *p) {
 	/* keep-alive detection */
 	if (c->parser.flags & F_CONNECTION_CLOSE) {
 		c->keep_alive = 0;
+		c->fully_read = 1; /* only *now* can we stop waiting for input */
 	} else if(c->parser.http_major == 1 && c->parser.http_minor == 1) { /* 1.1 */
 		c->keep_alive = 1;
 	}
