@@ -17,7 +17,7 @@ jobs:
     - name: Install dependencies
       run: |
         apt-get -y update
-        apt-get -y --force-yes install make gcc libevent-dev libmsgpack-dev python3
+        apt-get -y --force-yes install make gcc libevent-dev libmsgpack-dev python3 curl
     - name: Build
       run: make
     - name: Run Webdis and test
@@ -25,6 +25,7 @@ jobs:
         ./webdis .github/workflows/webdis-ci.json
         sleep 2
         ./tests/basic.py
+        ./tests/curl-tests.sh
     - name: Archive logs
       uses: actions/upload-artifact@v2
       with:
