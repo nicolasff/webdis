@@ -356,8 +356,7 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 	/* the user can force it with ?type=some/thing */
 	if(client->type) {
 		*f_format = custom_type_reply;
-		cmd->mime = strdup(client->type);
-		cmd->mime_free = 1;
+		/* /!\ we don't copy cmd->mime, this is done soon after in cmd_setup */
 	}
 
 	if(found) {
