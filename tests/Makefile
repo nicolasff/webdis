@@ -1,6 +1,6 @@
 OUT=websocket pubsub
 CFLAGS=-O3 -Wall -Wextra
-LDFLAGS=-levent -lpthread -lrt
+LDFLAGS=-levent -lpthread
 
 all: $(OUT) Makefile
 
