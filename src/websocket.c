@@ -220,6 +220,7 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 
 static struct ws_msg *
 ws_msg_new() {
+	fprintf(stderr, "------------ NEW -----------\n");
 	return calloc(1, sizeof(struct ws_msg));
 }
 
@@ -235,6 +236,7 @@ ws_msg_add(struct ws_msg *m, const char *p, size_t psz, const unsigned char *mas
 	for(i = 0; i < psz && mask; ++i) {
 		m->payload[m->payload_sz + i] = (unsigned char)p[i] ^ mask[i%4];
 	}
+	fprintf(stderr, "CONTENTS=[%.*s] (%lu)\n", (int)psz, m->payload, psz);
 
 	/* save new size */
 	m->payload_sz += psz;
@@ -242,7 +244,7 @@ ws_msg_add(struct ws_msg *m, const char *p, size_t psz, const unsigned char *mas
 
 static void
 ws_msg_free(struct ws_msg **m) {
-
+	fprintf(stderr, "------------ /FREE -----------\n");
 	free((*m)->payload);
 	free(*m);
 	*m = NULL;
@@ -262,12 +264,15 @@ ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 	}
 
 	has_mask = frame[1] & 0x80 ? 1:0;
+	fprintf(stderr, "has_mask=%d\n", has_mask);
 
 	/* get payload length */
 	len = frame[1] & 0x7f;	/* remove leftmost bit */
+	fprintf(stderr, "len=%llu\n", len);
 	if(len <= 125) { /* data starts right after the mask */
 		p = frame + 2 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 2, sizeof(mask));
+		if (has_mask) fprintf(stderr, "mask= %02x %02x %02x %02x\n", mask[0], mask[1], mask[2], mask[3]);
 	} else if(len == 126) {
 		uint16_t sz16;
 		memcpy(&sz16, frame + 2, sizeof(uint16_t));
@@ -293,8 +298,10 @@ ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 	(*msg)->total_sz += len + (p - frame);
 
 	if(frame[0] & 0x80) { /* FIN bit set */
+		fprintf(stderr, "FIN bit: SET\n");
 		return WS_MSG_COMPLETE;
 	} else {
+		fprintf(stderr, "FIN bit: NOT SET\n");
 		return WS_READING;	/* need more data */
 	}
 }
@@ -312,6 +319,7 @@ ws_add_data(struct http_client *c) {
 
 	while(state == WS_MSG_COMPLETE) {
 		int ret = ws_execute(c, c->frame->payload, c->frame->payload_sz);
+		fprintf(stderr, "ws_execute returned %d\n", ret);
 
 		/* remove frame from client buffer */
 		http_client_remove_data(c, c->frame->total_sz);
@@ -323,14 +331,16 @@ ws_add_data(struct http_client *c) {
 			/* can't process frame. */
 			return WS_ERROR;
 		}
+		fprintf(stderr, "Calling ws_parse_data again...\n");
 		state = ws_parse_data(c->buffer, c->sz, &c->frame);
+		fprintf(stderr, "ws_parse_data returned %d\n", (int)state);
 	}
 	return state;
 }
 
 int
 ws_reply(struct cmd *cmd, const char *p, size_t sz) {
-
+	fprintf(stderr, "ws_reply: '%.*s' (%lu bytes)\n", (int)sz, p, sz);
 	char *frame = malloc(sz + 8); /* create frame by prepending header */
 	size_t frame_sz = 0;
 	struct http_response *r;
@@ -365,7 +375,7 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 
 	/* send WS frame */
 	r = http_response_init(cmd->w, 0, NULL);
-	if (cmd_is_subscribe(cmd)) {
+	if (1 || cmd_is_subscribe(cmd)) {
 		r->keep_alive = 1;
 	}
 

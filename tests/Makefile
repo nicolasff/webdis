@@ -1,11 +1,11 @@
 OUT=websocket pubsub
-CFLAGS=-O3 -Wall -Wextra
-LDFLAGS=-levent -lpthread
+CFLAGS=-O0 -g -Wall -Wextra -I../src/http-parser/
+LDFLAGS=-g -levent -lpthread
 
 all: $(OUT) Makefile
 
-websocket: websocket.o
-	$(CC) -o $@ $< $(LDFLAGS)
+websocket: websocket.o ../src/http-parser/http_parser.o
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 pubsub: pubsub.o
 	$(CC) -o $@ $< $(LDFLAGS)

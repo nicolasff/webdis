@@ -35,7 +35,7 @@ worker_new(struct server *s) {
 
 void
 worker_can_read(int fd, short event, void *p) {
-
+	fprintf(stderr, "worker_can_read\n");
 	struct http_client *c = p;
 	int ret, nparsed;
 
@@ -87,9 +87,11 @@ worker_can_read(int fd, short event, void *p) {
 	}
 
 	if(c->broken) { /* terminate client */
+		fprintf(stderr, "c->broken: http_client_free()\n");
 		http_client_free(c);
 	} else {
 		/* start monitoring input again */
+		fprintf(stderr, "worker_monitor_input()\n");
 		worker_monitor_input(c);
 	}
 }

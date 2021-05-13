@@ -98,6 +98,7 @@ http_response_cleanup(struct http_response *r, int fd, int success) {
 	free(r->out);
 	if(!r->keep_alive || !success) {
 		/* Close fd is client doesn't support Keep-Alive. */
+		fprintf(stderr, "http_response_cleanup: keep_alive=%d, success=%d -> closing\n", r->keep_alive, success);
 		close(fd);
 	}
 
@@ -124,6 +125,8 @@ http_can_write(int fd, short event, void *p) {
 	if(ret > 0)
 		r->sent += ret;
 
+	fprintf(stderr, "http_can_write: ret=%d, r->out_sz=%lu, r->sent=%d\n",
+		ret, r->out_sz, r->sent);
 	if(ret <= 0 || r->out_sz - r->sent == 0) { /* error or done */
 		http_response_cleanup(r, fd, (int)r->out_sz == r->sent ? 1 : 0);
 	} else { /* reschedule write */
