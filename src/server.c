@@ -119,7 +119,7 @@ server_can_accept(int fd, short event, void *ptr) {
 	int client_fd;
 	struct sockaddr_in addr;
 	socklen_t addr_sz = sizeof(addr);
-	char on = 1;
+	int on = 1;
 	(void)event;
 
 	/* select worker to send the client to */
@@ -129,7 +129,13 @@ server_can_accept(int fd, short event, void *ptr) {
 	client_fd = accept(fd, (struct sockaddr*)&addr, &addr_sz);
 
 	/* make non-blocking */
-	ioctl(client_fd, (int)FIONBIO, (char *)&on);
+	int status = ioctl(client_fd, FIONBIO, &on);
+	if (status == -1) {
+		char log_msg[200];
+		int log_msg_sz = snprintf(log_msg, sizeof(log_msg),
+			"ioctl failed (%d): %s", errno, strerror(errno));
+		slog(s, WEBDIS_ERROR, log_msg, log_msg_sz);
+	}
 
 	/* create client and send to worker. */
 	if(client_fd > 0) {
