@@ -2,6 +2,7 @@
 #include "server.h"
 #include "worker.h"
 #include "client.h"
+#include "slog.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -98,7 +99,12 @@ http_response_cleanup(struct http_response *r, int fd, int success) {
 	free(r->out);
 	if(!r->keep_alive || !success) {
 		/* Close fd is client doesn't support Keep-Alive. */
-		fprintf(stderr, "http_response_cleanup: keep_alive=%d, success=%d -> closing\n", r->keep_alive, success);
+		if (r->w && slog_enabled(r->w->s, WEBDIS_TRACE)) {
+			char format[] = "http_response_cleanup: keep_alive=%d, success=%d -> closing";
+			char cleanup_msg[sizeof(format)];
+			snprintf(cleanup_msg, sizeof(cleanup_msg), format, r->keep_alive ? 1 : 0, success ? 1: 0);
+			slog(r->w->s, WEBDIS_TRACE, cleanup_msg, 0);
+		}
 		close(fd);
 	}
 
@@ -125,8 +131,19 @@ http_can_write(int fd, short event, void *p) {
 	if(ret > 0)
 		r->sent += ret;
 
-	fprintf(stderr, "http_can_write: ret=%d, r->out_sz=%lu, r->sent=%d\n",
-		ret, r->out_sz, r->sent);
+	if (r->w && slog_enabled(r->w->s, WEBDIS_TRACE)) { /* trace logs */
+		char format[] = "http_can_write: wrote %d, remaining=%lu, total sent=%d";
+		size_t contents_sz = snprintf(NULL, 0, format, ret, r->out_sz - r->sent, r->sent);
+		char *contents_msg = calloc(contents_sz + 1, 1);
+		if (contents_msg) {
+			snprintf(contents_msg, contents_sz + 1, format, ret, r->out_sz - r->sent, r->sent);
+			slog(r->w->s, WEBDIS_TRACE, contents_msg, contents_sz);
+			free(contents_msg);
+		} else {
+			slog(r->w->s, WEBDIS_ERROR, "Failed allocation in http_can_write", 0);
+		}
+	}
+
 	if(ret <= 0 || r->out_sz - r->sent == 0) { /* error or done */
 		http_response_cleanup(r, fd, (int)r->out_sz == r->sent ? 1 : 0);
 	} else { /* reschedule write */

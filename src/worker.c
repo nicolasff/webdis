@@ -35,13 +35,13 @@ worker_new(struct server *s) {
 
 void
 worker_can_read(int fd, short event, void *p) {
-	fprintf(stderr, "worker_can_read\n");
 	struct http_client *c = p;
 	int ret, nparsed;
 
 	(void)fd;
 	(void)event;
 
+	slog(c->w->s, WEBDIS_TRACE, "worker_can_read", 0);
 	ret = http_client_read(c);
 	if(ret <= 0) {
 		if((client_error_t)ret == CLIENT_DISCONNECTED) {
@@ -87,11 +87,11 @@ worker_can_read(int fd, short event, void *p) {
 	}
 
 	if(c->broken) { /* terminate client */
-		fprintf(stderr, "c->broken: http_client_free()\n");
+		slog(c->s, WEBDIS_TRACE, "worker_can_read: c->broken, calling http_client_free", 0);
 		http_client_free(c);
 	} else {
 		/* start monitoring input again */
-		fprintf(stderr, "worker_monitor_input()\n");
+		slog(c->s, WEBDIS_TRACE, "worker_can_read: calling worker_monitor_input again", 0);
 		worker_monitor_input(c);
 	}
 }
