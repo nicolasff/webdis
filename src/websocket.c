@@ -415,12 +415,14 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 
 	/* send WS frame */
 	r = http_response_init(cmd->w, 0, NULL);
-	if (cmd_is_subscribe(cmd)) {
-		r->keep_alive = 1;
+	if (r == NULL) {
+		free(frame);
+		slog(cmd->w->s, WEBDIS_ERROR, "Failed response allocation in ws_reply", 0);
+		return -1;
 	}
 
-	if (r == NULL)
-		return -1;
+	/* mark as keep alive, otherwise we'll close the connection after the first reply */
+	r->keep_alive = 1;
 
 	r->out = frame;
 	r->out_sz = frame_sz;
