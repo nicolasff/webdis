@@ -77,11 +77,21 @@ slog_fsync_init(struct server *s) {
 }
 
 /**
+ * Returns whether this log level is enabled.
+ */
+int
+slog_enabled(struct server *s, log_level level) {
+	return level <= s->cfg->verbosity ? 1 : 0;
+}
+
+/**
  * Write log message to disk, or stderr.
  */
 void
 slog(struct server *s, log_level level,
 		const char *body, size_t sz) {
+
+	if(level > s->cfg->verbosity) return; /* too verbose */
 
 	const char *c = "EWNID";
 	time_t now;
@@ -90,8 +100,6 @@ slog(struct server *s, log_level level,
 	char msg[124];
 	char line[256]; /* bounds are checked. */
 	int line_sz, ret;
-
-	if(level > s->cfg->verbosity) return; /* too verbose */
 
 	if(!s->log.fd) return;
 

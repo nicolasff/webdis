@@ -159,9 +159,11 @@ conf_read(const char *filename) {
 			}
 		} else if(strcmp(json_object_iter_key(kv),"verbosity") == 0 && json_typeof(jtmp) == JSON_INTEGER){
 			int tmp = json_integer_value(jtmp);
-			if(tmp < 0) conf->verbosity = WEBDIS_ERROR;
-			else if(tmp > (int)WEBDIS_DEBUG) conf->verbosity = WEBDIS_DEBUG;
-			else conf->verbosity = (log_level)tmp;
+			if(tmp < 0 || tmp > (int)WEBDIS_TRACE) {
+				fprintf(stderr, "Invalid log verbosity: %d. Acceptable range: [%d .. %d]\n",
+					tmp, WEBDIS_ERROR, WEBDIS_TRACE);
+			}
+			conf->verbosity = (tmp < 0 ? WEBDIS_ERROR : (tmp > WEBDIS_TRACE ? WEBDIS_TRACE : (log_level)tmp));
 		} else if(strcmp(json_object_iter_key(kv), "daemonize") == 0 && json_typeof(jtmp) == JSON_TRUE) {
 			conf->daemonize = 1;
 		} else if(strcmp(json_object_iter_key(kv), "daemonize") == 0 && json_typeof(jtmp) == JSON_STRING) {

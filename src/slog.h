@@ -6,7 +6,8 @@ typedef enum {
 	WEBDIS_WARNING,
 	WEBDIS_NOTICE,
 	WEBDIS_INFO,
-	WEBDIS_DEBUG
+	WEBDIS_DEBUG,
+	WEBDIS_TRACE
 } log_level;
 
 typedef enum {
@@ -25,6 +26,9 @@ slog_init(struct server *s);
 
 void
 slog_fsync_init(struct server *s);
+
+int
+slog_enabled(struct server *s, log_level level);
 
 void slog(struct server *s, log_level level,
 		const char *body, size_t sz);
