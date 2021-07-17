@@ -421,7 +421,7 @@ main(int argc, char *argv[]) {
 
     struct timespec t0, t1;
 
-    int messages_default = 100000;
+    int messages_default = 2500;
     int thread_count_default = 4;
     short port_default = 7379;
     char *host_default = "127.0.0.1";
