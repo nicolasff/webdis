@@ -5,7 +5,7 @@ B64_OBJS?=src/b64/cencode.o
 FORMAT_OBJS?=src/formats/json.o src/formats/raw.o src/formats/common.o src/formats/custom-type.o
 HTTP_PARSER_OBJS?=src/http-parser/http_parser.o
 
-CFLAGS ?= -O3 -Wall -Wextra -Isrc -Isrc/jansson/src -Isrc/http-parser -MD
+CFLAGS ?= -Wall -Wextra -Isrc -Isrc/jansson/src -Isrc/http-parser -MD
 LDFLAGS ?= -levent -pthread
 
 # Pass preprocessor macros to the compile invocation
@@ -35,6 +35,20 @@ endif
 endif
 endif
 
+# if `make` is run with DEBUG=1, include debug symbols
+DEBUG_FLAGS=
+ifeq ($(DEBUG),1)
+	DEBUG_FLAGS += -O0
+	ifeq ($(shell cc -v 2>&1 | grep -cw 'gcc version'),1) # GCC used: add GDB debugging symbols
+		DEBUG_FLAGS += -ggdb3
+	else ifeq ($(shell gcc -v 2>&1 | grep -cw 'clang version'),1) # Clang used: add LLDB debugging symbols
+		DEBUG_FLAGS += -g3 -glldb
+	endif
+else
+	DEBUG_FLAGS += -O3
+endif
+
+CFLAGS += $(DEBUG_FLAGS)
 
 OBJS_DEPS=$(wildcard *.d)
 DEPS=$(FORMAT_OBJS) $(HIREDIS_OBJ) $(JANSSON_OBJ) $(HTTP_PARSER_OBJS) $(B64_OBJS)
