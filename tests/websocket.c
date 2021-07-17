@@ -44,6 +44,7 @@ struct worker_thread {
     int id;
     pthread_t thread;
     enum worker_state state;
+    int timeout_seconds;
 
     struct evbuffer *rbuffer;
     int got_header;
@@ -321,6 +322,16 @@ ws_on_message_complete(http_parser *p) {
     return 0;
 }
 
+static void
+ws_on_timeout(evutil_socket_t fd, short event, void *arg) {
+    struct worker_thread *wt = arg;
+    (void) fd;
+    (void) event;
+
+    fprintf(stderr, "Time has run out! (thread %d)\n", wt->id);
+    event_base_loopbreak(wt->base); /* break out of event loop */
+}
+
 void*
 worker_main(void *ptr) {
 
@@ -338,6 +349,8 @@ worker_main(void *ptr) {
     int ret;
     int fd;
     struct sockaddr_in addr;
+    struct timeval timeout_tv;
+    struct event *timeout_ev;
 
     /* connect socket */
     fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -359,6 +372,14 @@ worker_main(void *ptr) {
     wt->wbuffer = evbuffer_new(); /* write buffer */
     wt->byte_count = 0;
     wt->got_header = 0;
+
+    /* add timeout, if set */
+    if (wt->timeout_seconds > 0) {
+        timeout_tv.tv_sec = wt->timeout_seconds;
+        timeout_tv.tv_usec = 0;
+        timeout_ev = event_new(wt->base, -1, EV_TIMEOUT, ws_on_timeout, wt);
+        event_add(timeout_ev, &timeout_tv);
+    }
 
     /* initialize HTTP parser, to parse the server response */
     memset(&wt->settings, 0, sizeof(http_parser_settings));
@@ -389,6 +410,7 @@ usage(const char* argv0, char *host_default, short port_default,
         "\t[--port|-p] PORT\t(default = %d)\n"
         "\t[--clients|-c] THREADS\t(default = %d)\n"
         "\t[--messages|-n] COUNT\t(number of messages per thread, default = %d)\n"
+        "\t[--max-time|-t] SECONDS\t(max time to give to the run, default = unlimited)\n"
         "\t[--verbose|-v]\t\t(extremely verbose output)\n",
         argv0, host_default, (int)port_default,
         thread_count_default, messages_default);
@@ -410,6 +432,7 @@ main(int argc, char *argv[]) {
     char *colon;
     long total = 0, total_bytes = 0;
     int verbose = 0;
+    int timeout_seconds = -1;
 
     struct host_info hi = {host_default, port_default};
 
@@ -422,10 +445,11 @@ main(int argc, char *argv[]) {
         {"port", required_argument, NULL, 'p'},
         {"clients", required_argument, NULL, 'c'},
         {"messages", required_argument, NULL, 'n'},
+        {"max-time", required_argument, NULL, 't'},
         {"verbose", no_argument, NULL, 'v'},
         {0, 0, 0, 0}
     };
-    while ((opt = getopt_long(argc, argv, "h:p:c:n:vs", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "h:p:c:n:t:vs", long_options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 colon = strchr(optarg, ':');
@@ -452,6 +476,10 @@ main(int argc, char *argv[]) {
                 msg_target = atoi(optarg);
                 break;
 
+            case 't':
+                timeout_seconds = atoi(optarg);
+                break;
+
             case 'v':
                 verbose = 1;
                 break;
@@ -468,35 +496,30 @@ main(int argc, char *argv[]) {
     workers = calloc(sizeof(struct worker_thread), thread_count);
 
     clock_gettime(CLOCK_MONOTONIC, &t0);
-    if (thread_count == 1) {
-        printf("Single-threaded mode\n");
-        workers[0].id = 0;
-        workers[0].msg_target = msg_target;
-        workers[0].hi = &hi;
-        workers[0].verbose = verbose;
-        workers[0].state = WS_INITIAL;
-        workers[0].debug = verbose ? debug_verbose : debug_noop;
-        worker_main(&workers[0]);
-        total = workers[0].msg_received;
-        total_bytes = workers[0].byte_count;
-    } else {
-        for (i = 0; i < thread_count; ++i) {
-            workers[i].id = i;
-            workers[i].msg_target = msg_target;
-            workers[i].hi = &hi;
-            workers[i].verbose = verbose;
-            workers[i].state = WS_INITIAL;
-            workers[i].debug = verbose ? debug_verbose : debug_noop;
+    for (i = 0; i < thread_count; ++i) {
+        workers[i].id = i;
+        workers[i].msg_target = msg_target;
+        workers[i].hi = &hi;
+        workers[i].verbose = verbose;
+        workers[i].state = WS_INITIAL;
+        workers[i].debug = verbose ? debug_verbose : debug_noop;
+        workers[i].timeout_seconds = timeout_seconds;
+        if (thread_count == 1) {
+            printf("Single-threaded mode\n");
+            worker_main(&workers[0]);
+        } else { /* create threads */
             pthread_create(&workers[i].thread, NULL,
                            worker_main, &workers[i]);
         }
+    }
 
-        /* wait for threads to finish */
-        for (i = 0; i < thread_count; ++i) {
+    /* wait for threads to finish */
+    for (i = 0; i < thread_count; ++i) {
+        if (thread_count > 1) {
             pthread_join(workers[i].thread, NULL);
-            total += workers[i].msg_received;
-            total_bytes += workers[i].byte_count;
         }
+        total += workers[i].msg_received;
+        total_bytes += workers[i].byte_count;
     }
 
     /* timing */
