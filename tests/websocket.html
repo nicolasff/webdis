@@ -3,150 +3,215 @@
 	<head>
 		<title>WebSocket example</title>
 		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" href="https://unpkg.com/purecss@2.0.6/build/pure-min.css" integrity="sha384-Uu6IeWbM+gzNVXJcM9XV3SohHtmWE+3VGi496jvgX1jyvDTXfdK+rfZc8C1Aehk5" crossorigin="anonymous">
 		<style type="text/css">
-
-			body {
-				width: 800px;
-				margin: auto;
-			}
-
-			header {
-				font-size: 36pt;
-				width: 100%;
+			h1, h3 {
 				text-align: center;
-				margin-bottom: 1em;
-				color: #541F14;
 			}
 
-			section.proto {
-				float: left;
-				/*background-color: #f8f8f8;*/
-			}
-
-			section#json {
-				width: 380px;
-				margin-right: 20px;
-			}
-
-			section#raw {
-				width: 380px;
-				padding-left: 16px;
-				border-left: 4px solid #626266;
-			}
-
-			div.desc {
-				margin: 0px;
-			}
 			pre.sent, pre.received {
 				margin-top: 0px;
 				border-radius: 4px;
 				padding: 5px;
 			}
+
 			pre.sent {
-				border: 1px solid #938172;
+				border: 1px solid #4b63cc;
 				background-color: white;
 			}
+
 			pre.received {
-				border: 1px solid #CC9E61;
+				border: 1px solid #4db96d;
 				text-align: right;
 			}
 
+			.ws-state {
+				font-weight: bold;
+				line-height: 18px;
+				vertical-align: middle;
+			}
+
+			div.log {
+				font-size: 13pt;
+			}
 		</style>
 	</head>
 
 	<body>
-		<header>Webdis with HTML5 WebSockets</header>
+		<div class="pure-g">
+		<h1 class="pure-u-1">Webdis with HTML5 WebSockets</h1>
+		</div>
 
-		<section class="proto" id="json">
-			<h3>JSON</h3>
-			<div class="log" id="json-log">
-				Connecting...
+		<div class="pure-g">
+			<div class="pure-u-1-8"></div>
+			<div class="pure-u-1-3">
+				<h3>JSON</h3>
+				<form class="pure-form">
+					<fieldset>
+						<div class="pure-g">
+							<div class="pure-u-2-3"><label class="ws-state pure-u-23-24" id="json-state">State: Disconnected</label></div>
+							<div class="pure-u-1-3"><button type="submit" class="pure-u-23-24 pure-button pure-button-primary" id="json-btn-connect">Connect</button></div>
+						</div>
+					</fieldset>
+				</form>
+				<form class="pure-form">
+					<fieldset>
+						<div class="pure-g">
+							<div class="pure-u-1-3"><input disabled class="pure-u-23-24" type="text" placeholder="key" id="json-set-key" value="hello" /></div>
+							<div class="pure-u-1-3"><input disabled class="pure-u-23-24" type="text" placeholder="value" id="json-set-value" value="world" /></div>
+							<div class="pure-u-1-3"><button disabled type="submit" class="pure-u-23-24 pure-button pure-button-primary" id="json-btn-set">SET</button></div>
+						</div>
+					</fieldset>
+				</form>
+				<form class="pure-form">
+					<fieldset>
+						<div class="pure-g">
+							<div class="pure-u-1-3">&nbsp;</div>
+							<div class="pure-u-1-3"><input disabled class="pure-u-23-24" type="text" placeholder="key" id="json-get-key" value="hello" /></div>
+							<div class="pure-u-1-3"><button disabled type="submit" class="pure-u-23-24 pure-button pure-button-primary" id="json-btn-get">GET</button></div>
+						</div>
+					</fieldset>
+				</form>
+
+				<div class="pure-g">
+					<div class="pure-u-2-3">&nbsp;</div>
+					<div class="pure-u-1-3"><button disabled type="submit" class="pure-u-23-24 pure-button pure-button-primary" id="json-btn-clear">Clear logs</button></div>
+					<div class="log pure-u-1-1" id="json-log">
+					</div>
+				</div>
 			</div>
-		</section>
-		<section class="proto" id="raw">
-			<h3>Raw</h3>
-			<div class="log" id="raw-log">
-				Connecting...
+
+			<!-- spacer -->
+			<div class="pure-u-1-12"></div>
+
+			<div class="pure-u-1-3">
+				<h3>Raw</h3>
+				<form class="pure-form">
+					<fieldset>
+						<div class="pure-g">
+							<div class="pure-u-2-3"><label class="ws-state pure-u-23-24" id="raw-state">State: Disconnected</label></div>
+							<div class="pure-u-1-3"><button type="submit" class="pure-u-23-24 pure-button pure-button-primary" id="raw-btn-connect">Connect</button></div>
+						</div>
+					</fieldset>
+				</form>
+				<form class="pure-form">
+					<fieldset>
+						<div class="pure-g">
+							<div class="pure-u-1-3"><input disabled class="pure-u-23-24" type="text" placeholder="key" id="raw-set-key" value="hello" /></div>
+							<div class="pure-u-1-3"><input disabled class="pure-u-23-24" type="text" placeholder="value" id="raw-set-value" value="world" /></div>
+							<div class="pure-u-1-3"><button disabled type="submit" class="pure-u-23-24 pure-button pure-button-primary" id="raw-btn-set">SET</button></div>
+						</div>
+					</fieldset>
+				</form>
+				<form class="pure-form">
+					<fieldset>
+						<div class="pure-g">
+							<div class="pure-u-1-3">&nbsp;</div>
+							<div class="pure-u-1-3"><input disabled class="pure-u-23-24" type="text" placeholder="key" id="raw-get-key" value="hello" /></div>
+							<div class="pure-u-1-3"><button disabled type="submit" class="pure-u-23-24 pure-button pure-button-primary" id="raw-btn-get">GET</button></div>
+						</div>
+					</fieldset>
+				</form>
+
+				<div class="pure-g">
+					<div class="pure-u-2-3">&nbsp;</div>
+					<div class="pure-u-1-3"><button disabled type="submit" class="pure-u-23-24 pure-button pure-button-primary" id="raw-btn-clear">Clear logs</button></div>
+					<div class="log pure-u-1-1" id="raw-log">
+					</div>
+				</div>
 			</div>
-		</section>
 
+			<div class="pure-u-1-8"></div>
+		</div>
 
-		<script type="text/javascript">
+<script type="text/javascript">
 
 $ = function(id) {return document.getElementById(id);};
-var host = "127.0.0.1";
-var port = 7379;
+const host = "127.0.0.1";
+const port = 7379;
 
-function log(id, dir, msg) {
+class Client {
+	constructor(type, getSerializer, setSerializer) {
+		this.type = type;
+		this.getSerializer = getSerializer;
+		this.setSerializer = setSerializer;
+		this.ws = null;
 
-	var desc = document.createElement("div");
-	desc.setAttribute("class", "desc");
-	desc.innerHTML = dir;
-	$(id).appendChild(desc);
+		$(`${this.type}-btn-connect`).addEventListener('click', event => {
+			event.preventDefault();
+			console.log('Connecting...');
+			this.ws = new WebSocket(`ws://${ host }:${ port }/.${ this.type }`);
+			this.ws.onopen = event => {
+				console.log('Connected');
+				this.setConnectedState(true);
+			};
 
-	var e = document.createElement("pre");
-	e.setAttribute("class", dir);
-	e.innerHTML = msg;
-	$(id).appendChild(e);
+			// log received messages
+			this.ws.onmessage = messageEvent => {
+				this.log("received", messageEvent.data);
+			};
+
+			this.ws.onclose = event => {
+				$(`${this.type}-btn-connect`).disabled = false;
+				this.setConnectedState(false);
+			};
+		});
+
+		$(`${this.type}-btn-set`).addEventListener('click', event => {
+			event.preventDefault();
+			const serialized = this.setSerializer($(`${this.type}-set-key`).value, $(`${this.type}-set-value`).value);
+			this.log("sent", serialized);
+			this.ws.send(serialized);
+		});
+
+		$(`${this.type}-btn-get`).addEventListener('click', event => {
+			event.preventDefault();
+			const serialized = this.getSerializer($(`${this.type}-set-key`).value);
+			this.log("sent", serialized);
+			this.ws.send(serialized);
+		});
+
+		$(`${this.type}-btn-clear`).addEventListener('click', event => {
+			event.preventDefault();
+			$(`${this.type}-log`).innerText = "";
+		});
+	}
+
+	setConnectedState(connected) {
+		$(`${this.type}-btn-connect`).disabled = connected;
+		$(`${this.type}-set-key`).disabled = !connected;
+		$(`${this.type}-set-value`).disabled = !connected;
+		$(`${this.type}-btn-set`).disabled = !connected;
+		$(`${this.type}-get-key`).disabled = !connected;
+		$(`${this.type}-btn-get`).disabled = !connected;
+		$(`${this.type}-btn-clear`).disabled = !connected;
+		$(`${this.type}-state`).innerText = `State: ${connected ? 'Connected' : 'Disconnected'}`;
+	}
+
+	log(dir, msg) {
+		const id = `${this.type}-log`;
+
+		const description = document.createElement("div");
+		description.innerHTML = dir;
+		$(id).appendChild(description);
+
+		const contents = document.createElement("pre");
+		contents.setAttribute("class", dir);
+		contents.innerHTML = msg;
+		$(id).appendChild(contents);
+	}
 }
 
-function testJSON() {
+addEventListener("DOMContentLoaded", () => {
+	const jsonClient = new Client('json',
+		(key) => JSON.stringify(['GET', key]),
+		(key, value) => JSON.stringify(['SET', key, value]));
 
-	if(typeof(WebSocket) == 'function')
-		f = WebSocket;
-	if(typeof(MozWebSocket) == 'function')
-		f = MozWebSocket;
-
-	var jsonSocket = new f("ws://"+host+":"+port+"/.json");
-	var self = this;
-
-	send = function(j) {
-		var json = JSON.stringify(j);
-		jsonSocket.send(json);
-		log("json-log", "sent", json);
-	};
-
-	jsonSocket.onopen = function() {
-		$("json-log").innerHTML = "";
-		self.send(["SET", "hello", "world"]);
-		self.send(["GET", "hello"]);
-	};
-
-	jsonSocket.onmessage = function(messageEvent) {
-		log("json-log", "received", messageEvent.data);
-	};
-}
-
-function testRAW() {
-
-	if(typeof(WebSocket) == 'function')
-		f = WebSocket;
-	if(typeof(MozWebSocket) == 'function')
-		f = MozWebSocket;
-
-	var rawSocket = new f("ws://"+host+":"+port+"/.raw");
-	var self = this;
-
-	sendRaw = function(raw) {
-		rawSocket.send(raw);
-		log("raw-log", "sent", raw);
-	};
-
-	rawSocket.onopen = function() {
-		$("raw-log").innerHTML = "";
-		self.sendRaw("*3\r\n$3\r\nSET\r\n$5\r\nhello\r\n$5\r\nworld\r\n");
-		self.sendRaw("*2\r\n$3\r\nGET\r\n$5\r\nhello\r\n");
-	};
-
-	rawSocket.onmessage = function(messageEvent) {
-		log("raw-log", "received", messageEvent.data);
-	};
-}
-
-addEventListener("DOMContentLoaded", function(){
-	testJSON();
-	testRAW();
-}, null);
+	const rawClient = new Client('raw',
+		(key) => `*2\r\n$3\r\nGET\r\n$${key.length}\r\n${key}\r\n`,
+		(key, value) =>  `*3\r\n$3\r\nSET\r\n$${key.length}\r\n${key}\r\n$${value.length}\r\n${value}\r\n`);
+});
 
 		</script>
 	</body>
