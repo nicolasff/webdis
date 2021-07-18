@@ -116,8 +116,9 @@ slog_internal(struct server *s, log_level level,
 	}
 
 	/* generate output line. */
+	char letter = (level == WEBDIS_TRACE ? 5 : c[level]);
 	line_sz = snprintf(line, sizeof(line),
-		"[%d] %s %c %s\n", (int)s->log.self, time_buf, c[level], msg);
+		"[%d] %s %c %s\n", (int)s->log.self, time_buf, letter, msg);
 
 	/* write to log and maybe flush to disk. */
 	ret = write(s->log.fd, line, line_sz);

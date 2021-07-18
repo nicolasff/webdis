@@ -7,7 +7,7 @@ typedef enum {
 	WEBDIS_NOTICE,
 	WEBDIS_INFO,
 	WEBDIS_DEBUG,
-	WEBDIS_TRACE
+	WEBDIS_TRACE = 8
 } log_level;
 
 typedef enum {
