@@ -11,12 +11,14 @@
 #include <ctype.h>
 #include <getopt.h>
 #include <sys/ioctl.h>
+#include <b64/cencode.h>
+#include <http-parser/http_parser.h>
+#include <sha1/sha1.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
 
 #include <event.h>
-#include <http_parser.h>
 
 struct host_info {
 	char *host;
@@ -51,9 +53,23 @@ struct worker_thread {
 	enum worker_state state;
 	int timeout_seconds;
 
+	/* non-encoded websocket key */
+	char ws_key[16];
+	/* expected response */
+	char ws_response[28];
+	size_t ws_response_len;
+	/* actual response */
+	char *sec_websocket_accept;
 	/* masking */
 	enum mask_config mask_cfg;
 	int mask_applied;
+
+	/* current header */
+	char *cur_hdr_key;
+	size_t cur_hdr_key_len; /* not including trailing \0 */
+	char *cur_hdr_val;
+	size_t cur_hdr_val_len; /* not including trailing \0 */
+	int hdr_last_cb_was_name; /* tells us if the last call was header name or value */
 
 	struct evbuffer *rbuffer;
 	int got_header;
@@ -216,14 +232,12 @@ websocket_can_read(int fd, short event, void *ptr) {
 			wt->debug("Giving %lu bytes to http-parser\n", avail_sz);
 			int nparsed = http_parser_execute(&wt->parser, &wt->settings, tmp, avail_sz);
 			wt->debug("http-parser returned %d\n", nparsed);
-			if (nparsed != (int)avail_sz) { // put back what we didn't read
-				wt->debug("re-attach (prepend) %lu byte%c\n", avail_sz - nparsed,
-					  avail_sz - nparsed > 1 ? 's' : ' ');
-				evbuffer_prepend(wt->rbuffer, tmp + nparsed, avail_sz - nparsed);
-			}
 			free(tmp);
-			if (wt->state == WS_SENT_HANDSHAKE && /* haven't encountered end of response yet */
-			    wt->parser.upgrade && nparsed != (int)avail_sz) {
+			/* http parser will return the offset at which the upgraded protocol begins,
+			   which in our case is 1 under the total response size. */
+
+			if (wt->state == WS_SENT_HANDSHAKE || /* haven't encountered end of response yet */
+			    (wt->parser.upgrade && nparsed != (int)avail_sz -1)) {
 				wt->debug("UPGRADE *and* we have some data left\n");
 				continue;
 			} else if (wt->state == WS_RECEIVED_HANDSHAKE) { /* we have the full response */
@@ -283,10 +297,80 @@ wait_for_possible_write(struct worker_thread *wt) {
 }
 
 static int
+ws_on_header_field(http_parser *p, const char *at, size_t length) {
+	(void)length;
+	struct worker_thread *wt = (struct worker_thread *)p->data;
+
+	if (wt->hdr_last_cb_was_name) { /* we're appending to the name */
+		wt->cur_hdr_key = realloc(wt->cur_hdr_key, wt->cur_hdr_key_len + length + 1);
+		memcpy(wt->cur_hdr_key + wt->cur_hdr_key_len, at, length);
+		wt->cur_hdr_key_len += length;
+	} else { /* first call for this header name */
+		free(wt->cur_hdr_key); /* free the previous header name if there was one */
+		wt->cur_hdr_key_len = length;
+		wt->cur_hdr_key = calloc(length + 1, 1);
+		memcpy(wt->cur_hdr_key, at, length);
+	}
+	wt->debug("%s appended header name data: currently [%.*s]\n", __func__,
+		  (int)wt->cur_hdr_key_len, wt->cur_hdr_key);
+	// wt->cur_header_is_ws_resp = (strncasecmp(at, "Sec-WebSocket-Accept", 20) == 0) ? 1 : 0;
+
+	wt->hdr_last_cb_was_name = 1;
+	return 0;
+}
+
+static int
+ws_on_header_value(http_parser *p, const char *at, size_t length) {
+	struct worker_thread *wt = (struct worker_thread *)p->data;
+
+	if (wt->hdr_last_cb_was_name == 0) { /* we're appending to the value */
+		wt->cur_hdr_val = realloc(wt->cur_hdr_val, wt->cur_hdr_val_len + length + 1);
+		memcpy(wt->cur_hdr_val + wt->cur_hdr_val_len, at, length);
+		wt->cur_hdr_val_len += length;
+	} else { /* first call for this header value */
+		free(wt->cur_hdr_val); /* free the previous header value if there was one */
+		wt->cur_hdr_val_len = length;
+		wt->cur_hdr_val = calloc(length + 1, 1);
+		memcpy(wt->cur_hdr_val, at, length);
+	}
+	wt->debug("%s appended header value data: currently [%.*s]\n", __func__,
+		  (int)wt->cur_hdr_val_len, wt->cur_hdr_val);
+
+	if (wt->cur_hdr_key_len == 20 && strncasecmp(wt->cur_hdr_key, "Sec-WebSocket-Accept", 20) == 0) {
+		free(wt->sec_websocket_accept);
+		wt->sec_websocket_accept = calloc(wt->cur_hdr_val_len + 1, 1);
+		memcpy(wt->sec_websocket_accept, wt->cur_hdr_val, wt->cur_hdr_val_len);
+	}
+
+	wt->hdr_last_cb_was_name = 0;
+	return 0;
+}
+
+
+static int
 ws_on_headers_complete(http_parser *p) {
 	struct worker_thread *wt = p->data;
 	wt->debug("%s (wt=%p)\n", __func__, wt);
-	return 0;
+	free(wt->cur_hdr_key);
+	free(wt->cur_hdr_val);
+
+	/* make sure that we received a Sec-WebSocket-Accept header */
+	if (!wt->sec_websocket_accept) {
+		wt->debug("%s: no Sec-WebSocket-Accept header was returned\n", __func__);
+		return 1;
+	}
+
+	/* and that it matches what we expect */
+	int ret = 0;
+	if (strlen(wt->sec_websocket_accept) != wt->ws_response_len
+		|| memcmp(wt->ws_response, wt->sec_websocket_accept, wt->ws_response_len) != 0) {
+		wt->debug("Invalid WS handshake: expected [%.*s], got [%s]\n",
+			(int)wt->ws_response_len, wt->ws_response, wt->sec_websocket_accept);
+		ret = 1;
+	}
+
+	free(wt->sec_websocket_accept);
+	return ret;
 }
 
 static void
@@ -334,7 +418,7 @@ static int
 ws_on_message_complete(http_parser *p) {
 	struct worker_thread *wt = p->data;
 
-	wt->debug("%s (wt=%p)\n", __func__, wt);
+	wt->debug("%s (wt=%p), upgrade=%d\n", __func__, wt, p->upgrade);
 	// we've received the full HTTP response now, so we're ready to send frames
 	wt->state = WS_RECEIVED_HANDSHAKE;
 	ws_enqueue_frame(wt); /* add frame to buffer and register interest in writing */
@@ -359,7 +443,7 @@ worker_main(void *ptr) {
 			     "Connection: Upgrade\r\n"
 			     "Upgrade: WebSocket\r\n"
 			     "Origin: http://%s:%d\r\n"
-			     "Sec-WebSocket-Key: webdis-websocket-test-key\r\n"
+			     "Sec-WebSocket-Key: %s\r\n"
 			     "\r\n";
 
 	struct worker_thread *wt = ptr;
@@ -397,6 +481,46 @@ worker_main(void *ptr) {
 	wt->byte_count = 0;
 	wt->got_header = 0;
 
+	/* generate a random key */
+	for (int i = 0; i < 16; i++) {
+		wt->ws_key[i] = rand() & 0xff;
+	}
+	wt->debug("Raw WS key:\n");
+	hex_dump(wt, wt->ws_key, 16);
+
+	char encoded_key[23]; /* it shouldn't be more than 4/3 * 16 */
+	base64_encodestate b64state;
+	base64_init_encodestate(&b64state);
+	int pos = base64_encode_block((const char *)wt->ws_key, 16, encoded_key, &b64state);
+	int delta = base64_encode_blockend(encoded_key + pos, &b64state);
+	/* the block ends with a '\n', which we need to remove */
+	encoded_key[pos+delta-1] = '\0';
+	wt->debug("Encoded WS key [%s]:\n", encoded_key);
+
+	/* compute the expected response, to be validated when we receive it */
+	char magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+	size_t expected_raw_sz = (pos+delta-1) + sizeof(magic)-1;
+	char *expected_raw = calloc(expected_raw_sz + 1, 1);
+	memcpy(expected_raw, encoded_key, pos+delta-1); /* add encoded key */
+	memcpy(expected_raw + pos+delta-1, magic, sizeof(magic)-1); /* then constant guid */
+
+	SHA1Context ctx;
+	SHA1Reset(&ctx);
+	SHA1Input(&ctx, (const unsigned char*)expected_raw, expected_raw_sz);
+	SHA1Result(&ctx);
+	for(int i = 0; i < (int)(20/sizeof(int)); ++i) { /* put in correct byte order */
+		ctx.Message_Digest[i] = ntohl(ctx.Message_Digest[i]);
+	}
+
+	/* and then base64 encode the hash */
+	base64_init_encodestate(&b64state);
+	int resp_pos = base64_encode_block((const char *)ctx.Message_Digest, 20, wt->ws_response, &b64state);
+	int resp_delta = base64_encode_blockend(wt->ws_response + resp_pos, &b64state);
+	wt->ws_response_len = resp_pos + resp_delta - 1;
+	wt->ws_response[wt->ws_response_len] = '\0'; /* again remove the '\n' */
+
+	wt->debug("Expected response header: [%s]\n", wt->ws_response);
+
 	/* add timeout, if set */
 	if (wt->timeout_seconds > 0) {
 		timeout_tv.tv_sec = wt->timeout_seconds;
@@ -407,6 +531,8 @@ worker_main(void *ptr) {
 
 	/* initialize HTTP parser, to parse the server response */
 	memset(&wt->settings, 0, sizeof(http_parser_settings));
+	wt->settings.on_header_field = ws_on_header_field;
+	wt->settings.on_header_value = ws_on_header_value;
 	wt->settings.on_headers_complete = ws_on_headers_complete;
 	wt->settings.on_message_complete = ws_on_message_complete;
 	http_parser_init(&wt->parser, HTTP_RESPONSE);
@@ -414,7 +540,7 @@ worker_main(void *ptr) {
 
 	/* add GET request to buffer */
 	evbuffer_add_printf(wt->wbuffer, ws_template, wt->hi->host, wt->hi->port,
-			    wt->hi->host, wt->hi->port);
+			    wt->hi->host, wt->hi->port, encoded_key);
 	wait_for_possible_write(wt); /* request callback */
 
 	/* go! */

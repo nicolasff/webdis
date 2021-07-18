@@ -1,6 +1,6 @@
 OUT=websocket pubsub
-OBJS=../src/http-parser/http_parser.o
-CFLAGS=-Wall -Wextra -I../src/http-parser/
+OBJS=../src/http-parser/http_parser.o ../src/b64/cencode.o ../src/sha1/sha1.o
+CFLAGS=-Wall -Wextra -I../src -I../src/http-parser
 LDFLAGS=-levent -lpthread
 
 # if `make` is run with DEBUG=1, include debug symbols (same as in Makefile in root directory)
