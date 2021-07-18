@@ -87,13 +87,11 @@ slog_enabled(struct server *s, log_level level) {
 /**
  * Write log message to disk, or stderr.
  */
-void
-slog(struct server *s, log_level level,
+static void
+slog_internal(struct server *s, log_level level,
 		const char *body, size_t sz) {
 
-	if(level > s->cfg->verbosity) return; /* too verbose */
-
-	const char *c = "EWNID";
+	const char *c = "EWNIDT";
 	time_t now;
 	struct tm now_tm, *lt_ret;
 	char time_buf[64];
@@ -128,4 +126,15 @@ slog(struct server *s, log_level level,
 	}
 
 	(void)ret;
+}
+
+/**
+ * This wrapper around slog_internal that first checks the log level.
+ */
+void
+slog(struct server *s, log_level level,
+		const char *body, size_t sz) {
+	if(level <= s->cfg->verbosity) { /* check log level first */
+		slog_internal(s, level, body, sz);
+	}
 }
