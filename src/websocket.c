@@ -220,13 +220,12 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 }
 
 static struct ws_msg *
-ws_msg_new(struct server *s) {
-	slog(s, WEBDIS_TRACE, "ws_msg_new", 0);
+ws_msg_new() {
 	return calloc(1, sizeof(struct ws_msg));
 }
 
 static void
-ws_msg_add(struct server *s, struct ws_msg *m, const char *p, size_t psz, const unsigned char *mask) {
+ws_msg_add(struct ws_msg *m, const char *p, size_t psz, const unsigned char *mask) {
 
 	/* add data to frame */
 	size_t i;
@@ -237,35 +236,21 @@ ws_msg_add(struct server *s, struct ws_msg *m, const char *p, size_t psz, const 
 	for(i = 0; i < psz && mask; ++i) {
 		m->payload[m->payload_sz + i] = (unsigned char)p[i] ^ mask[i%4];
 	}
-	if (slog_enabled(s, WEBDIS_TRACE)) {
-		char format[] = "ws_msg_add: %lu bytes, mask_enabled=%c";
-		char mask_enabled = mask ? 'Y' : 'N';
-
-		size_t contents_sz = snprintf(NULL, 0, format, psz, mask_enabled);
-		char *contents_msg = calloc(contents_sz + 1, 1);
-		if (contents_msg) {
-			snprintf(contents_msg, contents_sz + 1, format, psz, mask_enabled);
-			slog(s, WEBDIS_TRACE, contents_msg, contents_sz);
-			free(contents_msg);
-		} else {
-			slog(s, WEBDIS_ERROR, "Failed allocation in ws_msg_add", 0);
-		}
-	}
 
 	/* save new size */
 	m->payload_sz += psz;
 }
 
 static void
-ws_msg_free(struct server *s, struct ws_msg **m) {
-	slog(s, WEBDIS_TRACE, "ws_msg_free", 0);
+ws_msg_free(struct ws_msg **m) {
+
 	free((*m)->payload);
 	free(*m);
 	*m = NULL;
 }
 
 static enum ws_state
-ws_parse_data(struct server *s, const char *frame, size_t sz, struct ws_msg **msg) {
+ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 
 	int has_mask;
 	uint64_t len;
@@ -278,27 +263,9 @@ ws_parse_data(struct server *s, const char *frame, size_t sz, struct ws_msg **ms
 	}
 
 	has_mask = frame[1] & 0x80 ? 1:0;
-	if (slog_enabled(s, WEBDIS_TRACE)) {
-		char log_mask[]= "ws_parse_data: has_mask=?";
-		log_mask[sizeof(log_mask)-2] = has_mask ? 'Y' : 'N'; /* -1 for \0 and -1 again for last char */
-		slog(s, WEBDIS_TRACE, log_mask, sizeof(log_mask)-1);
-	}
 
 	/* get payload length */
 	len = frame[1] & 0x7f;	/* remove leftmost bit */
-
-	if (slog_enabled(s, WEBDIS_TRACE)) { /* log length */
-		char format[] = "ws_parse_data: payload length = %llu bytes";
-		size_t contents_sz = snprintf(NULL, 0, format, len);
-		char *contents_msg = calloc(contents_sz + 1, 1);
-		if (contents_msg) {
-			snprintf(contents_msg, contents_sz + 1, format, len);
-			slog(s, WEBDIS_TRACE, contents_msg, contents_sz);
-			free(contents_msg);
-		} else {
-			slog(s, WEBDIS_ERROR, "Failed allocation in ws_parse_data", 0);
-		}
-	}
 	if(len <= 125) { /* data starts right after the mask */
 		p = frame + 2 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 2, sizeof(mask));
@@ -322,15 +289,13 @@ ws_parse_data(struct server *s, const char *frame, size_t sz, struct ws_msg **ms
 	}
 
 	if(!*msg)
-		*msg = ws_msg_new(s);
-	ws_msg_add(s, *msg, p, len, has_mask ? mask : NULL);
+		*msg = ws_msg_new();
+	ws_msg_add(*msg, p, len, has_mask ? mask : NULL);
 	(*msg)->total_sz += len + (p - frame);
 
 	if(frame[0] & 0x80) { /* FIN bit set */
-		slog(s, WEBDIS_TRACE, "ws_parse_data: FIN bit set", 0);
 		return WS_MSG_COMPLETE;
 	} else {
-		slog(s, WEBDIS_TRACE, "ws_parse_data: FIN bit not set", 0);
 		return WS_READING;	/* need more data */
 	}
 }
@@ -344,43 +309,30 @@ ws_add_data(struct http_client *c) {
 
 	enum ws_state state;
 
-	state = ws_parse_data(c->s, c->buffer, c->sz, &c->frame);
+	state = ws_parse_data(c->buffer, c->sz, &c->frame);
 
 	while(state == WS_MSG_COMPLETE) {
 		int ret = ws_execute(c, c->frame->payload, c->frame->payload_sz);
-		if (slog_enabled(c->s, WEBDIS_TRACE)) {
-			char format[] = "ws_add_data: ws_execute(payload_sz=%lu) returned %d";
-
-			size_t contents_sz = snprintf(NULL, 0, format, c->frame->payload_sz, ret);
-			char *contents_msg = calloc(contents_sz + 1, 1);
-			if (contents_msg) {
-				snprintf(contents_msg, contents_sz + 1, format, c->frame->payload_sz, ret);
-				slog(c->s, WEBDIS_TRACE, contents_msg, contents_sz);
-				free(contents_msg);
-			} else {
-				slog(c->s, WEBDIS_ERROR, "Failed allocation in ws_add_data", 0);
-			}
-		}
 
 		/* remove frame from client buffer */
 		http_client_remove_data(c, c->frame->total_sz);
 
 		/* free frame and set back to NULL */
-		ws_msg_free(c->s, &c->frame);
+		ws_msg_free(&c->frame);
 
 		if(ret != 0) {
 			/* can't process frame. */
 			slog(c->s, WEBDIS_WARNING, "ws_add_data: ws_execute failed", 0);
 			return WS_ERROR;
 		}
-		slog(c->s, WEBDIS_TRACE, "ws_add_data: calling ws_parse_data again", 0);
-		state = ws_parse_data(c->s, c->buffer, c->sz, &c->frame);
+		state = ws_parse_data(c->buffer, c->sz, &c->frame);
 	}
 	return state;
 }
 
 int
 ws_reply(struct cmd *cmd, const char *p, size_t sz) {
+
 	char *frame = malloc(sz + 8); /* create frame by prepending header */
 	size_t frame_sz = 0;
 	struct http_response *r;
@@ -427,20 +379,6 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 	r->out = frame;
 	r->out_sz = frame_sz;
 	r->sent = 0;
-
-	if (slog_enabled(cmd->w->s, WEBDIS_TRACE)) {
-		char format[] = "ws_reply: response is %lu bytes, frame is %lu";
-		size_t contents_sz = snprintf(NULL, 0, format, sz, frame_sz);
-		char *contents_msg = calloc(contents_sz + 1, 1);
-		if (contents_msg) {
-			snprintf(contents_msg, contents_sz + 1, format, sz, frame_sz);
-			slog(cmd->w->s, WEBDIS_TRACE, contents_msg, contents_sz);
-			free(contents_msg);
-		} else {
-			slog(cmd->w->s, WEBDIS_ERROR, "Failed allocation in ws_reply", 0);
-		}
-	}
-
 	http_schedule_write(cmd->fd, r);
 
 	return 0;

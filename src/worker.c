@@ -41,7 +41,6 @@ worker_can_read(int fd, short event, void *p) {
 	(void)fd;
 	(void)event;
 
-	slog(c->w->s, WEBDIS_TRACE, "worker_can_read", 0);
 	ret = http_client_read(c);
 	if(ret <= 0) {
 		if((client_error_t)ret == CLIENT_DISCONNECTED) {
@@ -87,11 +86,9 @@ worker_can_read(int fd, short event, void *p) {
 	}
 
 	if(c->broken) { /* terminate client */
-		slog(c->s, WEBDIS_TRACE, "worker_can_read: c->broken, calling http_client_free", 0);
 		http_client_free(c);
 	} else {
 		/* start monitoring input again */
-		slog(c->s, WEBDIS_TRACE, "worker_can_read: calling worker_monitor_input again", 0);
 		worker_monitor_input(c);
 	}
 }
