@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <getopt.h>
+#include <sys/ioctl.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -339,6 +340,7 @@ worker_main(void *ptr) {
 
 	int ret;
 	int fd;
+	int int_one = 1;
 	struct sockaddr_in addr;
 	struct timeval timeout_tv;
 	struct event *timeout_ev;
@@ -353,6 +355,11 @@ worker_main(void *ptr) {
 	ret = connect(fd, (struct sockaddr *)&addr, sizeof(struct sockaddr));
 	if (ret != 0) {
 		fprintf(stderr, "connect: ret=%d: %s\n", ret, strerror(errno));
+		return NULL;
+	}
+	ret = ioctl(fd, FIONBIO, &int_one);
+	if (ret != 0) {
+		fprintf(stderr, "ioctl: ret=%d: %s\n", ret, strerror(errno));
 		return NULL;
 	}
 
