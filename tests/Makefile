@@ -1,10 +1,25 @@
 OUT=websocket pubsub
-CFLAGS=-O0 -g -Wall -Wextra -I../src/http-parser/
-LDFLAGS=-g -levent -lpthread
+OBJS=../src/http-parser/http_parser.o
+CFLAGS=-Wall -Wextra -I../src/http-parser/
+LDFLAGS=-levent -lpthread
+
+# if `make` is run with DEBUG=1, include debug symbols (same as in Makefile in root directory)
+DEBUG_FLAGS=
+ifeq ($(DEBUG),1)
+	DEBUG_FLAGS += -O0
+	ifeq ($(shell cc -v 2>&1 | grep -cw 'gcc version'),1) # GCC used: add GDB debugging symbols
+		DEBUG_FLAGS += -ggdb3
+	else ifeq ($(shell gcc -v 2>&1 | grep -cw 'clang version'),1) # Clang used: add LLDB debugging symbols
+		DEBUG_FLAGS += -g3 -glldb
+	endif
+else
+	DEBUG_FLAGS += -O3
+endif
+CFLAGS += $(DEBUG_FLAGS)
 
 all: $(OUT) Makefile
 
-websocket: websocket.o ../src/http-parser/http_parser.o
+websocket: websocket.o $(OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 pubsub: pubsub.o
@@ -14,5 +29,5 @@ pubsub: pubsub.o
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 clean:
-	rm -f *.o $(OUT)
+	rm -f *.o $(OUT) $(OBJS)
 
