@@ -18,7 +18,7 @@
 #include <event.h>
 #include <http_parser.h>
 
-struct host_info{
+struct host_info {
 	char *host;
 	short port;
 };
@@ -29,6 +29,12 @@ enum worker_state {
 	WS_RECEIVED_HANDSHAKE,
 	WS_SENT_FRAME,
 	WS_COMPLETE
+};
+
+enum mask_config {
+	MASK_NEVER,
+	MASK_ALWAYS,
+	MASK_ALTERNATE
 };
 
 /* worker_thread, with counter of remaining messages */
@@ -44,6 +50,10 @@ struct worker_thread {
 	pthread_t thread;
 	enum worker_state state;
 	int timeout_seconds;
+
+	/* masking */
+	enum mask_config mask_cfg;
+	int mask_applied;
 
 	struct evbuffer *rbuffer;
 	int got_header;
@@ -141,6 +151,7 @@ void
 websocket_can_write(int fd, short event, void *ptr) {
 	int ret;
 	struct worker_thread *wt = ptr;
+	(void) event;
 	wt->debug("%s (wt=%p, fd=%d)\n", __func__, wt, fd);
 
 	switch (wt->state) {
@@ -182,6 +193,7 @@ websocket_can_read(int fd, short event, void *ptr) {
 	int ret;
 
 	struct worker_thread *wt = ptr;
+	(void) event;
 	wt->debug("%s (wt=%p)\n", __func__, wt);
 
 	/* read message */
@@ -279,21 +291,35 @@ ws_on_headers_complete(http_parser *p) {
 
 static void
 ws_enqueue_frame_for_command(struct worker_thread *wt, char *cmd, size_t sz) {
+	int include_mask = (wt->mask_cfg == MASK_ALWAYS ||
+		(wt->mask_cfg == MASK_ALTERNATE && wt->msg_sent % 2 == 0)) ? 1 : 0;
+
 	unsigned char mask[4];
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; include_mask && i < 4; i++) { /* only if mask is needed */
 		mask[i] = rand() & 0xff;
 	}
 	uint8_t len = (uint8_t)(sz); /* (1 << 7) | length. */
-	len |= (1 << 7);	     /* set masking bit ON */
+	if (include_mask) {
+		len |= (1 << 7); /* set masking bit ON */
+	} 
 
-	for (size_t i = 0; i < sz; i++) {
+	/* apply the mask to the payload */
+	for (size_t i = 0; include_mask && i < sz; i++) {
 		cmd[i] = (cmd[i] ^ mask[i % 4]) & 0xff;
 	}
-	/* 0x81 = 10000001b: FIN bit (only one message in the frame), text frame */
+	/* 0x81 = 10000001b:
+		1: FIN bit (meaning there's only one message in the frame),
+		0: RSV1 bit (reserved),
+		0: RSV2 bit (reserved),
+		0: RSV3 bit (reserved),
+		0001: text frame */
 	evbuffer_add(wt->wbuffer, "\x81", 1);
 	evbuffer_add(wt->wbuffer, &len, 1);
-	evbuffer_add(wt->wbuffer, mask, 4);
+	if (include_mask) { /* only include mask in the frame if needed */
+		evbuffer_add(wt->wbuffer, mask, 4);
+	}
 	evbuffer_add(wt->wbuffer, cmd, sz);
+	wt->mask_applied += include_mask;
 }
 
 static void
@@ -407,10 +433,12 @@ void usage(const char *argv0, char *host_default, short port_default,
 	       "\t[--port|-p] PORT\t(default = %d)\n"
 	       "\t[--clients|-c] THREADS\t(default = %d)\n"
 	       "\t[--messages|-n] COUNT\t(number of messages per thread, default = %d)\n"
+	       "\t[--mask|-m] MASK_CFG\t(%d: always, %d: never, %d: alternate, default = always)\n"
 	       "\t[--max-time|-t] SECONDS\t(max time to give to the run, default = unlimited)\n"
 	       "\t[--verbose|-v]\t\t(extremely verbose output)\n",
 	       argv0, host_default, (int)port_default,
-	       thread_count_default, messages_default);
+	       thread_count_default, messages_default,
+	       MASK_ALWAYS, MASK_NEVER, MASK_ALTERNATE);
 }
 
 int
@@ -430,6 +458,7 @@ main(int argc, char *argv[]) {
 	long total = 0, total_bytes = 0;
 	int verbose = 0;
 	int timeout_seconds = -1;
+	enum mask_config mask_cfg = MASK_ALWAYS;
 
 	struct host_info hi = {host_default, port_default};
 
@@ -442,10 +471,11 @@ main(int argc, char *argv[]) {
 	    {"port", required_argument, NULL, 'p'},
 	    {"clients", required_argument, NULL, 'c'},
 	    {"messages", required_argument, NULL, 'n'},
+	    {"mask", required_argument, NULL, 'm'},
 	    {"max-time", required_argument, NULL, 't'},
 	    {"verbose", no_argument, NULL, 'v'},
 	    {0, 0, 0, 0}};
-	while ((opt = getopt_long(argc, argv, "h:p:c:n:t:vs", long_options, NULL)) != -1) {
+	while ((opt = getopt_long(argc, argv, "h:p:c:n:m:t:vs", long_options, NULL)) != -1) {
 		switch (opt) {
 		case 'h':
 			colon = strchr(optarg, ':');
@@ -470,6 +500,15 @@ main(int argc, char *argv[]) {
 
 		case 'n':
 			msg_target = atoi(optarg);
+			break;
+
+		case 'm':
+			mask_cfg = atoi(optarg);
+			if (mask_cfg < MASK_NEVER || mask_cfg > MASK_ALTERNATE) {
+				fprintf(stderr, "Invalid mask configuration: %d (range is [%d .. %d])\n",
+					mask_cfg, MASK_NEVER, MASK_ALTERNATE);
+				exit(EXIT_FAILURE);
+			}
 			break;
 
 		case 't':
@@ -500,6 +539,7 @@ main(int argc, char *argv[]) {
 		workers[i].state = WS_INITIAL;
 		workers[i].debug = verbose ? debug_verbose : debug_noop;
 		workers[i].timeout_seconds = timeout_seconds;
+		workers[i].mask_cfg = mask_cfg;
 		pthread_create(&workers[i].thread, NULL,
 			       worker_main, &workers[i]);
 	}
@@ -517,9 +557,15 @@ main(int argc, char *argv[]) {
 	float mili1 = t1.tv_sec * 1000 + t1.tv_nsec / 1000000;
 
 	if (total != 0) {
+		int total_masked = 0;
+		for (i = 0; i < thread_count; ++i) {
+			total_masked += workers[i].mask_applied;
+		}
+
 		double kb_per_sec = ((double)total_bytes / (double)(mili1 - mili0)) / 1.024;
-		printf("Read %ld messages (%ld bytes) in %0.2f sec: %0.2f msg/sec (%0.2f KB/sec)\n",
+		printf("Sent+received %ld messages (%d sent masked) for a total of %ld bytes in %0.2f sec: %0.2f msg/sec (%0.2f KB/sec)\n",
 		       total,
+		       total_masked,
 		       total_bytes,
 		       (mili1 - mili0) / 1000.0,
 		       1000 * ((double)total) / (mili1 - mili0),
