@@ -500,20 +500,13 @@ main(int argc, char *argv[]) {
 		workers[i].state = WS_INITIAL;
 		workers[i].debug = verbose ? debug_verbose : debug_noop;
 		workers[i].timeout_seconds = timeout_seconds;
-		if (thread_count == 1) {
-			printf("Single-threaded mode\n");
-			worker_main(&workers[0]);
-		} else { /* create threads */
-			pthread_create(&workers[i].thread, NULL,
-				       worker_main, &workers[i]);
-		}
+		pthread_create(&workers[i].thread, NULL,
+			       worker_main, &workers[i]);
 	}
 
 	/* wait for threads to finish */
 	for (i = 0; i < thread_count; ++i) {
-		if (thread_count > 1) {
-			pthread_join(workers[i].thread, NULL);
-		}
+		pthread_join(workers[i].thread, NULL);
 		total += workers[i].msg_received;
 		total_bytes += workers[i].byte_count;
 	}
