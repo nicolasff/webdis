@@ -48,7 +48,15 @@ ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 	// websocket handshake
 	const char *key = client_get_header(c, "Sec-WebSocket-Key");
 	size_t key_sz = key?strlen(key):0, buffer_sz = key_sz + sizeof(magic) - 1;
+	if(!key || key_sz < 16 || key_sz > 32) { /* supposed to be exactly 16 bytes that were b64 encoded */
+		slog(c->s, WEBDIS_WARNING, "Invalid Sec-WebSocket-Key", 0);
+		return -1;
+	}
 	buffer = calloc(buffer_sz, 1);
+	if(!buffer) {
+		slog(c->s, WEBDIS_ERROR, "Failed to allocate memory for WS header", 0);
+		return -1;
+	}
 
 	// concatenate key and guid in buffer
 	memcpy(buffer, key, key_sz);
@@ -58,10 +66,10 @@ ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 	SHA1Reset(&ctx);
 	SHA1Input(&ctx, buffer, buffer_sz);
 	SHA1Result(&ctx);
-	for(i = 0; i < 5; ++i) {	// put in correct byte order before memcpy.
+	for(i = 0; i < (int)(20/sizeof(int)); ++i) {	// put in correct byte order before memcpy.
 		ctx.Message_Digest[i] = ntohl(ctx.Message_Digest[i]);
 	}
-	memcpy(sha1_output, (unsigned char*)ctx.Message_Digest, 20);
+	memcpy(sha1_output, ctx.Message_Digest, 20);
 
 	// encode `sha1_output' in base 64, into `out'.
 	base64_init_encodestate(&b64_ctx);
@@ -126,6 +134,10 @@ ws_handshake_reply(struct http_client *c) {
 		+ sizeof(template4)-1;
 
 	p = buffer = malloc(sz);
+	if(!p) {
+		slog(c->s, WEBDIS_ERROR, "Failed to allocate memory for WS handshake", 0);
+		return -1;
+	}
 
 	/* Concat all */
 
@@ -160,7 +172,7 @@ ws_handshake_reply(struct http_client *c) {
 	p += sizeof(template4)-1;
 
 	/* send data to client */
-	ret = write(c->fd, buffer, sz);
+	ret = write(c->fd, buffer, sz); /* FIXME: this needs to use the event loop */
 	(void)ret;
 	free(buffer);
 
