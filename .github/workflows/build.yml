@@ -1,7 +1,7 @@
 name: Build
 
 # trigger the workflow on push or pull requests
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build-and-run-tests:
