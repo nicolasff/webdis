@@ -4,7 +4,7 @@
 set -e
 
 # GitHub issue #194 (connection: close + HTTP 100)
-function validate_connection_close_100() {
+function test_large_put_upload() {
     key=$(cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
     echo -n 'Sending a PUT request with a large payload... '
     put_output=$(printf 'A%.0s' $(seq 1 10000) | curl -s -H 'Connection: close' -XPUT "http://127.0.0.1:7379/SET/${key}" -d @-)
@@ -25,4 +25,4 @@ function validate_connection_close_100() {
     fi
 }
 
-validate_connection_close_100
+test_large_put_upload
