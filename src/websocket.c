@@ -89,7 +89,6 @@ ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 int
 ws_handshake_reply(struct http_client *c) {
 
-	int ret;
 	char sha1_handshake[40];
 	char *buffer = NULL, *p;
 	const char *origin = NULL, *host = NULL;
@@ -135,7 +134,7 @@ ws_handshake_reply(struct http_client *c) {
 
 	p = buffer = malloc(sz);
 	if(!p) {
-		slog(c->s, WEBDIS_ERROR, "Failed to allocate memory for WS handshake", 0);
+		slog(c->s, WEBDIS_ERROR, "Failed to allocate buffer for WS handshake", 0);
 		return -1;
 	}
 
@@ -171,10 +170,19 @@ ws_handshake_reply(struct http_client *c) {
 	memcpy(p, template4, sizeof(template4)-1);
 	p += sizeof(template4)-1;
 
-	/* send data to client */
-	ret = write(c->fd, buffer, sz); /* FIXME: this needs to use the event loop */
-	(void)ret;
-	free(buffer);
+	/* build HTTP response object by hand, since we have the full response already */
+	struct http_response *r = calloc(1, sizeof(struct http_response));
+	if(!r) {
+		slog(c->s, WEBDIS_ERROR, "Failed to allocate response for WS handshake", 0);
+		free(buffer);
+		return -1;
+	}
+	r->w = c->w;
+	r->keep_alive = 1;
+	r->out = buffer;
+	r->out_sz = sz;
+	r->sent = 0;
+	http_schedule_write(c->fd, r); /* will free buffer and response once sent */
 
 	return 0;
 }
