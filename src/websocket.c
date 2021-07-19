@@ -117,12 +117,14 @@ ws_handshake_reply(struct http_client *c) {
 
 	/* need those headers */
 	if(!origin || !origin_sz || !host || !host_sz || !c->path || !c->path_sz) {
+		slog(c->s, WEBDIS_WARNING, "Missing headers for WS handshake", 0);
 		return -1;
 	}
 
 	memset(sha1_handshake, 0, sizeof(sha1_handshake));
 	if(ws_compute_handshake(c, &sha1_handshake[0], &handshake_sz) != 0) {
 		/* failed to compute handshake. */
+		slog(c->s, WEBDIS_WARNING, "Failed to compute handshake", 0);
 		return -1;
 	}
 
