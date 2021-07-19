@@ -313,7 +313,6 @@ ws_on_header_field(http_parser *p, const char *at, size_t length) {
 	}
 	wt->debug("%s appended header name data: currently [%.*s]\n", __func__,
 		  (int)wt->cur_hdr_key_len, wt->cur_hdr_key);
-	// wt->cur_header_is_ws_resp = (strncasecmp(at, "Sec-WebSocket-Accept", 20) == 0) ? 1 : 0;
 
 	wt->hdr_last_cb_was_name = 1;
 	return 0;
@@ -419,7 +418,7 @@ ws_on_message_complete(http_parser *p) {
 	struct worker_thread *wt = p->data;
 
 	wt->debug("%s (wt=%p), upgrade=%d\n", __func__, wt, p->upgrade);
-	// we've received the full HTTP response now, so we're ready to send frames
+	/* we've received the full HTTP response now, so we're ready to send frames */
 	wt->state = WS_RECEIVED_HANDSHAKE;
 	ws_enqueue_frame(wt); /* add frame to buffer and register interest in writing */
 	return 0;

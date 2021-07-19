@@ -130,7 +130,7 @@ slog_internal(struct server *s, log_level level,
 }
 
 /**
- * This wrapper around slog_internal that first checks the log level.
+ * Thin wrapper around slog_internal that first checks the log level.
  */
 void
 slog(struct server *s, log_level level,

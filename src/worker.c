@@ -35,6 +35,7 @@ worker_new(struct server *s) {
 
 void
 worker_can_read(int fd, short event, void *p) {
+
 	struct http_client *c = p;
 	int ret, nparsed;
 
