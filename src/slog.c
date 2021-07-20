@@ -77,21 +77,27 @@ slog_fsync_init(struct server *s) {
 }
 
 /**
+ * Returns whether this log level is enabled.
+ */
+int
+slog_enabled(struct server *s, log_level level) {
+	return level <= s->cfg->verbosity ? 1 : 0;
+}
+
+/**
  * Write log message to disk, or stderr.
  */
-void
-slog(struct server *s, log_level level,
+static void
+slog_internal(struct server *s, log_level level,
 		const char *body, size_t sz) {
 
-	const char *c = "EWNID";
+	const char *c = "EWNIDT";
 	time_t now;
 	struct tm now_tm, *lt_ret;
 	char time_buf[64];
 	char msg[124];
 	char line[256]; /* bounds are checked. */
 	int line_sz, ret;
-
-	if(level > s->cfg->verbosity) return; /* too verbose */
 
 	if(!s->log.fd) return;
 
@@ -110,8 +116,9 @@ slog(struct server *s, log_level level,
 	}
 
 	/* generate output line. */
+	char letter = (level == WEBDIS_TRACE ? 5 : c[level]);
 	line_sz = snprintf(line, sizeof(line),
-		"[%d] %s %c %s\n", (int)s->log.self, time_buf, c[level], msg);
+		"[%d] %s %c %s\n", (int)s->log.self, time_buf, letter, msg);
 
 	/* write to log and maybe flush to disk. */
 	ret = write(s->log.fd, line, line_sz);
@@ -120,4 +127,15 @@ slog(struct server *s, log_level level,
 	}
 
 	(void)ret;
+}
+
+/**
+ * Thin wrapper around slog_internal that first checks the log level.
+ */
+void
+slog(struct server *s, log_level level,
+		const char *body, size_t sz) {
+	if(level <= s->cfg->verbosity) { /* check log level first */
+		slog_internal(s, level, body, sz);
+	}
 }

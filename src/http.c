@@ -2,6 +2,7 @@
 #include "server.h"
 #include "worker.h"
 #include "client.h"
+#include "slog.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -137,7 +138,11 @@ http_schedule_write(int fd, struct http_response *r) {
 	if(r->w) { /* async */
 		event_set(&r->ev, fd, EV_WRITE, http_can_write, r);
 		event_base_set(r->w->base, &r->ev);
-		event_add(&r->ev, NULL);
+		int ret = event_add(&r->ev, NULL);
+		if (ret != 0) { /* could not schedule write */
+			slog(r->w->s, WEBDIS_ERROR, "Could not schedule HTTP write", 0);
+			http_response_cleanup(r, fd, 0);
+		}
 	} else { /* blocking */
 		http_can_write(fd, 0, r);
 	}

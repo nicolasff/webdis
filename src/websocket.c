@@ -6,6 +6,7 @@
 #include "worker.h"
 #include "pool.h"
 #include "http.h"
+#include "slog.h"
 
 /* message parsers */
 #include "formats/json.h"
@@ -47,7 +48,15 @@ ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 	// websocket handshake
 	const char *key = client_get_header(c, "Sec-WebSocket-Key");
 	size_t key_sz = key?strlen(key):0, buffer_sz = key_sz + sizeof(magic) - 1;
+	if(!key || key_sz < 16 || key_sz > 32) { /* supposed to be exactly 16 bytes that were b64 encoded */
+		slog(c->s, WEBDIS_WARNING, "Invalid Sec-WebSocket-Key", 0);
+		return -1;
+	}
 	buffer = calloc(buffer_sz, 1);
+	if(!buffer) {
+		slog(c->s, WEBDIS_ERROR, "Failed to allocate memory for WS header", 0);
+		return -1;
+	}
 
 	// concatenate key and guid in buffer
 	memcpy(buffer, key, key_sz);
@@ -57,10 +66,10 @@ ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 	SHA1Reset(&ctx);
 	SHA1Input(&ctx, buffer, buffer_sz);
 	SHA1Result(&ctx);
-	for(i = 0; i < 5; ++i) {	// put in correct byte order before memcpy.
+	for(i = 0; i < (int)(20/sizeof(int)); ++i) {	// put in correct byte order before memcpy.
 		ctx.Message_Digest[i] = ntohl(ctx.Message_Digest[i]);
 	}
-	memcpy(sha1_output, (unsigned char*)ctx.Message_Digest, 20);
+	memcpy(sha1_output, ctx.Message_Digest, 20);
 
 	// encode `sha1_output' in base 64, into `out'.
 	base64_init_encodestate(&b64_ctx);
@@ -80,7 +89,6 @@ ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 int
 ws_handshake_reply(struct http_client *c) {
 
-	int ret;
 	char sha1_handshake[40];
 	char *buffer = NULL, *p;
 	const char *origin = NULL, *host = NULL;
@@ -109,12 +117,14 @@ ws_handshake_reply(struct http_client *c) {
 
 	/* need those headers */
 	if(!origin || !origin_sz || !host || !host_sz || !c->path || !c->path_sz) {
+		slog(c->s, WEBDIS_WARNING, "Missing headers for WS handshake", 0);
 		return -1;
 	}
 
 	memset(sha1_handshake, 0, sizeof(sha1_handshake));
 	if(ws_compute_handshake(c, &sha1_handshake[0], &handshake_sz) != 0) {
 		/* failed to compute handshake. */
+		slog(c->s, WEBDIS_WARNING, "Failed to compute handshake", 0);
 		return -1;
 	}
 
@@ -125,6 +135,10 @@ ws_handshake_reply(struct http_client *c) {
 		+ sizeof(template4)-1;
 
 	p = buffer = malloc(sz);
+	if(!p) {
+		slog(c->s, WEBDIS_ERROR, "Failed to allocate buffer for WS handshake", 0);
+		return -1;
+	}
 
 	/* Concat all */
 
@@ -158,10 +172,19 @@ ws_handshake_reply(struct http_client *c) {
 	memcpy(p, template4, sizeof(template4)-1);
 	p += sizeof(template4)-1;
 
-	/* send data to client */
-	ret = write(c->fd, buffer, sz);
-	(void)ret;
-	free(buffer);
+	/* build HTTP response object by hand, since we have the full response already */
+	struct http_response *r = calloc(1, sizeof(struct http_response));
+	if(!r) {
+		slog(c->s, WEBDIS_ERROR, "Failed to allocate response for WS handshake", 0);
+		free(buffer);
+		return -1;
+	}
+	r->w = c->w;
+	r->keep_alive = 1;
+	r->out = buffer;
+	r->out_sz = sz;
+	r->sent = 0;
+	http_schedule_write(c->fd, r); /* will free buffer and response once sent */
 
 	return 0;
 }
@@ -321,6 +344,7 @@ ws_add_data(struct http_client *c) {
 
 		if(ret != 0) {
 			/* can't process frame. */
+			slog(c->s, WEBDIS_WARNING, "ws_add_data: ws_execute failed", 0);
 			return WS_ERROR;
 		}
 		state = ws_parse_data(c->buffer, c->sz, &c->frame);
@@ -365,12 +389,14 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 
 	/* send WS frame */
 	r = http_response_init(cmd->w, 0, NULL);
-	if (cmd_is_subscribe(cmd)) {
-		r->keep_alive = 1;
+	if (r == NULL) {
+		free(frame);
+		slog(cmd->w->s, WEBDIS_ERROR, "Failed response allocation in ws_reply", 0);
+		return -1;
 	}
 
-	if (r == NULL)
-		return -1;
+	/* mark as keep alive, otherwise we'll close the connection after the first reply */
+	r->keep_alive = 1;
 
 	r->out = frame;
 	r->out_sz = frame_sz;
