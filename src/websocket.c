@@ -343,7 +343,7 @@ ws_add_data(struct http_client *c) {
 
 		if(ret != 0) {
 			/* can't process frame. */
-			slog(c->s, WEBDIS_WARNING, "ws_add_data: ws_execute failed", 0);
+			slog(c->s, WEBDIS_DEBUG, "ws_add_data: ws_execute failed", 0);
 			return WS_ERROR;
 		}
 		state = ws_parse_data(c->buffer, c->sz, &c->frame);
