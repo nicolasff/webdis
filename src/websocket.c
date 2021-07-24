@@ -94,17 +94,16 @@ ws_handshake_reply(struct http_client *c) {
 	const char *origin = NULL, *host = NULL;
 	size_t origin_sz = 0, host_sz = 0, handshake_sz = 0, sz;
 
-	char template0[] = "HTTP/1.1 101 Switching Protocols\r\n"
+	char template_start[] = "HTTP/1.1 101 Switching Protocols\r\n"
 		"Upgrade: websocket\r\n"
-		"Connection: Upgrade\r\n"
-		"Sec-WebSocket-Origin: "; /* %s */
-	char template1[] = "\r\n"
-		"Sec-WebSocket-Location: ws://"; /* %s%s */
-	char template2[] = "\r\n"
-		"Origin: http://"; /* %s */
-	char template3[] = "\r\n"
+		"Connection: Upgrade";
+	char template_accept[] = "\r\n" /* just after the start */
 		"Sec-WebSocket-Accept: "; /* %s */
-	char template4[] = "\r\n\r\n";
+	char template_sec_origin[] = "\r\n"
+		"Sec-WebSocket-Origin: "; /* %s (optional header) */
+	char template_loc[] = "\r\n"
+		"Sec-WebSocket-Location: ws://"; /* %s%s */
+	char template_end[] = "\r\n\r\n";
 
 	if((origin = client_get_header(c, "Origin"))) {
 		origin_sz = strlen(origin);
@@ -116,7 +115,7 @@ ws_handshake_reply(struct http_client *c) {
 	}
 
 	/* need those headers */
-	if(!origin || !origin_sz || !host || !host_sz || !c->path || !c->path_sz) {
+	if(!host || !host_sz || !c->path || !c->path_sz) {
 		slog(c->s, WEBDIS_WARNING, "Missing headers for WS handshake", 0);
 		return -1;
 	}
@@ -128,11 +127,11 @@ ws_handshake_reply(struct http_client *c) {
 		return -1;
 	}
 
-	sz = sizeof(template0)-1 + origin_sz
-		+ sizeof(template1)-1 + host_sz + c->path_sz
-		+ sizeof(template2)-1 + host_sz
-		+ sizeof(template3)-1 + handshake_sz
-		+ sizeof(template4)-1;
+	sz = sizeof(template_start)-1
+		+ sizeof(template_accept)-1 + handshake_sz
+		+ (origin && origin_sz ? (sizeof(template_sec_origin)-1 + origin_sz) : 0) /* optional origin */
+		+ sizeof(template_loc)-1 + host_sz + c->path_sz
+		+ sizeof(template_end)-1;
 
 	p = buffer = malloc(sz);
 	if(!p) {
@@ -142,35 +141,35 @@ ws_handshake_reply(struct http_client *c) {
 
 	/* Concat all */
 
-	/* template0 */
-	memcpy(p, template0, sizeof(template0)-1);
-	p += sizeof(template0)-1;
-	memcpy(p, origin, origin_sz);
-	p += origin_sz;
+	/* template_start */
+	memcpy(p, template_start, sizeof(template_start)-1);
+	p += sizeof(template_start)-1;
 
-	/* template1 */
-	memcpy(p, template1, sizeof(template1)-1);
-	p += sizeof(template1)-1;
+	/* template_accept */
+	memcpy(p, template_accept, sizeof(template_accept)-1);
+	p += sizeof(template_accept)-1;
+	memcpy(p, &sha1_handshake[0], handshake_sz);
+	p += handshake_sz;
+
+	/* template_sec_origin */
+	if(origin && origin_sz) {
+		memcpy(p, template_sec_origin, sizeof(template_sec_origin)-1);
+		p += sizeof(template_sec_origin)-1;
+		memcpy(p, origin, origin_sz);
+		p += origin_sz;
+	}
+
+	/* template_loc */
+	memcpy(p, template_loc, sizeof(template_loc)-1);
+	p += sizeof(template_loc)-1;
 	memcpy(p, host, host_sz);
 	p += host_sz;
 	memcpy(p, c->path, c->path_sz);
 	p += c->path_sz;
 
-	/* template2 */
-	memcpy(p, template2, sizeof(template2)-1);
-	p += sizeof(template2)-1;
-	memcpy(p, host, host_sz);
-	p += host_sz;
-
-	/* template3 */
-	memcpy(p, template3, sizeof(template3)-1);
-	p += sizeof(template3)-1;
-	memcpy(p, &sha1_handshake[0], handshake_sz);
-	p += handshake_sz;
-
-	/* template4 */
-	memcpy(p, template4, sizeof(template4)-1);
-	p += sizeof(template4)-1;
+	/* template_end */
+	memcpy(p, template_end, sizeof(template_end)-1);
+	p += sizeof(template_end)-1;
 
 	/* build HTTP response object by hand, since we have the full response already */
 	struct http_response *r = calloc(1, sizeof(struct http_response));
