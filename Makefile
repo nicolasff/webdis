@@ -55,9 +55,9 @@ DEPS=$(FORMAT_OBJS) $(HIREDIS_OBJ) $(JANSSON_OBJ) $(HTTP_PARSER_OBJS) $(B64_OBJS
 OBJS=src/webdis.o src/cmd.o src/worker.o src/slog.o src/server.o src/acl.o src/md5/md5.o src/sha1/sha1.o src/http.o src/client.o src/websocket.o src/pool.o src/conf.o $(DEPS)
 
 
-
 PREFIX ?= /usr/local
 CONFDIR ?= $(DESTDIR)/etc
+SELF_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 INSTALL_DIRS = $(DESTDIR)$(PREFIX) \
 	       $(DESTDIR)$(PREFIX)/bin \
@@ -79,6 +79,7 @@ $(INSTALL_DIRS):
 
 clean:
 	rm -f $(OBJS) $(OUT) $(OBJS_DEPS)
+	find "$(SELF_DIR)" -name '*.d' -delete
 
 install: $(OUT) $(INSTALL_DIRS)
 	cp $(OUT) $(DESTDIR)$(PREFIX)/bin
