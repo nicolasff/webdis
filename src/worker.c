@@ -55,7 +55,10 @@ worker_can_read(int fd, short event, void *p) {
 
 	if(c->is_websocket) {
 		/* Got websocket data */
-		ws_add_data(c);
+		int add_ret = ws_add_data(c);
+		if(add_ret == WS_ERROR) {
+			c->broken = 1; /* likely connection was closed */
+		}
 	} else {
 		/* run parser */
 		nparsed = http_client_execute(c);
@@ -87,6 +90,9 @@ worker_can_read(int fd, short event, void *p) {
 	}
 
 	if(c->broken) { /* terminate client */
+		if(c->is_websocket) { /* only close for WS since HTTP might use keep-alive */
+			close(c->fd);
+		}
 		http_client_free(c);
 	} else {
 		/* start monitoring input again */
