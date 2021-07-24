@@ -474,6 +474,8 @@ progress_thread_main(void *ptr) {
 
 	struct timespec ts_start;
 	clock_gettime(CLOCK_MONOTONIC, &ts_start);
+	long start_nanos = ts_start.tv_sec * 1e9 + ts_start.tv_nsec; /* time of monitoring start */
+	long last_print_nanos = start_nanos;
 
 	while(1) {
 		int sem_received = 0;
@@ -501,7 +503,6 @@ progress_thread_main(void *ptr) {
 		sem_received = 1;
 	}
 #endif
-		// nanosleep(&ts, NULL);
 		num_sleeps++;
 		int total_sent = 0, total_received = 0, any_broken = 0, num_complete = 0;
 		for (int i = 0; i < pt->worker_count; i++) {
@@ -515,11 +516,15 @@ progress_thread_main(void *ptr) {
 		}
 		struct timespec ts_after_sleep;
 		clock_gettime(CLOCK_MONOTONIC, &ts_after_sleep);
+		long after_sleep_nanos = ts_after_sleep.tv_sec * 1e9 + ts_after_sleep.tv_nsec;
+		long total_nanos = after_sleep_nanos - start_nanos; /* total time spent so far */
+
 		fprintf(stderr, "After %0.2f sec: %'d messages sent, %'d received (%.02f%%). Instant rate: %'ld/sec, overall rate: %'ld/sec\n",
 			((float)((ts_after_sleep.tv_sec * 1e9 + ts_after_sleep.tv_nsec) - (ts_start.tv_sec * 1e9 + ts_start.tv_nsec))) / (float)1e9,
 			total_sent, total_received, 100.0f * (float)total_received / (float)(pt->worker_count * pt->msg_target),
-			lroundf((float)(total_received - last_received) / pt->interval_sec),
-			lroundf((float)total_received / ((float)num_sleeps) * pt->interval_sec));
+			lroundf((float)(total_received - last_received) / (((float)(after_sleep_nanos - last_print_nanos)) / 1e9f)),
+			lroundf((float)total_received / (((float)total_nanos) / 1e9f)));
+		last_print_nanos = after_sleep_nanos; /* time of last print */
 
 		if (sem_received || total_received == pt->msg_target * pt->worker_count || any_broken || num_complete == pt->worker_count) {
 			break;
