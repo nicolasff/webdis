@@ -61,9 +61,12 @@ struct http_client {
 	char *separator; /* list separator for raw lists */
 	char *filename; /* content-disposition */
 
-	struct cmd *pub_sub;
+	struct cmd *self_cmd;
 
-	struct ws_msg *frame; /* websocket frame */
+	struct ws_msg *frame; /* websocket frame (containing *received* data) */
+	struct event ws_wev; /* websocket write event */
+	struct evbuffer *ws_wbuf; /* write buffer for websocket responses */
+	int ws_scheduled_write; /* whether we are already scheduled to send out WS data */
 };
 
 struct http_client *

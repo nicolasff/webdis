@@ -48,7 +48,7 @@ format_send_error(struct cmd *cmd, short code, const char *msg) {
 
 	/* for pub/sub, remove command from client */
 	if(cmd->pub_sub_client) {
-		cmd->pub_sub_client->pub_sub = NULL;
+		cmd->pub_sub_client->self_cmd = NULL;
 	} else {
 		cmd_free(cmd);
 	}
@@ -62,7 +62,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 	struct http_response *resp;
 
 	if(cmd->is_websocket) {
-		ws_reply(cmd, p, sz);
+		ws_frame_and_send_response(cmd, p, sz);
 
 		/* If it's a subscribe command, there'll be more responses */
 		if(!cmd_is_subscribe(cmd))

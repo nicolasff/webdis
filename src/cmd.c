@@ -22,11 +22,12 @@
 #include <ctype.h>
 
 struct cmd *
-cmd_new(int count) {
+cmd_new(struct http_client *client, int count) {
 
 	struct cmd *c = calloc(1, sizeof(struct cmd));
 
 	c->count = count;
+	c->http_client = client;
 
 	c->argv = calloc(count, sizeof(char*));
 	c->argv_len = calloc(count, sizeof(size_t));
@@ -164,7 +165,7 @@ cmd_run(struct worker *w, struct http_client *client,
 		return CMD_PARAM_ERROR;
 	}
 
-	cmd = cmd_new(param_count);
+	cmd = cmd_new(client, param_count);
 	cmd->fd = client->fd;
 	cmd->database = w->s->cfg->database;
 
@@ -224,7 +225,7 @@ cmd_run(struct worker *w, struct http_client *client,
 		cmd->ac = (redisAsyncContext*)pool_connect(w->pool, cmd->database, 0);
 
 		/* register with the client, used upon disconnection */
-		client->pub_sub = cmd;
+		client->self_cmd = cmd;
 		cmd->pub_sub_client = client;
 	} else if(cmd->database != w->s->cfg->database) {
 		/* create a new connection to Redis for custom DBs */
@@ -276,7 +277,7 @@ cmd_run(struct worker *w, struct http_client *client,
 	}
 	/* failed to find a suitable connection to Redis. */
 	cmd_free(cmd);
-	client->pub_sub = NULL;
+	client->self_cmd = NULL;
 	return CMD_REDIS_UNAVAIL;
 }
 
@@ -370,6 +371,9 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 int
 cmd_is_subscribe(struct cmd *cmd) {
 
+	if(cmd->pub_sub_client) { /* persistent command */
+		return 1;
+	}
 	if(cmd->count >= 1 && cmd->argv[0] &&
 		(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0 ||
 		strncasecmp(cmd->argv[0], "PSUBSCRIBE", cmd->argv_len[0]) == 0)) {

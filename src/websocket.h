@@ -25,6 +25,6 @@ enum ws_state
 ws_add_data(struct http_client *c);
 
 int
-ws_reply(struct cmd *cmd, const char *p, size_t sz);
+ws_frame_and_send_response(struct cmd *cmd, const char *p, size_t sz);
 
 #endif

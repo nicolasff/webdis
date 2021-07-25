@@ -19,6 +19,9 @@
 #include <errno.h>
 #include <sys/param.h>
 
+static void
+ws_schedule_write(struct http_client *c);
+
 /**
  * This code uses the WebSocket specification from RFC 6455.
  * A copy is available at http://www.rfc-editor.org/rfc/rfc6455.txt
@@ -171,15 +174,22 @@ ws_handshake_reply(struct http_client *c) {
 	memcpy(p, template_end, sizeof(template_end)-1);
 	p += sizeof(template_end)-1;
 
-	/* build HTTP response object by hand, since we have the full response already */
-	struct http_response *r = http_response_init_with_buffer(c->w, buffer, sz, 1);
-	if(!r) {
+	/* create buffer that will hold data to send out */
+	c->ws_wbuf = evbuffer_new();
+	if(!c->ws_wbuf) {
 		slog(c->s, WEBDIS_ERROR, "Failed to allocate response for WS handshake", 0);
 		free(buffer);
 		return -1;
 	}
 
-	http_schedule_write(c->fd, r); /* will free buffer and response once sent */
+	int add_ret = evbuffer_add(c->ws_wbuf, buffer, sz);
+	if(add_ret < 0) {
+		slog(c->s, WEBDIS_ERROR, "Failed to add response for WS handshake", 0);
+		free(buffer);
+		return -1;
+	}
+
+	ws_schedule_write(c); /* will free buffer and response once sent */
 
 	return 0;
 }
@@ -210,20 +220,17 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 			cmd_setup(cmd, c);
 			cmd->is_websocket = 1;
 
-			if (c->pub_sub != NULL) {
+			if (c->self_cmd != NULL) {
 				/* This client already has its own connection
-				 * to Redis due to a subscription; use it from
+				 * to Redis from a previous command; use it from
 				 * now on. */
-				cmd->ac = c->pub_sub->ac;
-			} else if (cmd_is_subscribe(cmd)) {
-				/* New subscribe command; make new Redis context
+				cmd->ac = c->self_cmd->ac;
+			} else {
+				/* First WS command; make new Redis context
 				 * for this client */
 				cmd->ac = pool_connect(c->w->pool, cmd->database, 0);
-				c->pub_sub = cmd;
+				c->self_cmd = cmd;
 				cmd->pub_sub_client = c;
-			} else {
-				/* get Redis connection from pool */
-				cmd->ac = (redisAsyncContext*)pool_get_context(c->w->pool);
 			}
 
 			/* send it off */
@@ -348,11 +355,10 @@ ws_add_data(struct http_client *c) {
 }
 
 int
-ws_reply(struct cmd *cmd, const char *p, size_t sz) {
+ws_frame_and_send_response(struct cmd *cmd, const char *p, size_t sz) {
 
 	char *frame = malloc(sz + 8); /* create frame by prepending header */
 	size_t frame_sz = 0;
-	struct http_response *r;
 	if (frame == NULL)
 		return -1;
 
@@ -383,15 +389,50 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 	}
 
 	/* mark as keep alive, otherwise we'll close the connection after the first reply */
-	r = http_response_init_with_buffer(cmd->w, frame, frame_sz, 1);
-	if (r == NULL) {
+	int add_ret = evbuffer_add(cmd->http_client->ws_wbuf, frame, frame_sz);
+	if (add_ret < 0) {
 		free(frame);
-		slog(cmd->w->s, WEBDIS_ERROR, "Failed response allocation in ws_reply", 0);
+		slog(cmd->w->s, WEBDIS_ERROR, "Failed response allocation in ws_frame_and_send_response", 0);
 		return -1;
 	}
 
 	/* send WS frame */
-	http_schedule_write(cmd->fd, r);
+	ws_schedule_write(cmd->http_client);
 
 	return 0;
+}
+
+static void
+ws_can_write(int fd, short event, void *p) {
+
+	int ret;
+	struct http_client *c = p;
+	(void)event;
+
+	c->ws_scheduled_write = 0;
+
+	/* send pending data */
+	ret = evbuffer_write(c->ws_wbuf, fd);
+
+	if(ret < 0) {
+		close(fd);
+	} else if(ret > 0 && evbuffer_get_length(c->ws_wbuf) > 0) { /* more data to send */
+		ws_schedule_write(c);
+	}
+}
+
+static void
+ws_schedule_write(struct http_client *c) {
+
+	if(c->ws_scheduled_write) {
+		return;
+	}
+	event_set(&c->ws_wev, c->fd, EV_WRITE, ws_can_write, c);
+	event_base_set(c->w->base, &c->ws_wev);
+	int ret = event_add(&c->ws_wev, NULL);
+	if(ret == 0) {
+		c->ws_scheduled_write = 1;
+	} else { /* could not schedule write */
+		slog(c->w->s, WEBDIS_ERROR, "Could not schedule WS write", 0);
+	}
 }
