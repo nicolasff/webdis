@@ -16,6 +16,10 @@ http_response_init(struct worker *w, int code, const char *msg) {
 
 	/* create object */
 	struct http_response *r = calloc(1, sizeof(struct http_response));
+	if(!r) {
+		if(w && w->s) slog(w->s, WEBDIS_ERROR, "Failed to allocate http_response", 0);
+		return NULL;
+	}
 
 	r->code = code;
 	r->msg = msg;
@@ -40,6 +44,24 @@ http_response_init(struct worker *w, int code, const char *msg) {
 	*/
 	http_response_set_header(r, "Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization");
 
+	return r;
+}
+
+struct http_response *
+http_response_init_with_buffer(struct worker *w, char *data, size_t data_sz, int keep_alive) {
+
+	struct http_response *r = calloc(1, sizeof(struct http_response));
+	if(!r) {
+		if(w && w->s) slog(w->s, WEBDIS_ERROR, "Failed to allocate http_response with buffer", 0);
+		return NULL;
+	}
+	r->w = w;
+
+	/* provide buffer directly */
+	r->out = data;
+	r->out_sz = data_sz;
+	r->sent = 0;
+	r->keep_alive = keep_alive;
 	return r;
 }
 

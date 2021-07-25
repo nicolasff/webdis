@@ -172,17 +172,13 @@ ws_handshake_reply(struct http_client *c) {
 	p += sizeof(template_end)-1;
 
 	/* build HTTP response object by hand, since we have the full response already */
-	struct http_response *r = calloc(1, sizeof(struct http_response));
+	struct http_response *r = http_response_init_with_buffer(c->w, buffer, sz, 1);
 	if(!r) {
 		slog(c->s, WEBDIS_ERROR, "Failed to allocate response for WS handshake", 0);
 		free(buffer);
 		return -1;
 	}
-	r->w = c->w;
-	r->keep_alive = 1;
-	r->out = buffer;
-	r->out_sz = sz;
-	r->sent = 0;
+
 	http_schedule_write(c->fd, r); /* will free buffer and response once sent */
 
 	return 0;
@@ -386,20 +382,15 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
 		frame_sz = sz + 10;
 	}
 
-	/* send WS frame */
-	r = http_response_init(cmd->w, 0, NULL);
+	/* mark as keep alive, otherwise we'll close the connection after the first reply */
+	r = http_response_init_with_buffer(cmd->w, frame, frame_sz, 1);
 	if (r == NULL) {
 		free(frame);
 		slog(cmd->w->s, WEBDIS_ERROR, "Failed response allocation in ws_reply", 0);
 		return -1;
 	}
 
-	/* mark as keep alive, otherwise we'll close the connection after the first reply */
-	r->keep_alive = 1;
-
-	r->out = frame;
-	r->out_sz = frame_sz;
-	r->sent = 0;
+	/* send WS frame */
 	http_schedule_write(cmd->fd, r);
 
 	return 0;
