@@ -35,11 +35,22 @@ cmd_new(struct http_client *client, int count) {
 	return c;
 }
 
+void
+cmd_free_argv(struct cmd *c) {
+
+	int i;
+	fprintf(stderr, "%s: %p\n", __func__, c);
+	for(i = 0; i < c->count; ++i) {
+		free((char*)c->argv[i]);
+	}
+
+	free(c->argv);
+	free(c->argv_len);
+}
 
 void
 cmd_free(struct cmd *c) {
 
-	int i;
 	if(!c) return;
 
 	free(c->jsonp);
@@ -53,12 +64,7 @@ cmd_free(struct cmd *c) {
 		pool_free_context(c->ac);
 	}
 
-	for(i = 0; i < c->count; ++i) {
-		free((char*)c->argv[i]);
-	}
-
-	free(c->argv);
-	free(c->argv_len);
+	cmd_free_argv(c);
 
 	free(c);
 }

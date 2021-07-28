@@ -58,6 +58,9 @@ struct cmd *
 cmd_new(struct http_client *c, int count);
 
 void
+cmd_free_argv(struct cmd *c);
+
+void
 cmd_free(struct cmd *c);
 
 cmd_response_t

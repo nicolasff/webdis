@@ -216,16 +216,28 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 		struct cmd *cmd = fun_extract(c, frame, frame_len);
 
 		if(cmd) {
-			/* copy client info into cmd. */
-			cmd_setup(cmd, c);
 			cmd->is_websocket = 1;
 
 			if (c->self_cmd != NULL) {
 				/* This client already has its own connection
 				 * to Redis from a previous command; use it from
 				 * now on. */
-				cmd->ac = c->self_cmd->ac;
+				/* free args for the previous cmd */
+				cmd_free_argv(c->self_cmd);
+				/* copy args from what we just parsed to the persistent command */
+				c->self_cmd->count = cmd->count;
+				c->self_cmd->argv = cmd->argv;
+				c->self_cmd->argv_len = cmd->argv_len;
+				cmd->argv = NULL;
+				cmd->argv_len = NULL;
+				cmd->count = 0;
+				cmd_free(cmd);
+
+				cmd = c->self_cmd; /* replace pointer since we're about to pass it to cmd_send */
 			} else {
+				/* copy client info into cmd. */
+				cmd_setup(cmd, c);
+
 				/* First WS command; make new Redis context
 				 * for this client */
 				cmd->ac = pool_connect(c->w->pool, cmd->database, 0);
@@ -390,8 +402,8 @@ ws_frame_and_send_response(struct cmd *cmd, const char *p, size_t sz) {
 
 	/* mark as keep alive, otherwise we'll close the connection after the first reply */
 	int add_ret = evbuffer_add(cmd->http_client->ws_wbuf, frame, frame_sz);
+	free(frame); /* no longer needed once added to buffer */
 	if (add_ret < 0) {
-		free(frame);
 		slog(cmd->w->s, WEBDIS_ERROR, "Failed response allocation in ws_frame_and_send_response", 0);
 		return -1;
 	}
