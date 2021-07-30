@@ -117,9 +117,9 @@ class TestPubSub(unittest.TestCase):
 		sub_count = 0
 		for channel in channels:
 			self.subscriber.send(self.serialize('SUBSCRIBE', channel))
-			unsub_response = self.deserialize(self.subscriber.recv())
+			sub_response = self.deserialize(self.subscriber.recv())
 			sub_count += 1
-			self.assertEqual(unsub_response, {'SUBSCRIBE': ['subscribe', channel, sub_count]})
+			self.assertEqual(sub_response, {'SUBSCRIBE': ['subscribe', channel, sub_count]})
 
 		# send messages to all channels
 		prefix = 'message-'
@@ -127,11 +127,11 @@ class TestPubSub(unittest.TestCase):
 			for channel in channels:
 				message = f'{prefix}{i}'
 				self.publisher.send(self.serialize('PUBLISH', channel, message))
+				self.deserialize(self.publisher.recv())
 
 		received_per_channel = dict((channel, []) for channel in channels)
 		for j in range(channel_count * message_count_per_channel):
 			received = self.deserialize(self.subscriber.recv())
-			print('received:', received)
 			# expected: {'SUBSCRIBE': ['message', $channel, $message]}
 			self.assertTrue(received, 'SUBSCRIBE' in received)
 			sub_contents = received['SUBSCRIBE']
@@ -148,7 +148,7 @@ class TestPubSub(unittest.TestCase):
 			self.subscriber.send(self.serialize('UNSUBSCRIBE', channel))
 			subs_remaining -= 1
 			unsub_response = self.deserialize(self.subscriber.recv())
-			self.assertEqual(unsub_response, {'SUBSCRIBE': ['unsubscribe', channel, subs_remaining]})
+			self.assertEqual(unsub_response, {'UNSUBSCRIBE': ['unsubscribe', channel, subs_remaining]})
 
 		# check that we received all messages
 		for channel in channels:

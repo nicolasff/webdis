@@ -39,7 +39,6 @@ void
 cmd_free_argv(struct cmd *c) {
 
 	int i;
-	fprintf(stderr, "%s: %p\n", __func__, c);
 	for(i = 0; i < c->count; ++i) {
 		free((char*)c->argv[i]);
 	}

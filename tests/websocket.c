@@ -263,10 +263,13 @@ websocket_can_read(int fd, short event, void *ptr) {
 			/* http parser will return the offset at which the upgraded protocol begins,
 			   which in our case is 1 under the total response size. */
 
-			if (wt->state == WS_SENT_HANDSHAKE || /* haven't encountered end of response yet */
-			    (wt->parser.upgrade && nparsed != (int)avail_sz -1)) {
-				wt->debug("UPGRADE *and* we have some data left (nparsed=%d, avail_sz=%lu)\n", nparsed, avail_sz);
-				continue;
+			if (wt->state == WS_SENT_HANDSHAKE) { /* haven't encountered end of response yet */
+			    if (wt->parser.upgrade && nparsed != (int)avail_sz) {
+					wt->debug("UPGRADE *and* we have some data left (state=%d, nparsed=%d, avail_sz=%lu)\n", wt->state, nparsed, avail_sz);
+					continue;
+				} else { /* we just haven't read the entire response yet */
+					wait_for_possible_read(wt);
+				}
 			} else if (wt->state == WS_RECEIVED_HANDSHAKE) { /* we have the full response */
 				evbuffer_drain(wt->rbuffer, evbuffer_get_length(wt->rbuffer));
 			}

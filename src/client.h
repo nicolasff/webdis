@@ -63,10 +63,7 @@ struct http_client {
 
 	struct cmd *self_cmd;
 
-	struct ws_msg *frame; /* websocket frame (containing *received* data) */
-	struct event ws_wev; /* websocket write event */
-	struct evbuffer *ws_wbuf; /* write buffer for websocket responses */
-	int ws_scheduled_write; /* whether we are already scheduled to send out WS data */
+	struct ws_client *ws; /* websocket client */
 };
 
 struct http_client *

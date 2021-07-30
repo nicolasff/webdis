@@ -7,6 +7,8 @@
 #include "md5/md5.h"
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <ctype.h>
 
 /* TODO: replace this with a faster hash function? */
 char *etag_new(const char *p, size_t sz) {
@@ -62,7 +64,8 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 	struct http_response *resp;
 
 	if(cmd->is_websocket) {
-		ws_frame_and_send_response(cmd, p, sz);
+
+		ws_frame_and_send_response(cmd->http_client->ws, WS_BINARY_FRAME, p, sz);
 
 		/* If it's a subscribe command, there'll be more responses */
 		if(!cmd_is_subscribe(cmd))

@@ -13,7 +13,8 @@
 #include <unistd.h>
 #include <event.h>
 #include <string.h>
-
+#include <netinet/tcp.h>
+#include "formats/common.h"
 
 struct worker *
 worker_new(struct server *s) {
@@ -54,11 +55,6 @@ worker_can_read(int fd, short event, void *p) {
 	}
 
 	if(c->is_websocket) {
-		/* Got websocket data */
-		int add_ret = ws_add_data(c);
-		if(add_ret == WS_ERROR) {
-			c->broken = 1; /* likely connection was closed */
-		}
 	} else {
 		/* run parser */
 		nparsed = http_client_execute(c);
@@ -70,13 +66,28 @@ worker_can_read(int fd, short event, void *p) {
 			/* only close if requested *and* we've already read the request in full */
 			c->broken = 1;
 		} else if(c->is_websocket) {
-			/* we need to use the remaining (unparsed) data as the body. */
-			if(nparsed < ret) {
-				http_client_add_to_body(c, c->buffer + nparsed + 1, c->sz - nparsed - 1);
-				ws_handshake_reply(c);
-			} else {
+			event_del(&c->ev);
+
+			/* Got websocket data */
+			c->ws = ws_client_new(c);
+			if(!c->ws) {
 				c->broken = 1;
+			} else {
+				free(c->buffer);
+				c->buffer = NULL;
+				c->sz = 0;
+
+				unsigned int processed = 0;
+				int process_ret = ws_process_read_data(c->ws, &processed);
+				if(process_ret == WS_ERROR) {
+					c->broken = 1; /* likely connection was closed */
+				}
+
+				/* send response, and start managing fd from websocket.c */
+				ws_handshake_reply(c->ws);
 			}
+
+			/* clean up what remains in HTTP client */
 			free(c->buffer);
 			c->buffer = NULL;
 			c->sz = 0;
@@ -96,7 +107,11 @@ worker_can_read(int fd, short event, void *p) {
 		http_client_free(c);
 	} else {
 		/* start monitoring input again */
-		worker_monitor_input(c);
+		if(c->is_websocket) { /* all communication handled by WS code from now on */
+			// ws_monitor_input(c->ws);
+		} else {
+			worker_monitor_input(c);
+		}
 	}
 }
 
@@ -105,7 +120,6 @@ worker_can_read(int fd, short event, void *p) {
  */
 void
 worker_monitor_input(struct http_client *c) {
-
 	event_set(&c->ev, c->fd, EV_READ, worker_can_read, c);
 	event_base_set(c->w->base, &c->ev);
 	event_add(&c->ev, NULL);

@@ -2,6 +2,7 @@
 #include "worker.h"
 #include "conf.h"
 #include "server.h"
+#include "formats/common.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -30,7 +31,6 @@ pool_free_context(redisAsyncContext *ac) {
 
 	if (ac)	{
 		redisAsyncDisconnect(ac);
-		redisAsyncFree(ac);
 	}
 }
 
