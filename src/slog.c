@@ -95,8 +95,8 @@ slog_internal(struct server *s, log_level level,
 	time_t now;
 	struct tm now_tm, *lt_ret;
 	char time_buf[64];
-	char msg[124];
-	char line[256]; /* bounds are checked. */
+	char msg[1 + SLOG_MSG_MAX_LEN];
+	char line[2 * SLOG_MSG_MAX_LEN]; /* bounds are checked. */
 	int line_sz, ret;
 
 	if(!s->log.fd) return;

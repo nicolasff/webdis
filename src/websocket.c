@@ -235,6 +235,29 @@ ws_handshake_reply(struct ws_client *ws) {
 	return 0;
 }
 
+static void
+ws_log_cmd(struct ws_client *ws, struct cmd *cmd) {
+	char log_msg[SLOG_MSG_MAX_LEN];
+	char *p = log_msg, *eom = log_msg + sizeof(log_msg) - 1;
+	if(!slog_enabled(ws->http_client->s, WEBDIS_DEBUG)) {
+		return;
+	}
+
+	memset(log_msg, 0, sizeof(log_msg));
+	memcpy(p, "WS: ", 4); /* WS prefix */
+	p += 4;
+
+	for(int i = 0; p < eom && i < cmd->count; i++) {
+		*p++ = '/';
+		char *arg = cmd->argv[i];
+		size_t arg_sz = cmd->argv_len[i];
+		size_t copy_sz = arg_sz < (size_t)(eom - p) ? arg_sz : (size_t)(eom - p);
+		memcpy(p, arg, copy_sz);
+		p += copy_sz;
+	}
+	slog(ws->http_client->s, WEBDIS_DEBUG, log_msg, p - log_msg);
+}
+
 
 static int
 ws_execute(struct ws_client *ws, struct ws_msg *msg) {
@@ -288,7 +311,8 @@ ws_execute(struct ws_client *ws, struct ws_msg *msg) {
 				cmd->pub_sub_client = c;
 			}
 
-			/* send it off */
+			/* log and execute */
+			ws_log_cmd(ws, cmd);
 			cmd_send(cmd, fun_reply);
 
 			return 0;

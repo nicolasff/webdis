@@ -6,7 +6,6 @@
 #include "worker.h"
 #include "http.h"
 #include "server.h"
-#include "slog.h"
 
 #include "formats/json.h"
 #include "formats/raw.h"
