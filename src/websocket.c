@@ -123,11 +123,14 @@ ws_client_new(struct http_client *http_client) {
 static void
 ws_client_free(struct ws_client *ws) {
 
+	/* mark WS client as closing to skip the Redis callback */
+	ws->close_after_events = 1;
+	pool_free_context(ws->ac); /* could trigger a cb via format_send_error */
+
 	struct http_client *c = ws->http_client;
 	c->ws = NULL; /* detach */
 	evbuffer_free(ws->rbuf);
 	evbuffer_free(ws->wbuf);
-	pool_free_context(ws->ac);
 	if(ws->cmd) {
 		ws->cmd->ac = NULL; /* we've just free'd it */
 		cmd_free(ws->cmd);
@@ -526,6 +529,7 @@ ws_frame_and_send_response(struct ws_client *ws, enum ws_frame_type frame_type, 
 
 static void
 ws_close_if_able(struct ws_client *ws) {
+	ws->close_after_events = 1; /* note that we're closing */
 	if(ws->scheduled_read || ws->scheduled_write) {
 		return; /* still waiting for these events to trigger */
 	}

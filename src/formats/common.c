@@ -46,12 +46,14 @@ format_send_error(struct cmd *cmd, short code, const char *msg) {
 		resp->http_version = cmd->http_version;
 		http_response_set_keep_alive(resp, cmd->keep_alive);
 		http_response_write(resp, cmd->fd);
+	} else if(cmd->is_websocket && !cmd->http_client->ws->close_after_events) {
+		ws_frame_and_send_response(cmd->http_client->ws, WS_BINARY_FRAME, msg, strlen(msg));
 	}
 
 	/* for pub/sub, remove command from client */
 	if(cmd->pub_sub_client) {
 		cmd->pub_sub_client->self_cmd = NULL;
-	} else {
+	} else if (!cmd->is_websocket) { /* don't free persistent cmd */
 		cmd_free(cmd);
 	}
 }
