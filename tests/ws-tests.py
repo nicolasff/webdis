@@ -10,9 +10,12 @@ from websocket import create_connection
 host = os.getenv('WEBDIS_HOST', '127.0.0.1')
 port = int(os.getenv('WEBDIS_PORT', 7379))
 
+def connect(format):
+	return create_connection(f'ws://{host}:{port}/.{format}')
+
 class TestWebdis(unittest.TestCase):
 	def setUp(self) -> None:
-		self.ws = create_connection(f'ws://{host}:{port}/.{self.format()}')
+		self.ws = connect(self.format())
 
 	def tearDown(self) -> None:
 		self.ws.close()
@@ -95,8 +98,8 @@ class TestRaw(TestWebdis):
 @unittest.skipIf(os.getenv('PUBSUB') != '1', "pub-sub test fail due to invalid ordering")
 class TestPubSub(unittest.TestCase):
 	def setUp(self):
-		self.publisher = create_connection(f'ws://{host}:{port}/.json')
-		self.subscriber = create_connection(f'ws://{host}:{port}/.json')
+		self.publisher = connect('json')
+		self.subscriber = connect('json')
 
 	def tearDown(self):
 		self.publisher.close()

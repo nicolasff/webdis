@@ -133,13 +133,9 @@ function installBlock(title, type) {
 
 
 class Client {
-	constructor(type, pingSerializer, getSerializer, setSerializer, pubSerializer, subSerializer) {
+	constructor(type, serializer) {
 		this.type = type;
-		this.pingSerializer = pingSerializer;
-		this.getSerializer = getSerializer;
-		this.setSerializer = setSerializer;
-		this.pubSerializer = pubSerializer;
-		this.subSerializer = subSerializer;
+		this.serializer = serializer;
 		this.ws = null;
 		this.connected = false;
 		this.subscribed = false;
@@ -169,31 +165,31 @@ class Client {
 
 		$(`${this.type}-btn-ping`).addEventListener('click', event => {
 			event.preventDefault();
-			const serialized = this.pingSerializer();
+			const serialized = this.serializer(['PING']);
 			this.send(serialized);
 		});
 
 		$(`${this.type}-btn-set`).addEventListener('click', event => {
 			event.preventDefault();
-			const serialized = this.setSerializer($(`${this.type}-set-key`).value, $(`${this.type}-set-value`).value);
+			const serialized = this.serializer(['SET', $(`${this.type}-set-key`).value, $(`${this.type}-set-value`).value]);
 			this.send(serialized);
 		});
 
 		$(`${this.type}-btn-get`).addEventListener('click', event => {
 			event.preventDefault();
-			const serialized = this.getSerializer($(`${this.type}-get-key`).value);
+			const serialized = this.serializer(['GET', $(`${this.type}-get-key`).value]);
 			this.send(serialized);
 		});
 
 		$(`${this.type}-btn-pub`).addEventListener('click', event => {
 			event.preventDefault();
-			const serialized = this.pubSerializer($(`${this.type}-pub-channel`).value, $(`${this.type}-pub-message`).value);
+			const serialized = this.serializer(['PUBLISH', $(`${this.type}-pub-channel`).value, $(`${this.type}-pub-message`).value]);
 			this.send(serialized);
 		});
 
 		$(`${this.type}-btn-sub`).addEventListener('click', event => {
 			event.preventDefault();
-			const serialized = this.subSerializer($(`${this.type}-sub-channel`).value);
+			const serialized = this.serializer(['SUBSCRIBE', $(`${this.type}-sub-channel`).value]);
 			try {
 				this.send(serialized);
 				this.subscribed = true;
@@ -254,23 +250,21 @@ class Client {
 	}
 }
 
+function serializeRaw(args) {
+	let raw = `*${args.length}\r\n`;
+	for (let i = 0; i < args.length; i++) {
+		raw += `$${args[i].length}\r\n`;
+		raw += `${args[i]}\r\n`;
+	}
+	return raw;
+}
+
 addEventListener("DOMContentLoaded", () => {
 	installBlock('JSON', 'json');
 	installBlock('Raw', 'raw');
 
-	const jsonClient = new Client('json',
-		() => JSON.stringify(['PING']),
-		(key) => JSON.stringify(['GET', key]),
-		(key, value) => JSON.stringify(['SET', key, value]),
-		(channel, message) => JSON.stringify(['PUBLISH', channel, message]),
-		(channel) => JSON.stringify(['SUBSCRIBE', channel]));
-
-	const rawClient = new Client('raw',
-		() => '*1\r\n$4\r\nPING\r\n',
-		(key) => `*2\r\n$3\r\nGET\r\n$${key.length}\r\n${key}\r\n`,
-		(key, value) =>  `*3\r\n$3\r\nSET\r\n$${key.length}\r\n${key}\r\n$${value.length}\r\n${value}\r\n`,
-		(channel, message) =>  `*3\r\n$7\r\nPUBLISH\r\n$${channel.length}\r\n${channel}\r\n$${message.length}\r\n${message}\r\n`,
-		(channel) =>  `*2\r\n$9\r\nSUBSCRIBE\r\n$${channel.length}\r\n${channel}\r\n`);
+	const jsonClient = new Client('json', JSON.stringify);
+	const rawClient = new Client('raw', serializeRaw);
 });
 
 		</script>
