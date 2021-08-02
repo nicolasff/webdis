@@ -28,6 +28,13 @@ ws_schedule_write(struct ws_client *ws);
  * This code uses the WebSocket specification from RFC 6455.
  * A copy is available at http://www.rfc-editor.org/rfc/rfc6455.txt
  */
+#if __BIG_ENDIAN__
+# define webdis_htonll(x) (x)
+# define webdis_ntohll(x) (x)
+#else
+# define webdis_htonll(x) (((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
+# define webdis_ntohll(x) (((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
+#endif
 
 static int
 ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
@@ -399,7 +406,8 @@ ws_peek_data(struct ws_client *ws, struct ws_msg **out_msg) {
 		p = frame + 4 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 4, sizeof(mask));
 	} else if(len == 127) {
-		len = ntohll(*(uint64_t*)(frame+2));
+		uint64_t sz64 = *((uint64_t*)(frame+2));
+		len = webdis_ntohll(sz64);
 		p = frame + 10 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 10, sizeof(mask));
 	} else {
@@ -520,7 +528,7 @@ ws_frame_and_send_response(struct ws_client *ws, enum ws_frame_type frame_type, 
 		memcpy(frame + 4, p, sz);
 		frame_sz = sz + 4;
 	} else { /* sz > 65536 */
-		uint64_t sz_be = htonll(sz);
+		uint64_t sz_be = webdis_htonll(sz); /* big endian */
 		char sz64[8];
 		memcpy(sz64, &sz_be, 8);
 		frame[1] = 127;

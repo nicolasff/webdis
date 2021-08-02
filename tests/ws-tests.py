@@ -178,17 +178,16 @@ class TestFrameSizes(TestWebdis):
         return json.loads(response)
 
     def test_length_126(self):
-        key = str(uuid.uuid4())
-        value = 'A' * 1024  # this will require 2 bytes to encode the length
-        self.assertEqual(self.exec('SET', key, value), {'SET': [True, 'OK']})
-        self.exec('DEL', key)
+        self.validate_set_get('A' * 1024)  # this will require 2 bytes to encode the length
 
     def test_length_127(self):
-        key = str(uuid.uuid4())
-        value = 'A' * (2 ** 18)  # this will require more than 2 bytes to encode the length (actually using 8)
-        self.assertEqual(self.exec('SET', key, value), {'SET': [True, 'OK']})
-        self.exec('DEL', key)
+        self.validate_set_get('A' * (2 ** 18))   # this will require more than 2 bytes to encode the length (actually using 8)
 
+    def validate_set_get(self, value):
+        key = str(uuid.uuid4())
+        self.assertEqual(self.exec('SET', key, value), {'SET': [True, 'OK']})
+        self.assertEqual(self.exec('GET', key), {'GET': value})
+        self.exec('DEL', key)
 
 
 if __name__ == '__main__':
