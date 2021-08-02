@@ -167,5 +167,29 @@ class TestPubSub(unittest.TestCase):
                                  f'In {channel}: expected at offset {i} was "{expected}", actual was: "{received_per_channel[channel][i]}"')
 
 
+class TestFrameSizes(TestWebdis):
+    def format(self):
+        return 'json'
+
+    def serialize(self, cmd, *args):
+        return json.dumps([cmd] + list(args))
+
+    def deserialize(self, response):
+        return json.loads(response)
+
+    def test_length_126(self):
+        key = str(uuid.uuid4())
+        value = 'A' * 1024  # this will require 2 bytes to encode the length
+        self.assertEqual(self.exec('SET', key, value), {'SET': [True, 'OK']})
+        self.exec('DEL', key)
+
+    def test_length_127(self):
+        key = str(uuid.uuid4())
+        value = 'A' * (2 ** 18)  # this will require more than 2 bytes to encode the length (actually using 8)
+        self.assertEqual(self.exec('SET', key, value), {'SET': [True, 'OK']})
+        self.exec('DEL', key)
+
+
+
 if __name__ == '__main__':
     unittest.main()
