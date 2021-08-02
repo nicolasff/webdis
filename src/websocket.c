@@ -504,7 +504,13 @@ ws_process_read_data(struct ws_client *ws, unsigned int *out_processed) {
 int
 ws_frame_and_send_response(struct ws_client *ws, enum ws_frame_type frame_type, const char *p, size_t sz) {
 
-	char *frame = malloc(sz + 8); /* create frame by prepending header */
+	/* we can have as much as 14 bytes in the header:
+	 *   1 byte for 4 flag bits + 4 frame type bits
+	 *   1 byte for the payload length indicator
+	 *   8 bytes for the size of the payload (at most)
+	 *   4 bytes for the masking key (if present)
+	 */
+	char *frame = malloc(sz + 14); /* create frame by prepending header */
 	size_t frame_sz = 0;
 	if(frame == NULL)
 		return -1;
