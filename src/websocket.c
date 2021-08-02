@@ -310,9 +310,17 @@ ws_execute(struct ws_client *ws, struct ws_msg *msg) {
 				cmd->pub_sub_client = c;
 			}
 
-			/* log and execute */
-			ws_log_cmd(ws, cmd);
-			cmd_send(cmd, fun_reply);
+			int is_subscribe = cmd_is_subscribe_args(cmd);
+			int is_unsubscribe = cmd_is_unsubscribe_args(cmd);
+
+			if(ws->ran_subscribe && !is_subscribe && !is_unsubscribe) { /* disallow non-subscribe commands after a subscribe */
+				char error_msg[] = "Command not allowed after subscribe";
+				ws_frame_and_send_response(ws, WS_BINARY_FRAME, error_msg, sizeof(error_msg)-1);
+			} else { /* log and execute */
+				ws_log_cmd(ws, cmd);
+				cmd_send(cmd, fun_reply);
+				ws->ran_subscribe = is_subscribe;
+			}
 
 			return 0;
 		}

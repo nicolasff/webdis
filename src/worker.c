@@ -108,11 +108,8 @@ worker_can_read(int fd, short event, void *p) {
 			close(c->fd);
 		}
 		http_client_free(c);
-	} else {
-		/* start monitoring input again */
-		if(c->is_websocket) { /* all communication handled by WS code from now on */
-			// ws_monitor_input(c->ws);
-		} else {
+	} else { /* start monitoring input again */
+		if(!c->is_websocket) { /* all communication handled by WS code from now on */
 			worker_monitor_input(c);
 		}
 	}

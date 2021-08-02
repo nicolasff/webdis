@@ -375,13 +375,31 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 int
 cmd_is_subscribe(struct cmd *cmd) {
 
-	if(cmd->pub_sub_client) { /* persistent command */
+	if(cmd->pub_sub_client || /* persistent command */
+		cmd_is_subscribe_args(cmd)) { /* checked with args */
 		return 1;
 	}
-	if(cmd->count >= 1 && cmd->argv[0] &&
-		(strncasecmp(cmd->argv[0], "SUBSCRIBE", cmd->argv_len[0]) == 0 ||
-		strncasecmp(cmd->argv[0], "PSUBSCRIBE", cmd->argv_len[0]) == 0)) {
-		return 1;
-	}
+	return 0;
+}
+
+int
+cmd_is_subscribe_args(struct cmd *cmd) {
+
+	if(cmd->count >= 2 &&
+		((cmd->argv_len[0] == 9 && strncasecmp(cmd->argv[0], "subscribe", 9) == 0) ||
+		(cmd->argv_len[0] == 10 && strncasecmp(cmd->argv[0], "psubscribe", 10) == 0))) {
+			return 1;
+		}
+	return 0;
+}
+
+int
+cmd_is_unsubscribe_args(struct cmd *cmd) {
+
+	if(cmd->count >= 2 &&
+		((cmd->argv_len[0] == 11 && strncasecmp(cmd->argv[0], "unsubscribe", 11) == 0) ||
+		(cmd->argv_len[0] == 12 && strncasecmp(cmd->argv[0], "punsubscribe", 12) == 0))) {
+			return 1;
+		}
 	return 0;
 }

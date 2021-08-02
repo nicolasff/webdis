@@ -40,6 +40,7 @@ struct ws_client {
 	/* indicates that we'll close once we've flushed all
 	   buffered data and read what we planned to read */
 	int close_after_events;
+	int ran_subscribe; /* set if we've run a (p)subscribe command */
 };
 
 struct ws_client *

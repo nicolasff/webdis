@@ -73,6 +73,12 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 		const char *uri, size_t uri_len, formatting_fun *f_format);
 
 int
+cmd_is_subscribe_args(struct cmd *cmd);
+
+int
+cmd_is_unsubscribe_args(struct cmd *cmd);
+
+int
 cmd_is_subscribe(struct cmd *cmd);
 
 void
