@@ -52,7 +52,7 @@ format_send_error(struct cmd *cmd, short code, const char *msg) {
 
 	if (!cmd->is_websocket) { /* don't free or detach persistent cmd */
 		if (cmd->pub_sub_client) { /* for pub/sub, remove command from client */
-			cmd->pub_sub_client->self_cmd = NULL;
+			cmd->pub_sub_client->reused_cmd = NULL;
 		} else {
 			cmd_free(cmd);
 		}

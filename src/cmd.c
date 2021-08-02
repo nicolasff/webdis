@@ -229,7 +229,7 @@ cmd_run(struct worker *w, struct http_client *client,
 		cmd->ac = (redisAsyncContext*)pool_connect(w->pool, cmd->database, 0);
 
 		/* register with the client, used upon disconnection */
-		client->self_cmd = cmd;
+		client->reused_cmd = cmd;
 		cmd->pub_sub_client = client;
 	} else if(cmd->database != w->s->cfg->database) {
 		/* create a new connection to Redis for custom DBs */
@@ -281,7 +281,7 @@ cmd_run(struct worker *w, struct http_client *client,
 	}
 	/* failed to find a suitable connection to Redis. */
 	cmd_free(cmd);
-	client->self_cmd = NULL;
+	client->reused_cmd = NULL;
 	return CMD_REDIS_UNAVAIL;
 }
 

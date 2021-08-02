@@ -161,7 +161,6 @@ class Client {
 			};
 
 			this.ws.onclose = event => {
-				console.log('ON CLOSE')
 				$(`${this.type}-btn-connect`).innerText = 'Connect';
 				this.setConnectedState(false);
 				this.subscribed = false;
@@ -200,6 +199,7 @@ class Client {
 				this.subscribed = true;
 				this.setConnectedState(true);
 			} catch (e) {
+				console.log('Error sending: ', serialized, e);
 			}
 		});
 
