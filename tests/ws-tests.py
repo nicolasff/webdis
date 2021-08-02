@@ -97,7 +97,6 @@ class TestRaw(TestWebdis):
         self.assertEqual(get_response, f"${len(value)}\r\n{value}\r\n")
 
 
-@unittest.skipIf(os.getenv('PUBSUB') != '1', "pub-sub test fail due to invalid ordering")
 class TestPubSub(unittest.TestCase):
     def setUp(self):
         self.publisher = connect('json')
