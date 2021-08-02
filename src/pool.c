@@ -2,7 +2,6 @@
 #include "worker.h"
 #include "conf.h"
 #include "server.h"
-#include "formats/common.h"
 
 #include <stdlib.h>
 #include <string.h>

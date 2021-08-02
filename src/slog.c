@@ -13,6 +13,10 @@
 #include "server.h"
 #include "conf.h"
 
+#if SLOG_MSG_MAX_LEN < 64
+#error "SLOG_MSG_MAX_LEN must be at least 64"
+#endif
+
 /**
  * Initialize log writer.
  */

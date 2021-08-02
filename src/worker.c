@@ -54,8 +54,7 @@ worker_can_read(int fd, short event, void *p) {
 		}
 	}
 
-	if(c->is_websocket) {
-	} else {
+	if(!c->is_websocket) {
 		/* run parser */
 		nparsed = http_client_execute(c);
 
@@ -66,7 +65,6 @@ worker_can_read(int fd, short event, void *p) {
 			/* only close if requested *and* we've already read the request in full */
 			c->broken = 1;
 		} else if(c->is_websocket) {
-			event_del(&c->ev);
 
 			/* Got websocket data */
 			c->ws = ws_client_new(c);
@@ -77,14 +75,19 @@ worker_can_read(int fd, short event, void *p) {
 				c->buffer = NULL;
 				c->sz = 0;
 
-				unsigned int processed = 0;
-				int process_ret = ws_process_read_data(c->ws, &processed);
-				if(process_ret == WS_ERROR) {
-					c->broken = 1; /* likely connection was closed */
-				}
-
 				/* send response, and start managing fd from websocket.c */
-				ws_handshake_reply(c->ws);
+				int reply_ret = ws_handshake_reply(c->ws);
+				if(reply_ret < 0) {
+					c->ws->http_client = NULL; /* detach to prevent double free */
+					ws_client_free(c->ws);
+					c->broken = 1;
+				} else {
+					unsigned int processed = 0;
+					int process_ret = ws_process_read_data(c->ws, &processed);
+					if(process_ret == WS_ERROR) {
+						c->broken = 1; /* likely connection was closed */
+					}
+				}
 			}
 
 			/* clean up what remains in HTTP client */

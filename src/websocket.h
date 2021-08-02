@@ -45,10 +45,13 @@ struct ws_client {
 struct ws_client *
 ws_client_new(struct http_client *http_client);
 
+void
+ws_client_free(struct ws_client *ws);
+
 int
 ws_handshake_reply(struct ws_client *ws);
 
-void
+int
 ws_monitor_input(struct ws_client *ws);
 
 enum ws_state

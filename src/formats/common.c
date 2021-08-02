@@ -50,11 +50,12 @@ format_send_error(struct cmd *cmd, short code, const char *msg) {
 		ws_frame_and_send_response(cmd->http_client->ws, WS_BINARY_FRAME, msg, strlen(msg));
 	}
 
-	/* for pub/sub, remove command from client */
-	if(cmd->pub_sub_client) {
-		cmd->pub_sub_client->self_cmd = NULL;
-	} else if (!cmd->is_websocket) { /* don't free persistent cmd */
-		cmd_free(cmd);
+	if (!cmd->is_websocket) { /* don't free or detach persistent cmd */
+		if (cmd->pub_sub_client) { /* for pub/sub, remove command from client */
+			cmd->pub_sub_client->self_cmd = NULL;
+		} else {
+			cmd_free(cmd);
+		}
 	}
 }
 
