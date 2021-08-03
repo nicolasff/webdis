@@ -121,7 +121,10 @@ ws_client_free(struct ws_client *ws) {
 	pool_free_context(ws->ac); /* could trigger a cb via format_send_error */
 
 	struct http_client *c = ws->http_client;
-	if(c) c->ws = NULL; /* detach if needed */
+	if(c) {
+		close(c->fd);
+		c->ws = NULL; /* detach if needed */
+	}
 	evbuffer_free(ws->rbuf);
 	evbuffer_free(ws->wbuf);
 	if(ws->cmd) {
