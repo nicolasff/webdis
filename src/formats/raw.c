@@ -62,7 +62,7 @@ raw_ws_extract(struct http_client *c, const char *p, size_t sz) {
 	}
 
 	/* create cmd object */
-	cmd = cmd_new(reply->elements);
+	cmd = cmd_new(c, reply->elements);
 
 	for(i = 0; i < reply->elements; ++i) {
 		redisReply *ri = reply->element[i];

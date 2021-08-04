@@ -1,6 +1,8 @@
 #ifndef SLOG_H
 #define SLOG_H
 
+#define SLOG_MSG_MAX_LEN 124
+
 typedef enum {
 	WEBDIS_ERROR = 0,
 	WEBDIS_WARNING,

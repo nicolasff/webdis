@@ -61,9 +61,9 @@ struct http_client {
 	char *separator; /* list separator for raw lists */
 	char *filename; /* content-disposition */
 
-	struct cmd *pub_sub;
+	struct cmd *reused_cmd;
 
-	struct ws_msg *frame; /* websocket frame */
+	struct ws_client *ws; /* websocket client */
 };
 
 struct http_client *

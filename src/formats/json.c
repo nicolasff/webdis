@@ -522,7 +522,7 @@ json_ws_extract(struct http_client *c, const char *p, size_t sz) {
 	}
 
 	/* create command and add args */
-	cmd = cmd_new(argc);
+	cmd = cmd_new(c, argc);
 	for(i = 0, cur = 0; i < json_array_size(j); ++i) {
 		json_t *jelem = json_array_get(j, i);
 		char *tmp;

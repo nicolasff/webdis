@@ -43,6 +43,7 @@ struct cmd {
 	int http_version;
 	int database;
 
+	struct http_client *http_client;
 	struct http_client *pub_sub_client;
 	redisAsyncContext *ac;
 	struct worker *w;
@@ -54,7 +55,10 @@ struct subscription {
 };
 
 struct cmd *
-cmd_new(int count);
+cmd_new(struct http_client *c, int count);
+
+void
+cmd_free_argv(struct cmd *c);
 
 void
 cmd_free(struct cmd *c);
@@ -67,6 +71,12 @@ cmd_run(struct worker *w, struct http_client *client,
 int
 cmd_select_format(struct http_client *client, struct cmd *cmd,
 		const char *uri, size_t uri_len, formatting_fun *f_format);
+
+int
+cmd_is_subscribe_args(struct cmd *cmd);
+
+int
+cmd_is_unsubscribe_args(struct cmd *cmd);
 
 int
 cmd_is_subscribe(struct cmd *cmd);

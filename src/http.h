@@ -45,6 +45,9 @@ struct http_response {
 struct http_response *
 http_response_init(struct worker *w, int code, const char *msg);
 
+struct http_response *
+http_response_init_with_buffer(struct worker *w, char *data, size_t data_sz, int keep_alive);
+
 void
 http_response_set_header(struct http_response *r, const char *k, const char *v);
 

@@ -13,7 +13,8 @@
 #include <unistd.h>
 #include <event.h>
 #include <string.h>
-
+#include <netinet/tcp.h>
+#include "formats/common.h"
 
 struct worker *
 worker_new(struct server *s) {
@@ -53,10 +54,7 @@ worker_can_read(int fd, short event, void *p) {
 		}
 	}
 
-	if(c->is_websocket) {
-		/* Got websocket data */
-		ws_add_data(c);
-	} else {
+	if(!c->is_websocket) {
 		/* run parser */
 		nparsed = http_client_execute(c);
 
@@ -67,13 +65,32 @@ worker_can_read(int fd, short event, void *p) {
 			/* only close if requested *and* we've already read the request in full */
 			c->broken = 1;
 		} else if(c->is_websocket) {
-			/* we need to use the remaining (unparsed) data as the body. */
-			if(nparsed < ret) {
-				http_client_add_to_body(c, c->buffer + nparsed + 1, c->sz - nparsed - 1);
-				ws_handshake_reply(c);
-			} else {
+
+			/* Got websocket data */
+			c->ws = ws_client_new(c);
+			if(!c->ws) {
 				c->broken = 1;
+			} else {
+				free(c->buffer);
+				c->buffer = NULL;
+				c->sz = 0;
+
+				/* send response, and start managing fd from websocket.c */
+				int reply_ret = ws_handshake_reply(c->ws);
+				if(reply_ret < 0) {
+					c->ws->http_client = NULL; /* detach to prevent double free */
+					ws_client_free(c->ws);
+					c->broken = 1;
+				} else {
+					unsigned int processed = 0;
+					int process_ret = ws_process_read_data(c->ws, &processed);
+					if(process_ret == WS_ERROR) {
+						c->broken = 1; /* likely connection was closed */
+					}
+				}
 			}
+
+			/* clean up what remains in HTTP client */
 			free(c->buffer);
 			c->buffer = NULL;
 			c->sz = 0;
@@ -87,10 +104,14 @@ worker_can_read(int fd, short event, void *p) {
 	}
 
 	if(c->broken) { /* terminate client */
+		if(c->is_websocket) { /* only close for WS since HTTP might use keep-alive */
+			close(c->fd);
+		}
 		http_client_free(c);
-	} else {
-		/* start monitoring input again */
-		worker_monitor_input(c);
+	} else { /* start monitoring input again */
+		if(!c->is_websocket) { /* all communication handled by WS code from now on */
+			worker_monitor_input(c);
+		}
 	}
 }
 
@@ -99,7 +120,6 @@ worker_can_read(int fd, short event, void *p) {
  */
 void
 worker_monitor_input(struct http_client *c) {
-
 	event_set(&c->ev, c->fd, EV_READ, worker_can_read, c);
 	event_base_set(c->w->base, &c->ev);
 	event_add(&c->ev, NULL);

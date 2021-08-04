@@ -286,15 +286,15 @@ http_client_read(struct http_client *c) {
 	if(ret <= 0) {
 		/* broken link, free buffer and client object */
 
-		/* disconnect pub/sub client if there is one. */
-		if(c->pub_sub && c->pub_sub->ac) {
-			struct cmd *cmd = c->pub_sub;
+		/* disconnect pub/sub or WS client if there is one. */
+		if(c->reused_cmd && c->reused_cmd->ac) {
+			struct cmd *cmd = c->reused_cmd;
 
 			/* disconnect from all channels */
-			redisAsyncDisconnect(c->pub_sub->ac);
-			// c->pub_sub might be already cleared by an event handler in redisAsyncDisconnect
+			redisAsyncDisconnect(c->reused_cmd->ac);
+			// c->reused_cmd might be already cleared by an event handler in redisAsyncDisconnect
 			cmd->ac = NULL;
-			c->pub_sub = NULL;
+			c->reused_cmd = NULL;
 
 			/* delete command object */
 			cmd_free(cmd);

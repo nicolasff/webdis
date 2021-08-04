@@ -12,6 +12,9 @@ class BlockingSocket:
 		self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.s.setblocking(True)
 		self.s.connect((HOST, PORT))
+	
+	def __del__(self):
+		self.s.close()
 
 	def recv(self):
 		out = b""

@@ -7,6 +7,8 @@
 #include "pool.h"
 #include "http.h"
 #include "slog.h"
+#include "server.h"
+#include "conf.h"
 
 /* message parsers */
 #include "formats/json.h"
@@ -19,23 +21,21 @@
 #include <errno.h>
 #include <sys/param.h>
 
+static int
+ws_schedule_write(struct ws_client *ws);
+
 /**
  * This code uses the WebSocket specification from RFC 6455.
  * A copy is available at http://www.rfc-editor.org/rfc/rfc6455.txt
  */
+#if __BIG_ENDIAN__
+# define webdis_htonll(x) (x)
+# define webdis_ntohll(x) (x)
+#else
+# define webdis_htonll(x) (((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
+# define webdis_ntohll(x) (((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
+#endif
 
-/* custom 64-bit encoding functions to avoid portability issues */
-#define webdis_ntohl64(p) \
-	((((uint64_t)((p)[0])) <<  0) + (((uint64_t)((p)[1])) <<  8) +\
-	 (((uint64_t)((p)[2])) << 16) + (((uint64_t)((p)[3])) << 24) +\
-	 (((uint64_t)((p)[4])) << 32) + (((uint64_t)((p)[5])) << 40) +\
-	 (((uint64_t)((p)[6])) << 48) + (((uint64_t)((p)[7])) << 56))
-
-#define webdis_htonl64(p) {\
-	(char)(((p & ((uint64_t)0xff <<  0)) >>  0) & 0xff), (char)(((p & ((uint64_t)0xff <<  8)) >>  8) & 0xff), \
-	(char)(((p & ((uint64_t)0xff << 16)) >> 16) & 0xff), (char)(((p & ((uint64_t)0xff << 24)) >> 24) & 0xff), \
-	(char)(((p & ((uint64_t)0xff << 32)) >> 32) & 0xff), (char)(((p & ((uint64_t)0xff << 40)) >> 40) & 0xff), \
-	(char)(((p & ((uint64_t)0xff << 48)) >> 48) & 0xff), (char)(((p & ((uint64_t)0xff << 56)) >> 56) & 0xff) }
 static int
 ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 
@@ -86,25 +86,75 @@ ws_compute_handshake(struct http_client *c, char *out, size_t *out_sz) {
 	return 0;
 }
 
-int
-ws_handshake_reply(struct http_client *c) {
+struct ws_client *
+ws_client_new(struct http_client *http_client) {
 
+	int db_num = http_client->w->s->cfg->database;
+	struct ws_client *ws = calloc(1, sizeof(struct ws_client));
+	struct evbuffer *rbuf = evbuffer_new();
+	struct evbuffer *wbuf = evbuffer_new();
+	redisAsyncContext *ac = pool_connect(http_client->w->pool, db_num, 0);
+
+	if(!ws || !rbuf || !wbuf) {
+		slog(http_client->s, WEBDIS_ERROR, "Failed to allocate memory for WS client", 0);
+		if(ws) free(ws);
+		if(rbuf) evbuffer_free(rbuf);
+		if(wbuf) evbuffer_free(wbuf);
+		if(ac) redisAsyncFree(ac);
+		return NULL;
+	}
+
+	http_client->ws = ws;
+	ws->http_client = http_client;
+	ws->rbuf = rbuf;
+	ws->wbuf = wbuf;
+	ws->ac = ac;
+
+	return ws;
+}
+
+void
+ws_client_free(struct ws_client *ws) {
+
+	/* mark WS client as closing to skip the Redis callback */
+	ws->close_after_events = 1;
+	pool_free_context(ws->ac); /* could trigger a cb via format_send_error */
+
+	struct http_client *c = ws->http_client;
+	if(c) {
+		close(c->fd);
+		c->ws = NULL; /* detach if needed */
+	}
+	evbuffer_free(ws->rbuf);
+	evbuffer_free(ws->wbuf);
+	if(ws->cmd) {
+		ws->cmd->ac = NULL; /* we've just free'd it */
+		cmd_free(ws->cmd);
+	}
+	free(ws);
+	if(c) http_client_free(c);
+}
+
+
+int
+ws_handshake_reply(struct ws_client *ws) {
+
+	struct http_client *c = ws->http_client;
 	char sha1_handshake[40];
 	char *buffer = NULL, *p;
 	const char *origin = NULL, *host = NULL;
 	size_t origin_sz = 0, host_sz = 0, handshake_sz = 0, sz;
 
-	char template0[] = "HTTP/1.1 101 Switching Protocols\r\n"
+	char template_start[] = "HTTP/1.1 101 Switching Protocols\r\n"
 		"Upgrade: websocket\r\n"
-		"Connection: Upgrade\r\n"
-		"Sec-WebSocket-Origin: "; /* %s */
-	char template1[] = "\r\n"
-		"Sec-WebSocket-Location: ws://"; /* %s%s */
-	char template2[] = "\r\n"
-		"Origin: http://"; /* %s */
-	char template3[] = "\r\n"
+		"Connection: Upgrade";
+	char template_accept[] = "\r\n" /* just after the start */
 		"Sec-WebSocket-Accept: "; /* %s */
-	char template4[] = "\r\n\r\n";
+	char template_sec_origin[] = "\r\n"
+		"Sec-WebSocket-Origin: "; /* %s (optional header) */
+	char template_loc[] = "\r\n"
+		"Sec-WebSocket-Location: ws://"; /* %s%s */
+	char template_end[] = "\r\n\r\n";
 
 	if((origin = client_get_header(c, "Origin"))) {
 		origin_sz = strlen(origin);
@@ -116,7 +166,7 @@ ws_handshake_reply(struct http_client *c) {
 	}
 
 	/* need those headers */
-	if(!origin || !origin_sz || !host || !host_sz || !c->path || !c->path_sz) {
+	if(!host || !host_sz || !c->path || !c->path_sz) {
 		slog(c->s, WEBDIS_WARNING, "Missing headers for WS handshake", 0);
 		return -1;
 	}
@@ -128,11 +178,11 @@ ws_handshake_reply(struct http_client *c) {
 		return -1;
 	}
 
-	sz = sizeof(template0)-1 + origin_sz
-		+ sizeof(template1)-1 + host_sz + c->path_sz
-		+ sizeof(template2)-1 + host_sz
-		+ sizeof(template3)-1 + handshake_sz
-		+ sizeof(template4)-1;
+	sz = sizeof(template_start)-1
+		+ sizeof(template_accept)-1 + handshake_sz
+		+ (origin && origin_sz ? (sizeof(template_sec_origin)-1 + origin_sz) : 0) /* optional origin */
+		+ sizeof(template_loc)-1 + host_sz + c->path_sz
+		+ sizeof(template_end)-1;
 
 	p = buffer = malloc(sz);
 	if(!p) {
@@ -142,57 +192,74 @@ ws_handshake_reply(struct http_client *c) {
 
 	/* Concat all */
 
-	/* template0 */
-	memcpy(p, template0, sizeof(template0)-1);
-	p += sizeof(template0)-1;
-	memcpy(p, origin, origin_sz);
-	p += origin_sz;
+	/* template_start */
+	memcpy(p, template_start, sizeof(template_start)-1);
+	p += sizeof(template_start)-1;
 
-	/* template1 */
-	memcpy(p, template1, sizeof(template1)-1);
-	p += sizeof(template1)-1;
+	/* template_accept */
+	memcpy(p, template_accept, sizeof(template_accept)-1);
+	p += sizeof(template_accept)-1;
+	memcpy(p, &sha1_handshake[0], handshake_sz);
+	p += handshake_sz;
+
+	/* template_sec_origin */
+	if(origin && origin_sz) {
+		memcpy(p, template_sec_origin, sizeof(template_sec_origin)-1);
+		p += sizeof(template_sec_origin)-1;
+		memcpy(p, origin, origin_sz);
+		p += origin_sz;
+	}
+
+	/* template_loc */
+	memcpy(p, template_loc, sizeof(template_loc)-1);
+	p += sizeof(template_loc)-1;
 	memcpy(p, host, host_sz);
 	p += host_sz;
 	memcpy(p, c->path, c->path_sz);
 	p += c->path_sz;
 
-	/* template2 */
-	memcpy(p, template2, sizeof(template2)-1);
-	p += sizeof(template2)-1;
-	memcpy(p, host, host_sz);
-	p += host_sz;
+	/* template_end */
+	memcpy(p, template_end, sizeof(template_end)-1);
+	p += sizeof(template_end)-1;
 
-	/* template3 */
-	memcpy(p, template3, sizeof(template3)-1);
-	p += sizeof(template3)-1;
-	memcpy(p, &sha1_handshake[0], handshake_sz);
-	p += handshake_sz;
-
-	/* template4 */
-	memcpy(p, template4, sizeof(template4)-1);
-	p += sizeof(template4)-1;
-
-	/* build HTTP response object by hand, since we have the full response already */
-	struct http_response *r = calloc(1, sizeof(struct http_response));
-	if(!r) {
-		slog(c->s, WEBDIS_ERROR, "Failed to allocate response for WS handshake", 0);
-		free(buffer);
+	int add_ret = evbuffer_add(ws->wbuf, buffer, sz);
+	free(buffer);
+	if(add_ret < 0) {
+		slog(c->s, WEBDIS_ERROR, "Failed to add response for WS handshake", 0);
 		return -1;
 	}
-	r->w = c->w;
-	r->keep_alive = 1;
-	r->out = buffer;
-	r->out_sz = sz;
-	r->sent = 0;
-	http_schedule_write(c->fd, r); /* will free buffer and response once sent */
 
-	return 0;
+	return ws_schedule_write(ws); /* will free buffer and response once sent */
+}
+
+static void
+ws_log_cmd(struct ws_client *ws, struct cmd *cmd) {
+	char log_msg[SLOG_MSG_MAX_LEN];
+	char *p = log_msg, *eom = log_msg + sizeof(log_msg) - 1;
+	if(!slog_enabled(ws->http_client->s, WEBDIS_DEBUG)) {
+		return;
+	}
+
+	memset(log_msg, 0, sizeof(log_msg));
+	memcpy(p, "WS: ", 4); /* WS prefix */
+	p += 4;
+
+	for(int i = 0; p < eom && i < cmd->count; i++) {
+		*p++ = '/';
+		char *arg = cmd->argv[i];
+		size_t arg_sz = cmd->argv_len[i];
+		size_t copy_sz = arg_sz < (size_t)(eom - p) ? arg_sz : (size_t)(eom - p);
+		memcpy(p, arg, copy_sz);
+		p += copy_sz;
+	}
+	slog(ws->http_client->s, WEBDIS_DEBUG, log_msg, p - log_msg);
 }
 
 
 static int
-ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
+ws_execute(struct ws_client *ws, struct ws_msg *msg) {
 
+	struct http_client *c = ws->http_client;
 	struct cmd*(*fun_extract)(struct http_client *, const char *, size_t) = NULL;
 	formatting_fun fun_reply = NULL;
 
@@ -208,31 +275,50 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 	if(fun_extract) {
 
 		/* Parse websocket frame into a cmd object. */
-		struct cmd *cmd = fun_extract(c, frame, frame_len);
+		struct cmd *cmd = fun_extract(c, msg->payload, msg->payload_sz);
 
 		if(cmd) {
-			/* copy client info into cmd. */
-			cmd_setup(cmd, c);
 			cmd->is_websocket = 1;
 
-			if (c->pub_sub != NULL) {
-				/* This client already has its own connection
-				 * to Redis due to a subscription; use it from
-				 * now on. */
-				cmd->ac = c->pub_sub->ac;
-			} else if (cmd_is_subscribe(cmd)) {
-				/* New subscribe command; make new Redis context
-				 * for this client */
-				cmd->ac = pool_connect(c->w->pool, cmd->database, 0);
-				c->pub_sub = cmd;
-				cmd->pub_sub_client = c;
+			if(ws->cmd != NULL) {
+				/* This client already has its own connection to Redis
+				   from a previous command; use it from now on. */
+
+				/* free args for the previous cmd */
+				cmd_free_argv(ws->cmd);
+				/* copy args from what we just parsed to the persistent command */
+				ws->cmd->count = cmd->count;
+				ws->cmd->argv = cmd->argv;
+				ws->cmd->argv_len = cmd->argv_len;
+				ws->cmd->pub_sub_client = c; /* mark as persistent, otherwise the Redis context will be freed */
+
+				cmd->argv = NULL;
+				cmd->argv_len = NULL;
+				cmd->count = 0;
+				cmd_free(cmd);
+
+				cmd = ws->cmd; /* replace pointer since we're about to pass it to cmd_send */
 			} else {
-				/* get Redis connection from pool */
-				cmd->ac = (redisAsyncContext*)pool_get_context(c->w->pool);
+				/* copy client info into cmd. */
+				cmd_setup(cmd, c);
+
+				/* First WS command; use Redis context from WS client. */
+				cmd->ac = ws->ac;
+				ws->cmd = cmd;
+				cmd->pub_sub_client = c;
 			}
 
-			/* send it off */
-			cmd_send(cmd, fun_reply);
+			int is_subscribe = cmd_is_subscribe_args(cmd);
+			int is_unsubscribe = cmd_is_unsubscribe_args(cmd);
+
+			if(ws->ran_subscribe && !is_subscribe && !is_unsubscribe) { /* disallow non-subscribe commands after a subscribe */
+				char error_msg[] = "Command not allowed after subscribe";
+				ws_frame_and_send_response(ws, WS_BINARY_FRAME, error_msg, sizeof(error_msg)-1);
+			} else { /* log and execute */
+				ws_log_cmd(ws, cmd);
+				cmd_send(cmd, fun_reply);
+				ws->ran_subscribe = is_subscribe;
+			}
 
 			return 0;
 		}
@@ -242,16 +328,24 @@ ws_execute(struct http_client *c, const char *frame, size_t frame_len) {
 }
 
 static struct ws_msg *
-ws_msg_new() {
-	return calloc(1, sizeof(struct ws_msg));
+ws_msg_new(enum ws_frame_type frame_type) {
+	struct ws_msg *msg = calloc(1, sizeof(struct ws_msg));
+	if(!msg) {
+		return NULL;
+	}
+	msg->type = frame_type;
+	return msg;
 }
 
-static void
+static int
 ws_msg_add(struct ws_msg *m, const char *p, size_t psz, const unsigned char *mask) {
 
 	/* add data to frame */
 	size_t i;
 	m->payload = realloc(m->payload, m->payload_sz + psz);
+	if(!m->payload) {
+		return -1;
+	}
 	memcpy(m->payload + m->payload_sz, p, psz);
 
 	/* apply mask */
@@ -261,29 +355,46 @@ ws_msg_add(struct ws_msg *m, const char *p, size_t psz, const unsigned char *mas
 
 	/* save new size */
 	m->payload_sz += psz;
+	return 0;
 }
 
 static void
-ws_msg_free(struct ws_msg **m) {
+ws_msg_free(struct ws_msg *m) {
 
-	free((*m)->payload);
-	free(*m);
-	*m = NULL;
+	free(m->payload);
+	free(m);
 }
 
+/* checks to see if we have a complete message */
 static enum ws_state
-ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
+ws_peek_data(struct ws_client *ws, struct ws_msg **out_msg) {
 
 	int has_mask;
 	uint64_t len;
 	const char *p;
+	char *frame;
 	unsigned char mask[4];
+	char fin_bit_set;
+	enum ws_frame_type frame_type;
 
 	/* parse frame and extract contents */
+	size_t sz = evbuffer_get_length(ws->rbuf);
 	if(sz < 8) {
-		return WS_READING;
+		return WS_READING; /* need more data */
+	}
+	/* copy into "frame" to process it */
+	frame = malloc(sz);
+	if(!frame) {
+		return WS_ERROR;
+	}
+	int rem_ret = evbuffer_remove(ws->rbuf, frame, sz);
+	if(rem_ret < 0) {
+		free(frame);
+		return WS_ERROR;
 	}
 
+	fin_bit_set = frame[0] & 0x80 ? 1 : 0;
+	frame_type = frame[0] & 0x0F;	/* lower 4 bits of first byte */
 	has_mask = frame[1] & 0x80 ? 1:0;
 
 	/* get payload length */
@@ -298,67 +409,113 @@ ws_parse_data(const char *frame, size_t sz, struct ws_msg **msg) {
 		p = frame + 4 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 4, sizeof(mask));
 	} else if(len == 127) {
-		len = webdis_ntohl64(frame+2);
+		uint64_t sz64 = *((uint64_t*)(frame+2));
+		len = webdis_ntohll(sz64);
 		p = frame + 10 + (has_mask ? 4 : 0);
 		if(has_mask) memcpy(&mask, frame + 10, sizeof(mask));
 	} else {
+		free(frame);
 		return WS_ERROR;
 	}
 
 	/* we now have the (possibly masked) data starting in p, and its length.  */
 	if(len > sz - (p - frame)) { /* not enough data */
-		return WS_READING;
+		int add_ret = evbuffer_prepend(ws->rbuf, frame, sz); /* put the whole frame back */
+		free(frame);
+		return add_ret < 0 ? WS_ERROR : WS_READING;
 	}
 
-	if(!*msg)
-		*msg = ws_msg_new();
-	ws_msg_add(*msg, p, len, has_mask ? mask : NULL);
-	(*msg)->total_sz += len + (p - frame);
+	int ev_copy = 0;
+	if(out_msg) { /* we're extracting the message */
+		struct ws_msg *msg = ws_msg_new(frame_type);
+		if(!msg) {
+			free(frame);
+			return WS_ERROR;
+		}
+		*out_msg = msg; /* attach for it to be freed by caller */
 
-	if(frame[0] & 0x80) { /* FIN bit set */
+		/* create new ws_msg object holding what we read */
+		int add_ret = ws_msg_add(msg, p, len, has_mask ? mask : NULL);
+		if(!add_ret) {
+			free(frame);
+			return WS_ERROR;
+		}
+
+		size_t processed_sz = len + (p - frame); /* length of data + header bytes between frame start and payload */
+		msg->total_sz += processed_sz;
+
+		ev_copy = evbuffer_prepend(ws->rbuf, frame + len, sz - processed_sz); /* remove processed data */
+	} else { /* we're just peeking */
+		ev_copy = evbuffer_prepend(ws->rbuf, frame, sz); /* put the whole frame back */
+	}
+	free(frame);
+
+	if(ev_copy < 0) {
+		return WS_ERROR;
+	} else if(fin_bit_set) {
 		return WS_MSG_COMPLETE;
 	} else {
 		return WS_READING;	/* need more data */
 	}
 }
 
-
 /**
  * Process some data just received on the socket.
+ * Returns the number of messages processed in out_processed, if non-NULL.
  */
 enum ws_state
-ws_add_data(struct http_client *c) {
+ws_process_read_data(struct ws_client *ws, unsigned int *out_processed) {
 
 	enum ws_state state;
+	if(out_processed) *out_processed = 0;
 
-	state = ws_parse_data(c->buffer, c->sz, &c->frame);
+	state = ws_peek_data(ws, NULL); /* check for complete message */
 
 	while(state == WS_MSG_COMPLETE) {
-		int ret = ws_execute(c, c->frame->payload, c->frame->payload_sz);
+		int ret = 0;
+		struct ws_msg *msg = NULL;
+		ws_peek_data(ws, &msg); /* extract message */
 
-		/* remove frame from client buffer */
-		http_client_remove_data(c, c->frame->total_sz);
+		if(msg && (msg->type == WS_TEXT_FRAME || msg->type == WS_BINARY_FRAME)) {
+			ret = ws_execute(ws, msg);
+			if(out_processed) (*out_processed)++;
+		} else if(msg && msg->type == WS_PING) { /* respond to ping */
+			ws_frame_and_send_response(ws, WS_PONG, msg->payload, msg->payload_sz);
+		} else if(msg && msg->type == WS_CONNECTION_CLOSE) { /* respond to close frame */
+			ws->close_after_events = 1;
+			ws_frame_and_send_response(ws, WS_CONNECTION_CLOSE, msg->payload, msg->payload_sz);
+		} else if(msg) {
+			char format[] =  "Received unexpected WS frame type: 0x%x";
+			char error[(sizeof format)];
+			int error_len = snprintf(error, sizeof(error), format, msg->type);
+			slog(ws->http_client->s, WEBDIS_WARNING, error, error_len);
+		}
 
-		/* free frame and set back to NULL */
-		ws_msg_free(&c->frame);
+		/* free frame */
+		if(msg) ws_msg_free(msg);
 
 		if(ret != 0) {
 			/* can't process frame. */
-			slog(c->s, WEBDIS_WARNING, "ws_add_data: ws_execute failed", 0);
+			slog(ws->http_client->s, WEBDIS_DEBUG, "ws_process_read_data: ws_execute failed", 0);
 			return WS_ERROR;
 		}
-		state = ws_parse_data(c->buffer, c->sz, &c->frame);
+		state = ws_peek_data(ws, NULL);
 	}
 	return state;
 }
 
 int
-ws_reply(struct cmd *cmd, const char *p, size_t sz) {
+ws_frame_and_send_response(struct ws_client *ws, enum ws_frame_type frame_type, const char *p, size_t sz) {
 
-	char *frame = malloc(sz + 8); /* create frame by prepending header */
+	/* we can have as much as 14 bytes in the header:
+	 *   1 byte for 4 flag bits + 4 frame type bits
+	 *   1 byte for the payload length indicator
+	 *   8 bytes for the size of the payload (at most)
+	 *   4 bytes for the masking key (if present)
+	 */
+	char *frame = malloc(sz + 14); /* create frame by prepending header */
 	size_t frame_sz = 0;
-	struct http_response *r;
-	if (frame == NULL)
+	if(frame == NULL)
 		return -1;
 
 	/*
@@ -368,40 +525,119 @@ ws_reply(struct cmd *cmd, const char *p, size_t sz) {
       following 8 bytes interpreted as a 64-bit unsigned integer (the
       most significant bit MUST be 0) are the payload length.
 	  */
-	frame[0] = '\x81';
+	frame[0] = 0x80 | frame_type; /* frame type + EOM bit */
 	if(sz <= 125) {
 		frame[1] = sz;
 		memcpy(frame + 2, p, sz);
 		frame_sz = sz + 2;
-	} else if (sz <= 65536) {
+	} else if(sz <= 65536) {
 		uint16_t sz16 = htons(sz);
 		frame[1] = 126;
 		memcpy(frame + 2, &sz16, 2);
 		memcpy(frame + 4, p, sz);
 		frame_sz = sz + 4;
 	} else { /* sz > 65536 */
-		char sz64[8] = webdis_htonl64(sz);
+		uint64_t sz_be = webdis_htonll(sz); /* big endian */
+		char sz64[8];
+		memcpy(sz64, &sz_be, 8);
 		frame[1] = 127;
 		memcpy(frame + 2, sz64, 8);
 		memcpy(frame + 10, p, sz);
 		frame_sz = sz + 10;
 	}
 
-	/* send WS frame */
-	r = http_response_init(cmd->w, 0, NULL);
-	if (r == NULL) {
-		free(frame);
-		slog(cmd->w->s, WEBDIS_ERROR, "Failed response allocation in ws_reply", 0);
+	/* mark as keep alive, otherwise we'll close the connection after the first reply */
+	int add_ret = evbuffer_add(ws->wbuf, frame, frame_sz);
+	free(frame); /* no longer needed once added to buffer */
+	if(add_ret < 0) {
+		slog(ws->http_client->w->s, WEBDIS_ERROR, "Failed response allocation in ws_frame_and_send_response", 0);
 		return -1;
 	}
 
-	/* mark as keep alive, otherwise we'll close the connection after the first reply */
-	r->keep_alive = 1;
+	/* send WS frame */
+	return ws_schedule_write(ws);
+}
 
-	r->out = frame;
-	r->out_sz = frame_sz;
-	r->sent = 0;
-	http_schedule_write(cmd->fd, r);
+static void
+ws_close_if_able(struct ws_client *ws) {
 
+	ws->close_after_events = 1; /* note that we're closing */
+	if(ws->scheduled_read || ws->scheduled_write) {
+		return; /* still waiting for these events to trigger */
+	}
+	ws_client_free(ws); /* will close the socket */
+}
+
+static void
+ws_can_read(int fd, short event, void *p) {
+
+	int ret;
+	struct ws_client *ws = p;
+	(void)event;
+
+	/* read pending data */
+	ws->scheduled_read = 0;
+	ret = evbuffer_read(ws->rbuf, fd, 4096);
+
+	if(ret <= 0) {
+		ws_client_free(ws); /* will close the socket */
+	} else if(ws->close_after_events) {
+		ws_close_if_able(ws);
+	} else {
+		enum ws_state state = ws_process_read_data(ws, NULL);
+		if(state == WS_READING) { /* need more data, schedule new read */
+			ws_monitor_input(ws);
+		} else if(state == WS_ERROR) {
+			ws_close_if_able(ws);
+		}
+	}
+}
+
+
+static void
+ws_can_write(int fd, short event, void *p) {
+
+	int ret;
+	struct ws_client *ws = p;
+	(void)event;
+
+	ws->scheduled_write = 0;
+
+	/* send pending data */
+	ret = evbuffer_write_atmost(ws->wbuf, fd, 4096);
+
+	if(ret <= 0) {
+		ws_client_free(ws); /* will close the socket */
+	} else {
+		if(evbuffer_get_length(ws->wbuf) > 0) { /* more data to send */
+			ws_schedule_write(ws);
+		} else if(ws->close_after_events) { /* we're done! */
+			ws_close_if_able(ws);
+		} else {
+			/* check if we can read more data */
+			unsigned int processed = 0;
+			ws_process_read_data(ws, &processed); /* process any pending data we've already read */
+			ws_monitor_input(ws);				  /* let's read more from the client */
+		}
+	}
+}
+
+static int
+ws_schedule_write(struct ws_client *ws) {
+	struct http_client *c = ws->http_client;
+	if(!ws->scheduled_write) {
+		ws->scheduled_write = 1;
+		return event_base_once(c->w->base, c->fd, EV_WRITE, ws_can_write, ws, NULL);
+	}
+	return 0;
+}
+
+int
+ws_monitor_input(struct ws_client *ws) {
+	struct http_client *c = ws->http_client;
+	if(!ws->scheduled_read) {
+		ws->scheduled_read = 1;
+		return event_base_once(c->w->base, c->fd, EV_READ, ws_can_read, ws, NULL);
+	}
 	return 0;
 }

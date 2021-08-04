@@ -7,6 +7,8 @@
 #include "md5/md5.h"
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <ctype.h>
 
 /* TODO: replace this with a faster hash function? */
 char *etag_new(const char *p, size_t sz) {
@@ -44,13 +46,16 @@ format_send_error(struct cmd *cmd, short code, const char *msg) {
 		resp->http_version = cmd->http_version;
 		http_response_set_keep_alive(resp, cmd->keep_alive);
 		http_response_write(resp, cmd->fd);
+	} else if(cmd->is_websocket && !cmd->http_client->ws->close_after_events) {
+		ws_frame_and_send_response(cmd->http_client->ws, WS_BINARY_FRAME, msg, strlen(msg));
 	}
 
-	/* for pub/sub, remove command from client */
-	if(cmd->pub_sub_client) {
-		cmd->pub_sub_client->pub_sub = NULL;
-	} else {
-		cmd_free(cmd);
+	if (!cmd->is_websocket) { /* don't free or detach persistent cmd */
+		if (cmd->pub_sub_client) { /* for pub/sub, remove command from client */
+			cmd->pub_sub_client->reused_cmd = NULL;
+		} else {
+			cmd_free(cmd);
+		}
 	}
 }
 
@@ -62,7 +67,8 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 	struct http_response *resp;
 
 	if(cmd->is_websocket) {
-		ws_reply(cmd, p, sz);
+
+		ws_frame_and_send_response(cmd->http_client->ws, WS_BINARY_FRAME, p, sz);
 
 		/* If it's a subscribe command, there'll be more responses */
 		if(!cmd_is_subscribe(cmd))
