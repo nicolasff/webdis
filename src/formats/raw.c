@@ -132,7 +132,7 @@ raw_array(const redisReply *r, size_t *sz) {
 		redisReply *e = r->element[i];
 		switch(e->type) {
 			case REDIS_REPLY_STRING:
-				p += sprintf(p, "$%d\r\n", e->len);
+				p += sprintf(p, "$%zu\r\n", e->len);
 				memcpy(p, e->str, e->len);
 				p += e->len;
 				*p = '\r';
@@ -168,7 +168,7 @@ raw_wrap(const redisReply *r, size_t *sz) {
 		case REDIS_REPLY_STRING:
 			*sz = 1 + integer_length(r->len) + 2 + r->len + 2;
 			p = ret = malloc(*sz);
-			p += sprintf(p, "$%d\r\n", r->len);
+			p += sprintf(p, "$%zu\r\n", r->len);
 			memcpy(p, r->str, *sz - 2 - (p-ret));
 			memcpy(ret + *sz - 2, "\r\n", 2);
 			return ret;
