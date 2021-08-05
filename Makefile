@@ -31,6 +31,14 @@ ifneq ($(strip $(MSGPACK_OSX_LIB)),)
 	FORMAT_OBJS += src/formats/msgpack.o
 	CFLAGS += -DMSGPACK=1
 	LDFLAGS += -lmsgpackc
+else
+# check for MessagePackC using ld (returns 1 in both cases on macOS)
+MSGPACKC_LD=$(shell ld -lmsgpackc >/dev/null 2>/dev/null; echo $$?)
+ifeq ($(strip $(MSGPACKC_LD)),0)
+	FORMAT_OBJS += src/formats/msgpack.o
+	CFLAGS += -DMSGPACK=1
+	LDFLAGS += -lmsgpackc
+endif
 endif
 endif
 endif
