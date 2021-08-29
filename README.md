@@ -1,7 +1,7 @@
 [![Build](https://github.com/nicolasff/webdis/actions/workflows/build.yml/badge.svg)](https://github.com/nicolasff/webdis/actions/workflows/build.yml)
 
 
-# About
+# About Webdis
 
 A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson), [libevent](https://monkey.org/~provos/libevent/), and [http-parser](https://github.com/ry/http-parser/).
 
@@ -82,10 +82,10 @@ ECR images are not signed at this time, but they use the exact same hash as the 
 
 Clone the repository and open a terminal in the webdis directory, then run:
 ```sh
-$ docker build -t webdis .
+$ docker build -t webdis:custom .
 [...]
 
-$ docker run --name webdis-test --rm -d -p 7379:7379 webdis
+$ docker run --name webdis-test --rm -d -p 7379:7379 webdis:custom
 f0a2763fd456ac1f7ebff80eeafd6a5cd0fc7f06c69d0f7717fb2bdcec65926e
 
 $ curl http://127.0.0.1:7379/PING
@@ -98,13 +98,13 @@ f0a2763fd456
 
 
 # Features
-* `GET` and `POST` are supported, as well as `PUT` for file uploads.
+* `GET` and `POST` are supported, as well as `PUT` for file uploads (see example of `PUT` usage [here](#file-upload)).
 * JSON output by default, optional JSONP parameter (`?jsonp=myFunction` or `?callback=myFunction`).
-* Raw Redis 2.0 protocol output with `.raw` suffix
-* MessagePack output with `.msg` suffix
+* Raw Redis 2.0 protocol output with `.raw` suffix.
+* MessagePack output with `.msg` suffix.
 * HTTP 1.1 pipelining (70,000 http requests per second on a desktop Linux machine.)
 * Multi-threaded server, configurable number of worker threads.
-* WebSocket support (Currently using the “hixie-76” specification).
+* [WebSocket support](#websockets) (Currently using the specification from [RFC 6455](https://datatracker.ietf.org/doc/html/rfc6455)).
 * Connects to Redis using a TCP or UNIX socket.
 * Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Support for Redis authentication in the config file: set `redis_auth` to a single string to use a password value, or to an array of two strings to use username+password auth ([new in Redis 6.0](https://redis.io/commands/auth)).
@@ -119,11 +119,11 @@ f0a2763fd456
     * Set `"log_fsync": N` where `N` is a number to call `fsync` every `N` milliseconds.
     * Set `"log_fsync": "all"` (very slow) to persist the log file to its storage device on each log message.
 * Cross-origin requests, usable with XMLHttpRequest2 (Cross-Origin Resource Sharing - CORS).
-* File upload with PUT.
+* [File upload](#file-upload) with `PUT`.
 * With the JSON output, the return value of INFO is parsed and transformed into an object.
-* Optional daemonize: set `"daemonize": true` and `"pidfile": "/var/run/webdis.pid"` in webdis.json.
+* Optionally run as a daemon process: set `"daemonize": true` and `"pidfile": "/var/run/webdis.pid"` in webdis.json.
 * Default root object: Add `"default_root": "/GET/index.html"` in webdis.json to substitute the request to `/` with a Redis request.
-* HTTP request limit with `http_max_request_size` (in bytes, set to 128MB by default).
+* HTTP request limit with `http_max_request_size` (in bytes, set to 128 MB by default).
 * Database selection in the URL, using e.g. `/7/GET/key` to run the command on DB 7.
 
 # Ideas, TODO…
@@ -134,8 +134,8 @@ f0a2763fd456
 * Enrich config file:
 	* Provide timeout (maybe for some commands only?). What should the response be? 504 Gateway Timeout? 503 Service Unavailable?
 * Multi-server support, using consistent hashing.
-* SSL?
-	* Not sure if this is such a good idea.
+* SSL/TLS?
+	* It makes more sense to terminate SSL with nginx used as a reverse-proxy.
 * SPDY?
 	* SPDY is mostly useful for parallel fetches. Not sure if it would make sense for Webdis.
 * Send your ideas using the github tracker, on twitter [@yowgi](https://twitter.com/yowgi) or by e-mail to n.favrefelix@gmail.com.
@@ -174,33 +174,34 @@ Redis 6.0 introduces a more granular [access control system](https://redis.io/to
 This new authentication system is only supported in Webdis 0.1.13 and above.
 
 # ACL
-Access control is configured in `webdis.json`. Each configuration tries to match a client profile according to two criterias:
+Access control is configured in `webdis.json`. Each configuration tries to match a client profile according to two criteria:
 
 * [CIDR](https://en.wikipedia.org/wiki/CIDR) subnet + mask
 * [HTTP Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) in the format of "user:password".
 
 Each ACL contains two lists of commands, `enabled` and `disabled`. All commands being enabled by default, it is up to the administrator to disable or re-enable them on a per-profile basis.
+
 Examples:
 ```json
 {
-	"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
+	"disabled": ["DEBUG", "FLUSHDB", "FLUSHALL"],
 },
 
 {
 	"http_basic_auth": "user:password",
-	"disabled":	["DEBUG", "FLUSHDB", "FLUSHALL"],
-	"enabled":	["SET"]
+	"disabled":        ["DEBUG", "FLUSHDB", "FLUSHALL"],
+	"enabled":         ["SET"]
 },
 
 {
-	"ip": 		"192.168.10.0/24",
-	"enabled":	["SET"]
+	"ip":      "192.168.10.0/24",
+	"enabled": ["SET"]
 },
 
 {
 	"http_basic_auth": "user:password",
-	"ip": 		"192.168.10.0/24",
-	"enabled":	["SET", "DEL"]
+	"ip":              "192.168.10.0/24",
+	"enabled":         ["SET", "DEL"]
 }
 ```
 ACLs are interpreted in order, later authorizations superseding earlier ones if a client matches several. The special value "*" matches all commands.
@@ -369,8 +370,19 @@ $ md5sum redis-logo.png out.png
 The file was uploaded and re-downloaded properly: it has the same hash and the content-type was set properly thanks to the `.png` extension.
 
 # WebSockets
-Webdis supports WebSocket clients implementing [dixie-76](https://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76).
-Web Sockets are supported with the following formats, selected by the connection URL:
+Webdis supports WebSocket clients implementing [RFC 6455](https://datatracker.ietf.org/doc/html/rfc6455).
+
+**Important:** WebSocket support is currently _disabled by default_. To enable WebSocket support, set the key named `"websockets"` to value `true` in `webdis.json`, e.g.
+
+```json
+{
+    "daemonize": false,
+    "websockets": true,
+}
+```
+(start and end of file omitted).
+
+WebSockets are supported with the following formats, selected by the connection URL:
 
 * JSON (on `/` or `/.json`)
 * Raw Redis wire protocol (on `/.raw`)
@@ -378,16 +390,15 @@ Web Sockets are supported with the following formats, selected by the connection
 **Example**:
 ```javascript
 function testJSON() {
-	var jsonSocket = new WebSocket("ws://127.0.0.1:7379/.json");
-	jsonSocket.onopen = function() {
-
-		console.log("JSON socket connected!");
-		jsonSocket.send(JSON.stringify(["SET", "hello", "world"]));
-		jsonSocket.send(JSON.stringify(["GET", "hello"]));
-	};
-	jsonSocket.onmessage = function(messageEvent) {
-		console.log("JSON received:", messageEvent.data);
-	};
+    var jsonSocket = new WebSocket("ws://127.0.0.1:7379/.json");
+    jsonSocket.onmessage = function(messageEvent) {
+        console.log("JSON received:", messageEvent.data);
+    };
+    jsonSocket.onopen = function() {
+        console.log("JSON socket connected!");
+        jsonSocket.send(JSON.stringify(["SET", "hello", "world"]));
+        jsonSocket.send(JSON.stringify(["GET", "hello"]));
+    };
 }
 testJSON();
 ```
@@ -398,6 +409,23 @@ JSON socket connected!
 JSON received: {"SET":[true,"OK"]}
 JSON received: {"GET":"world"}
 ```
+
+## WebSockets HTML demo
+
+The Webdis repository contains a demo web page with JavaScript code that can be used to test WebSocket support.
+
+In a terminal, check out Webdis, build it, and configure it with WebSocket support:
+
+```shell
+$ cd ~/src/webdis
+$ make
+$ vim webdis.json      # (edit the file to add "websockets": true)
+$ grep websockets webdis.json
+    "websockets":	true,
+$ ./webdis
+```
+
+Then go to the `tests/` directory and open `websocket.html` with a web browser.
 
 # Pub/Sub with chunked transfer encoding
 Webdis exposes Redis PUB/SUB channels to HTTP clients, forwarding messages in the channel as they are published by Redis. This is done using chunked transfer encoding.
