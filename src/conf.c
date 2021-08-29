@@ -164,14 +164,14 @@ conf_read(const char *filename) {
 					tmp, WEBDIS_ERROR, WEBDIS_TRACE);
 			}
 			conf->verbosity = (tmp < 0 ? WEBDIS_ERROR : (tmp > WEBDIS_TRACE ? WEBDIS_TRACE : (log_level)tmp));
-		} else if(strcmp(json_object_iter_key(kv), "daemonize") == 0 && json_typeof(jtmp) == JSON_TRUE) {
-			conf->daemonize = 1;
+		} else if(strcmp(json_object_iter_key(kv), "daemonize") == 0 && (json_typeof(jtmp) == JSON_TRUE || json_typeof(jtmp) == JSON_FALSE)) {
+			conf->daemonize = (json_typeof(jtmp) == JSON_TRUE) ? 1 : 0;
 		} else if(strcmp(json_object_iter_key(kv), "daemonize") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			conf->daemonize = is_true_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv),"pidfile") == 0 && json_typeof(jtmp) == JSON_STRING){
 			conf->pidfile = conf_string_or_envvar(json_string_value(jtmp));
-		} else if(strcmp(json_object_iter_key(kv), "websockets") == 0 && json_typeof(jtmp) == JSON_TRUE) {
-			conf->websockets = 1;
+		} else if(strcmp(json_object_iter_key(kv), "websockets") == 0 && (json_typeof(jtmp) == JSON_TRUE || json_typeof(jtmp) == JSON_FALSE)) {
+			conf->websockets = (json_typeof(jtmp) == JSON_TRUE) ? 1 : 0;
 		} else if(strcmp(json_object_iter_key(kv), "websockets") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			conf->websockets = is_true_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv), "database") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
@@ -184,6 +184,8 @@ conf_read(const char *filename) {
 			conf->pool_size_per_thread = atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv), "default_root") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			conf->default_root = conf_string_or_envvar(json_string_value(jtmp));
+		} else {
+			fprintf(stderr, "Warning! Unexpected key or incorrect value in %s: '%s'\n", filename, json_object_iter_key(kv));
 		}
 	}
 
