@@ -1,4 +1,4 @@
-FROM alpine:3.12.7 AS stage
+FROM alpine:3.14.2 AS stage
 LABEL maintainer="Nicolas Favre-Felix <n.favrefelix@gmail.com>"
 
 RUN apk update && apk add wget make gcc libevent-dev msgpack-c-dev musl-dev bsd-compat-headers jq
@@ -9,9 +9,9 @@ RUN cd webdis-$(cat latest) && make && make install && cd ..
 RUN sed -i -e 's/"daemonize":.*true,/"daemonize": false,/g' /etc/webdis.prod.json
 
 # main image
-FROM alpine:3.12.7
-RUN apk update && apk add libevent msgpack-c redis       # Required dependencies
-RUN apk add libcrypto1.1                                 # Security updates
+FROM alpine:3.14.2
+# Required dependencies, with versions fixing known security vulnerabilities
+RUN apk update && apk add libevent msgpack-c 'redis>5.1' 'apk-tools>2.12.6-r0'
 COPY --from=stage /usr/local/bin/webdis /usr/local/bin/
 COPY --from=stage /etc/webdis.prod.json /etc/webdis.prod.json
 RUN echo "daemonize yes" >> /etc/redis.conf
