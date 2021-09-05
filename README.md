@@ -45,25 +45,25 @@ Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/web
 **Docker Hub**
 
 ```sh
-$ docker pull nicolas/webdis:0.1.16
+$ docker pull nicolas/webdis:0.1.17
 $ docker pull nicolas/webdis:latest
 ```
 Starting from release `0.1.12` and including `latest`, Docker Hub images are signed ([download public key](nicolasff.pub)). You should see the following key ID if you verify the trust:
 
 ```
-$ docker trust inspect nicolas/webdis:0.1.16 --pretty
+$ docker trust inspect nicolas/webdis:0.1.17 --pretty
 
-Signatures for nicolas/webdis:0.1.16
+Signatures for nicolas/webdis:0.1.17
 
 SIGNED TAG   DIGEST                                                             SIGNERS
-0.1.16       4d8663cf247fecb685b2788d78fb7b69f6dca7d649f8ec746bc0d39c42ed9db0   nicolasff
+0.1.17       f4fd0a621d67eb55965fe070eaa012003315f493103ba380e86e2ffd693b9b73   nicolasff
 
-List of signers and their keys for nicolas/webdis:0.1.16
+List of signers and their keys for nicolas/webdis:0.1.17
 
 SIGNER      KEYS
 nicolasff   dd0768b9d35d
 
-Administrative keys for nicolas/webdis:0.1.16
+Administrative keys for nicolas/webdis:0.1.17
 
   Repository Key:	fed0b56b8a8fd4d156fb2f47c2e8bd3eb61948b72a787c18e2fa3ea3233bba1a
   Root Key:	40be21f47831d593892370a8e3fc5bfffb16887c707bd81a6aed2088dc8f4bef
