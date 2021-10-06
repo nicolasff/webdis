@@ -42,41 +42,68 @@ $ docker stop webdis-test
 
 Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/webdis) and [Amazon ECR](https://gallery.ecr.aws/nicolas/webdis).
 
-**Docker Hub**
+### Docker Hub
 
 ```sh
-$ docker pull nicolas/webdis:0.1.17
+$ docker pull nicolas/webdis:0.1.17.1
 $ docker pull nicolas/webdis:latest
 ```
 Starting from release `0.1.12` and including `latest`, Docker Hub images are signed ([download public key](nicolasff.pub)). You should see the following key ID if you verify the trust:
 
 ```
-$ docker trust inspect nicolas/webdis:0.1.17 --pretty
+$ docker trust inspect nicolas/webdis:0.1.17.1 --pretty
 
-Signatures for nicolas/webdis:0.1.17
+Signatures for nicolas/webdis:0.1.17.1
 
 SIGNED TAG   DIGEST                                                             SIGNERS
-0.1.17       f4fd0a621d67eb55965fe070eaa012003315f493103ba380e86e2ffd693b9b73   nicolasff
+0.1.17.1     870738120c7447f887d8fc8263a8c4b9d84179f0439385056914211cc7207057   nicolasff
 
-List of signers and their keys for nicolas/webdis:0.1.17
+List of signers and their keys for nicolas/webdis:0.1.17.1
 
 SIGNER      KEYS
 nicolasff   dd0768b9d35d
 
-Administrative keys for nicolas/webdis:0.1.17
+Administrative keys for nicolas/webdis:0.1.17.1
 
   Repository Key:	fed0b56b8a8fd4d156fb2f47c2e8bd3eb61948b72a787c18e2fa3ea3233bba1a
   Root Key:	40be21f47831d593892370a8e3fc5bfffb16887c707bd81a6aed2088dc8f4bef
 ```
 
 
-**Amazon Elastic Container Registry (ECR)**
+### Amazon Elastic Container Registry (ECR)
 
 ```sh
-$ docker pull public.ecr.aws/nicolas/webdis:0.1.16
+$ docker pull public.ecr.aws/nicolas/webdis:0.1.17.1
 $ docker pull public.ecr.aws/nicolas/webdis:latest
 ```
-ECR images are not signed at this time, but they use the exact same hash as the Docker Hub images which _are_ signed.
+
+**A note on ECR and trust:** [AWS does not support Notary v2](https://github.com/aws/containers-roadmap/issues/43) at the time of this writing, although [a security talk from 2020](https://d2908q01vomqb2.cloudfront.net/fe2ef495a1152561572949784c16bf23abb28057/2020/08/21/C3-ECR-Security-Best-Practices_072020_v3-no-notes.pdf#page=19) mentions that the feature could be available in 2021.
+
+The consequence is that [Webdis images on ECR](https://gallery.ecr.aws/nicolas/webdis) are not signed at this time.
+
+They can still be verified, since the images uploaded there use the exact same hash as the ones on Docker Hub, which _are_ signed. This means that you can verify the signature using the `docker trust inspect` command described above, as long as you **also** make sure that the image hash associated with the image on ECR matches the one shown on Docker Hub.
+
+**Example: validating the signature of ECR images via Docker Hub**
+
+First, find the image hash from Docker Hub:
+```
+$ docker inspect nicolas/webdis:0.1.17.1 | grep -w Id
+        "Id": "sha256:75d629dcf654fdaf7d96ddb396f5a391abacc0f9c56ea992761ad5b16d02f7be",
+```
+Then, verify that it matches the image hash on ECR _for the same Webdis version_:
+```
+$ docker inspect public.ecr.aws/nicolas/webdis:0.1.17.1 | grep -w Id
+        "Id": "sha256:75d629dcf654fdaf7d96ddb396f5a391abacc0f9c56ea992761ad5b16d02f7be",
+```
+The hashes are the same, so this is the exact same image.
+Finally, validate the signature on the Docker Hub image:
+```
+$ docker trust inspect nicolas/webdis:0.1.17.1 --pretty
+
+Signatures for nicolas/webdis:0.1.17.
+[...]
+```
+This seems to be the only workaround available until AWS starts supporting content trust on ECR.
 
 # Build and run a Docker image locally
 
