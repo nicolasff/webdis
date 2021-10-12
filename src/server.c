@@ -125,7 +125,9 @@ server_new(const char *cfg_file) {
 	s->cfg = conf_read(cfg_file);
 
 #ifdef HAVE_SSL
-	server_init_ssl(s);
+	if(s->cfg->ssl.enabled) {
+		server_init_ssl(s);
+	}
 #endif
 
 	/* workers */

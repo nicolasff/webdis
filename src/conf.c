@@ -16,6 +16,10 @@
 static struct acl *
 conf_parse_acls(json_t *jtab);
 
+#if HAVE_SSL
+void conf_parse_ssl(struct conf *conf, json_t *jssl, const char *filename);
+#endif
+
 #define ACL_ERROR_PREFIX "Config error with 'redis_auth': "
 #define ACL_ERROR_SUFFIX ". Starting with auth disabled.\n"
 
@@ -200,6 +204,10 @@ conf_read(const char *filename) {
 			conf->pool_size_per_thread = atoi_free(conf_string_or_envvar(json_string_value(jtmp)));
 		} else if(strcmp(json_object_iter_key(kv), "default_root") == 0 && json_typeof(jtmp) == JSON_STRING) {
 			conf->default_root = conf_string_or_envvar(json_string_value(jtmp));
+#if HAVE_SSL
+		} else if(strcmp(json_object_iter_key(kv), "ssl") == 0 && json_typeof(jtmp) == JSON_OBJECT) {
+			conf_parse_ssl(conf, jtmp, filename);
+#endif
 		} else {
 			fprintf(stderr, "Warning! Unexpected key or incorrect value in %s: '%s'\n", filename, json_object_iter_key(kv));
 		}
@@ -209,6 +217,31 @@ conf_read(const char *filename) {
 
 	return conf;
 }
+
+#if HAVE_SSL
+void
+conf_parse_ssl(struct conf *conf, json_t *jssl, const char *filename) {
+	for(void *kv = json_object_iter(jssl); kv; kv = json_object_iter_next(jssl, kv)) {
+		json_t *jtmp = json_object_iter_value(kv);
+		if(strcmp(json_object_iter_key(kv), "enabled") == 0 && (json_typeof(jtmp) == JSON_TRUE || json_typeof(jtmp) == JSON_FALSE)) {
+			conf->ssl.enabled = (json_typeof(jtmp) == JSON_TRUE) ? 1 : 0;
+		} else if(strcmp(json_object_iter_key(kv), "ca_cert_bundle") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->ssl.ca_cert_bundle = conf_string_or_envvar(json_string_value(jtmp));
+		} else if(strcmp(json_object_iter_key(kv), "path_to_certs") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->ssl.path_to_certs = conf_string_or_envvar(json_string_value(jtmp));
+		} else if(strcmp(json_object_iter_key(kv), "client_cert") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->ssl.client_cert_pem = conf_string_or_envvar(json_string_value(jtmp));
+		} else if(strcmp(json_object_iter_key(kv), "client_key") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->ssl.client_key_pem = conf_string_or_envvar(json_string_value(jtmp));
+		} else if(strcmp(json_object_iter_key(kv), "redis_sni") == 0 && json_typeof(jtmp) == JSON_STRING) {
+			conf->ssl.redis_sni = conf_string_or_envvar(json_string_value(jtmp));
+		} else {
+			fprintf(stderr, "Warning! Unexpected key or incorrect value under 'ssl', in %s: '%s'\n",
+				filename, json_object_iter_key(kv));
+		}
+	}
+}
+#endif
 
 void
 acl_read_commands(json_t *jlist, struct acl_commands *ac) {
