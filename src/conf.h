@@ -52,6 +52,17 @@ struct conf {
 		int period_millis; /* only used with LOG_FSYNC_MILLIS */
 	} log_fsync;
 
+#ifdef HAVE_SSL
+	/* SSL */
+	struct {
+		char *ca_cert_bundle;  /* File name of trusted CA/ca bundle file, optional */
+		char *path_to_certs;   /* Path of trusted certificates, optional */
+		char *client_cert_pem; /* File name of client certificate file, optional */
+		char *client_key_pem;  /* File name of client private key, optional */
+		char *redis_sni;       /* Server name to request (SNI), optional */
+	} ssl;
+#endif
+
 	/* Request to serve on “/” */
 	char *default_root;
 };

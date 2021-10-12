@@ -91,6 +91,30 @@ socket_setup(struct server *s, const char *ip, int port) {
 	return fd;
 }
 
+#ifdef HAVE_SSL
+static void
+server_init_ssl(struct server *s) {
+	redisInitOpenSSL();
+
+	/* Create SSL context, see docs in cfg.h */
+	s->ssl_context = redisCreateSSLContext(
+		s->cfg->ssl.ca_cert_bundle,
+		s->cfg->ssl.path_to_certs,
+		s->cfg->ssl.client_cert_pem,
+		s->cfg->ssl.client_key_pem,
+		s->cfg->ssl.redis_sni,
+		&s->ssl_error);
+
+	if(s->ssl_context == NULL || s->ssl_error != 0) {
+		fprintf(stderr, "SSL error: %s\n",
+				(s->ssl_error != 0)
+					? redisSSLContextGetError(s->ssl_error)
+					: "Unknown error");
+		exit(EXIT_FAILURE);
+	}
+}
+#endif
+
 struct server *
 server_new(const char *cfg_file) {
 
@@ -99,6 +123,10 @@ server_new(const char *cfg_file) {
 
 	s->log.fd = -1;
 	s->cfg = conf_read(cfg_file);
+
+#ifdef HAVE_SSL
+	server_init_ssl(s);
+#endif
 
 	/* workers */
 	s->w = calloc(s->cfg->http_threads, sizeof(struct worker*));

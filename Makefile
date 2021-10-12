@@ -60,7 +60,14 @@ CFLAGS += $(DEBUG_FLAGS)
 
 # if `make` is run with SSL=1, include hiredis SSL support
 ifeq ($(SSL),1)
-	HIREDIS_OBJ += " src/hiredis/ssl.o"
+	HIREDIS_OBJ += src/hiredis/ssl.o
+	CFLAGS += -DHAVE_SSL=1
+	LDFLAGS +=  -lssl -lcrypto
+	ifneq (, $(shell which brew)) # Homebrew
+		CFLAGS += -I$(shell brew --prefix)/opt/openssl/include
+		LDFLAGS += -L$(shell brew --prefix)/opt/openssl/lib
+	endif
+	# On Ubuntu and Alpine, LDFLAGS are enough since the SSL headers are under /usr/include/openssl
 endif
 
 OBJS_DEPS=$(wildcard *.d)

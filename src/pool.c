@@ -46,6 +46,19 @@ pool_on_connect(const redisAsyncContext *ac, int status) {
 	}
 	/* connected to redis! */
 
+#ifdef HAVE_SSL
+/* Negotiate SSL/TLS */
+if (redisInitiateSSLWithContext((redisContext*)&ac->c, p->w->s->ssl_context) != REDIS_OK) {
+    /* Handle error, in c->err / c->errstr */
+	slog(p->w->s, WEBDIS_ERROR, "SSL negotiation failed", 0);
+	if (ac->c.err) { /* non-zero on error */
+		slog(p->w->s, WEBDIS_ERROR, ac->c.errstr, 0);
+	}
+	pool_schedule_reconnect(p);
+	return;
+}
+#endif
+
 	/* add to pool */
 	for(i = 0; i < p->count; ++i) {
 		if(p->ac[i] == NULL) {
