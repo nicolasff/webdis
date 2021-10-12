@@ -1,5 +1,5 @@
 OUT=webdis
-HIREDIS_OBJ?=src/hiredis/hiredis.o src/hiredis/sds.o src/hiredis/net.o src/hiredis/async.o src/hiredis/read.o src/hiredis/dict.o
+HIREDIS_OBJ?=src/hiredis/hiredis.o src/hiredis/sds.o src/hiredis/net.o src/hiredis/async.o src/hiredis/read.o src/hiredis/dict.o src/hiredis/alloc.o src/hiredis/sockcompat.o
 JANSSON_OBJ?=src/jansson/src/dump.o src/jansson/src/error.o src/jansson/src/hashtable.o src/jansson/src/load.o src/jansson/src/strbuffer.o src/jansson/src/utf.o src/jansson/src/value.o src/jansson/src/variadic.o
 B64_OBJS?=src/b64/cencode.o
 FORMAT_OBJS?=src/formats/json.o src/formats/raw.o src/formats/common.o src/formats/custom-type.o
@@ -57,6 +57,11 @@ else
 endif
 
 CFLAGS += $(DEBUG_FLAGS)
+
+# if `make` is run with SSL=1, include hiredis SSL support
+ifeq ($(SSL),1)
+	HIREDIS_OBJ += " src/hiredis/ssl.o"
+endif
 
 OBJS_DEPS=$(wildcard *.d)
 DEPS=$(FORMAT_OBJS) $(HIREDIS_OBJ) $(JANSSON_OBJ) $(HTTP_PARSER_OBJS) $(B64_OBJS)
