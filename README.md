@@ -199,7 +199,7 @@ Follow this table to diagnose issues with SSL connections to Redis.
 * Multi-threaded server, configurable number of worker threads.
 * [WebSocket support](#websockets) (Currently using the specification from [RFC 6455](https://datatracker.ietf.org/doc/html/rfc6455)).
 * Connects to Redis using a TCP or UNIX socket.
-* Support for [secure connections to Redis](https://redis.io/topics/encryption) (requires Redis 6 or newer).
+* Support for [secure connections to Redis](#configuring-webdis-with-ssl) (requires [Redis 6 or newer](https://redis.io/topics/encryption)).
 * Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Support for Redis authentication in the config file: set `redis_auth` to a single string to use a password value, or to an array of two strings to use username+password auth ([new in Redis 6.0](https://redis.io/commands/auth)).
 * Environment variables can be used as values in the config file, starting with `$` and in all caps (e.g. `$REDIS_HOST`).

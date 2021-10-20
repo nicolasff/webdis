@@ -17,7 +17,8 @@ static struct acl *
 conf_parse_acls(json_t *jtab);
 
 #if HAVE_SSL
-void conf_parse_ssl(struct conf *conf, json_t *jssl, const char *filename);
+void
+conf_parse_ssl(struct conf *conf, json_t *jssl, const char *filename);
 #endif
 
 #define ACL_ERROR_PREFIX "Config error with 'redis_auth': "
