@@ -7,6 +7,8 @@ A very simple web server providing an HTTP interface to Redis. It uses [hiredis]
 
 Webdis depends on libevent-dev. You can install it on Ubuntu by typing `sudo apt-get install libevent-dev` or on macOS by typing `brew install libevent`.
 
+To build Webdis with support for encrypted connections to Redis, see [Building Webdis with SSL support](#building-webdis-with-ssl-support).
+
 # Build and run from sources
 
 ```sh
@@ -123,6 +125,70 @@ $ docker stop webdis-test
 f0a2763fd456
 ```
 
+# Building Webdis with SSL support
+
+Webdis needs libraries that provide TLS support to encrypt its connections to Redis:
+
+* On Alpine Linux, install `openssl-dev` with `apk-add openssl-dev`.
+* On Ubuntu, install `libssl-dev` with `apt-get install libssl-dev`.
+* On macOS with HomeBrew, install OpenSSL with `brew install openssl@1.1`.
+
+Then, build Webdis with SSL support enabled:
+
+```sh
+$ make SSL=1
+```
+
+# Configuring Webdis with SSL
+
+Once Redis is configured with SSL support (see [this guide](https://nishanths.svbtle.com/setting-up-redis-with-tls) for step-by-step instructions), you can configure Webdis to connect to Redis over encrypted connections.
+
+Add a block to `webdis.json` under a key named `"ssl"` placed at the root level, containing the following object:
+
+```json
+{
+    "enabled": true,
+    "ca_cert_bundle": "/path/to/ca.crt",
+    "path_to_certs": "/path/to/trusted/certs",
+    "client_cert": "/path/to/redis.crt",
+    "client_key": "/path/to/redis.key",
+    "redis_sni": "redis.mydomain.tld"
+}
+```
+This means that `"ssl"` should be at the same level as `"redis_host"`, `"redis_port"`, etc.
+
+**Important:** the presence of the `"ssl"` configuration block alone does not necessarily enable secure connections to Redis. The key `"enabled"` inside this block **must** also be set to `true`, otherwise Webdis will keep using unencrypted connections.
+
+Use the following table to match the Redis configuration keys to the fields under `"ssl"` in `webdis.json`:
+
+| Redis field        | Webdis field     | Purpose               |
+| ------------------ | ---------------- | --------------------- |
+| `tls-cert-file`    | `client_cert`    | Client certificate    |
+| `tls-key-file`     | `client_key`     | Client key            |
+| `tls-ca-cert-file` | `ca_cert_bundle` | CA certificate bundle |
+
+Two other keys have no equivalent in `redis.conf`:
+
+- `path_to_certs` is an optional directory path where trusted CA certificate files are stored in an OpenSSL-compatible format.
+- `redis_sni` is an optional Redis server name, used as a server name indication (SNI) TLS extension.
+
+See also the [Hiredis docs](https://github.com/redis/hiredis/blob/v1.0.2/README.md#hiredis-openssl-wrappers) and [Hiredis source code](https://github.com/redis/hiredis/blob/v1.0.2/hiredis_ssl.h#L77-L96) for more information.
+
+## SSL troubleshooting
+
+Follow this table to diagnose issues with SSL connections to Redis.
+
+| Error message or issue | Cause | Solution |
+| ---------------------- | ----- | -------- |
+| Unexpected key or incorrect value in `webdis.json`: 'ssl' | Webdis is not compiled with SSL support | Build webdis with `make SSL=1` |
+| Unexpected key or incorrect value under 'ssl' | Invalid configuration | One or more keys in the `ssl` object in was not recognized, make sure they are all valid |
+| Failed to load client certificate | Invalid client certificate | Verify the file that `client_cert` points to |
+| Failed to load private key | Invalid client key | Verify the file that `client_key` points to |
+| Failed to load CA Certificate or CA Path | Invalid CA certificate bundle | Verify the file that `ca_cert_bundle` points to |
+| All requests fail with HTTP 503, logs show "Error disconnecting: Connection reset by peer" | SSL disabled in config but Webdis connected to an SSL port | Make sure `enabled` is set to `true` and that Webdis connects to the SSL port for Redis |
+| Logs show "Server closed the connection" at start-up | SSL connection failed | The client key and/or client certificate was missing. Make sure the configuration is valid. |
+| No error but all requests hang | Webdis connected to the non-SSL port | Make sure Webdis is connecting to the port set under `tls-port` in `redis.conf` |
+
 
 # Features
 * `GET` and `POST` are supported, as well as `PUT` for file uploads (see example of `PUT` usage [here](#file-upload)).
@@ -133,6 +199,7 @@ f0a2763fd456
 * Multi-threaded server, configurable number of worker threads.
 * [WebSocket support](#websockets) (Currently using the specification from [RFC 6455](https://datatracker.ietf.org/doc/html/rfc6455)).
 * Connects to Redis using a TCP or UNIX socket.
+* Support for [secure connections to Redis](#configuring-webdis-with-ssl) (requires [Redis 6 or newer](https://redis.io/topics/encryption)).
 * Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Support for Redis authentication in the config file: set `redis_auth` to a single string to use a password value, or to an array of two strings to use username+password auth ([new in Redis 6.0](https://redis.io/commands/auth)).
 * Environment variables can be used as values in the config file, starting with `$` and in all caps (e.g. `$REDIS_HOST`).

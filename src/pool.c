@@ -193,6 +193,21 @@ pool_connect(struct pool *p, int db_num, int attach) {
 		return NULL;
 	}
 
+#ifdef HAVE_SSL
+/* Negotiate SSL/TLS */
+	if(p->w->s->cfg->ssl.enabled) {
+		if(redisInitiateSSLWithContext((redisContext*)&ac->c, p->w->s->ssl_context) != REDIS_OK) {
+			/* Handle error, in c->err / c->errstr */
+			slog(p->w->s, WEBDIS_ERROR, "SSL negotiation failed", 0);
+			if(ac->c.err) { /* non-zero on error */
+				slog(p->w->s, WEBDIS_ERROR, ac->c.errstr, 0);
+			}
+			pool_schedule_reconnect(p);
+			return NULL;
+		}
+	}
+#endif
+
 	redisLibeventAttach(ac, p->w->base);
 	redisAsyncSetConnectCallback(ac, pool_on_connect);
 	redisAsyncSetDisconnectCallback(ac, pool_on_disconnect);
