@@ -174,6 +174,11 @@ Two other keys have no equivalent in `redis.conf`:
 
 See also the [Hiredis docs](https://github.com/redis/hiredis/blob/v1.0.2/README.md#hiredis-openssl-wrappers) and [Hiredis source code](https://github.com/redis/hiredis/blob/v1.0.2/hiredis_ssl.h#L77-L96) for more information.
 
+
+### Running Redis and Webdis with SSL in Docker Compose
+
+For a full tutorial showing how to configure and run Redis and Webdis under Docker Compose with SSL connections between the two services, head to the Discussions tab at the top of this page and open [Running Webdis & Redis in Docker Compose with SSL connections](https://github.com/nicolasff/webdis/discussions/203).
+
 ## SSL troubleshooting
 
 Follow this table to diagnose issues with SSL connections to Redis.
