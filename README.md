@@ -47,25 +47,25 @@ Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/web
 ### Docker Hub
 
 ```sh
-$ docker pull nicolas/webdis:0.1.17.1
+$ docker pull nicolas/webdis:0.1.18
 $ docker pull nicolas/webdis:latest
 ```
 Starting from release `0.1.12` and including `latest`, Docker Hub images are signed ([download public key](nicolasff.pub)). You should see the following key ID if you verify the trust:
 
 ```
-$ docker trust inspect nicolas/webdis:0.1.17.1 --pretty
+$ docker trust inspect nicolas/webdis:0.1.18 --pretty
 
-Signatures for nicolas/webdis:0.1.17.1
+Signatures for nicolas/webdis:0.1.18
 
 SIGNED TAG   DIGEST                                                             SIGNERS
-0.1.17.1     870738120c7447f887d8fc8263a8c4b9d84179f0439385056914211cc7207057   nicolasff
+0.1.18       6def97f1299c4de2046b1ae77427a7fa41552c91d3ae02059f79dbcb0650fe9e   nicolasff
 
-List of signers and their keys for nicolas/webdis:0.1.17.1
+List of signers and their keys for nicolas/webdis:0.1.18
 
 SIGNER      KEYS
 nicolasff   dd0768b9d35d
 
-Administrative keys for nicolas/webdis:0.1.17.1
+Administrative keys for nicolas/webdis:0.1.18
 
   Repository Key:	fed0b56b8a8fd4d156fb2f47c2e8bd3eb61948b72a787c18e2fa3ea3233bba1a
   Root Key:	40be21f47831d593892370a8e3fc5bfffb16887c707bd81a6aed2088dc8f4bef
@@ -75,7 +75,7 @@ Administrative keys for nicolas/webdis:0.1.17.1
 ### Amazon Elastic Container Registry (ECR)
 
 ```sh
-$ docker pull public.ecr.aws/nicolas/webdis:0.1.17.1
+$ docker pull public.ecr.aws/nicolas/webdis:0.1.18
 $ docker pull public.ecr.aws/nicolas/webdis:latest
 ```
 
@@ -89,20 +89,20 @@ They can still be verified, since the images uploaded there use the exact same h
 
 First, find the image hash from Docker Hub:
 ```
-$ docker inspect nicolas/webdis:0.1.17.1 | grep -w Id
-        "Id": "sha256:75d629dcf654fdaf7d96ddb396f5a391abacc0f9c56ea992761ad5b16d02f7be",
+$ docker inspect nicolas/webdis:0.1.18 | grep -w Id
+        "Id": "sha256:ecadadde26d4b78216b1b19e903a116ebcd824ae7f27963c5e3518ab1a58d859",
 ```
 Then, verify that it matches the image hash on ECR _for the same Webdis version_:
 ```
-$ docker inspect public.ecr.aws/nicolas/webdis:0.1.17.1 | grep -w Id
-        "Id": "sha256:75d629dcf654fdaf7d96ddb396f5a391abacc0f9c56ea992761ad5b16d02f7be",
+$ docker inspect public.ecr.aws/nicolas/webdis:0.1.18 | grep -w Id
+        "Id": "sha256:ecadadde26d4b78216b1b19e903a116ebcd824ae7f27963c5e3518ab1a58d859",
 ```
 The hashes are the same, so this is the exact same image.
 Finally, validate the signature on the Docker Hub image:
 ```
-$ docker trust inspect nicolas/webdis:0.1.17.1 --pretty
+$ docker trust inspect nicolas/webdis:0.1.18 --pretty
 
-Signatures for nicolas/webdis:0.1.17.
+Signatures for nicolas/webdis:0.1.18.
 [...]
 ```
 This seems to be the only workaround available until AWS starts supporting content trust on ECR.
