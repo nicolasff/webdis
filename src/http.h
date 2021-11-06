@@ -7,12 +7,20 @@
 struct http_client;
 struct worker;
 
+typedef enum {
+	HEADER_COPY_NONE = 0,
+	HEADER_COPY_KEY = 1,
+	HEADER_COPY_VALUE = 2
+} header_copy;
+
 struct http_header {
 	char *key;
 	size_t key_sz;
 
 	char *val;
 	size_t val_sz;
+
+	header_copy copy;
 };
 
 
@@ -49,7 +57,7 @@ struct http_response *
 http_response_init_with_buffer(struct worker *w, char *data, size_t data_sz, int keep_alive);
 
 void
-http_response_set_header(struct http_response *r, const char *k, const char *v);
+http_response_set_header(struct http_response *r, const char *k, const char *v, header_copy copy);
 
 void
 http_response_set_body(struct http_response *r, const char *body, size_t body_len);

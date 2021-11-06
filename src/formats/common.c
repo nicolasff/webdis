@@ -85,11 +85,11 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			resp = http_response_init(cmd->w, 200, "OK");
 			resp->http_version = cmd->http_version;
 			if(cmd->filename) {
-				http_response_set_header(resp, "Content-Disposition", cmd->filename);
+				http_response_set_header(resp, "Content-Disposition", cmd->filename, HEADER_COPY_VALUE);
 			}
-			http_response_set_header(resp, "Content-Type", ct);
+			http_response_set_header(resp, "Content-Type", ct, HEADER_COPY_VALUE);
 			http_response_set_keep_alive(resp, 1);
-			http_response_set_header(resp, "Transfer-Encoding", "chunked");
+			http_response_set_header(resp, "Transfer-Encoding", "chunked", HEADER_COPY_NONE);
 			http_response_set_body(resp, p, sz);
 			http_response_write(resp, cmd->fd);
 		} else {
@@ -109,10 +109,10 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 			} else {
 				resp = http_response_init(cmd->w, 200, "OK");
 				if(cmd->filename) {
-					http_response_set_header(resp, "Content-Disposition", cmd->filename);
+					http_response_set_header(resp, "Content-Disposition", cmd->filename, HEADER_COPY_VALUE);
 				}
-				http_response_set_header(resp, "Content-Type", ct);
-				http_response_set_header(resp, "ETag", etag);
+				http_response_set_header(resp, "Content-Type", ct, HEADER_COPY_VALUE);
+				http_response_set_header(resp, "ETag", etag, HEADER_COPY_VALUE);
 				http_response_set_body(resp, p, sz);
 			}
 			resp->http_version = cmd->http_version;
