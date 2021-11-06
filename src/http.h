@@ -32,7 +32,8 @@ struct http_response {
 	const char *msg;
 
 	struct http_header *headers;
-	int header_count;
+	int header_count; /* actual count in array */
+	int headers_array_size; /* allocated size */
 
 	const char *body;
 	size_t body_len;

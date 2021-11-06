@@ -11,6 +11,14 @@
 
 /* HTTP Response */
 
+#define DEFAULT_HEADERS_ARRAY_SIZE 9
+
+static void
+http_response_allocate_headers(struct http_response *r) {
+	r->headers_array_size = DEFAULT_HEADERS_ARRAY_SIZE;
+	r->headers = calloc(r->headers_array_size, sizeof(struct http_header));
+}
+
 struct http_response *
 http_response_init(struct worker *w, int code, const char *msg) {
 
@@ -25,6 +33,14 @@ http_response_init(struct worker *w, int code, const char *msg) {
 	r->msg = msg;
 	r->w = w;
 	r->keep_alive = 0; /* default */
+
+	/* pre-allocate array for headers */
+	http_response_allocate_headers(r);
+	if(!r->headers) {
+		if(w && w->s) slog(w->s, WEBDIS_ERROR, "Failed to allocate http_response headers", 0);
+		free(r);
+		return NULL;
+	}
 
 	http_response_set_header(r, "Server", "Webdis", HEADER_COPY_NONE);
 
@@ -57,6 +73,14 @@ http_response_init_with_buffer(struct worker *w, char *data, size_t data_sz, int
 	}
 	r->w = w;
 
+	/* pre-allocate array for headers */
+	http_response_allocate_headers(r);
+	if(!r->headers) {
+		if(w && w->s) slog(w->s, WEBDIS_ERROR, "Failed to allocate http_response headers", 0);
+		free(r);
+		return NULL;
+	}
+
 	/* provide buffer directly */
 	r->out = data;
 	r->out_sz = data_sz;
@@ -84,11 +108,13 @@ http_response_set_header(struct http_response *r, const char *k, const char *v, 
 	}
 
 	/* extend array */
-	if(pos == r->header_count) {
+	if(pos == r->headers_array_size) {
+		/* FIXME: allocation could fail */
 		r->headers = realloc(r->headers,
-				sizeof(struct http_header)*(r->header_count + 1));
-		r->header_count++;
+				sizeof(struct http_header)*(r->headers_array_size + 1));
+		r->headers_array_size++;
 	}
+	r->header_count++;
 
 	/* copy key if needed */
 	if(copy == HEADER_COPY_KEY) {
