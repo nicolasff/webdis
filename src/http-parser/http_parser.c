@@ -1440,7 +1440,7 @@ size_t http_parser_execute (http_parser *parser,
         assert(parser->flags & F_CHUNKED);
 
         c = unhex[(unsigned char)ch];
-        if (c == -1) goto error;
+        if (c == (char)-1) goto error;
         parser->content_length = c;
         state = s_chunk_size;
         break;
@@ -1457,7 +1457,7 @@ size_t http_parser_execute (http_parser *parser,
 
         c = unhex[(unsigned char)ch];
 
-        if (c == -1) {
+        if (c == (char)-1) {
           if (ch == ';' || ch == ' ') {
             state = s_chunk_parameters;
             break;
