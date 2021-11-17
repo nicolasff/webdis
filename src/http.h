@@ -7,10 +7,12 @@
 struct http_client;
 struct worker;
 
+/* bit flags */
 typedef enum {
-	HEADER_COPY_NONE = 0,
-	HEADER_COPY_KEY = 1,
-	HEADER_COPY_VALUE = 2
+	HEADER_COPY_NONE = 0,	/* don't strdup key or value */
+	HEADER_COPY_KEY = 1,	/* strdup key only */
+	HEADER_COPY_VALUE = 2,	/* strdup value only */
+	HEADER_CHECK_DUPE = 4	/* replace duplicate when adding header */
 } header_copy;
 
 struct http_header {

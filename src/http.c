@@ -97,13 +97,15 @@ http_response_set_header(struct http_response *r, const char *k, const char *v, 
 	size_t key_sz = strlen(k);
 	size_t val_sz = strlen(v);
 
-	for(i = 0; i < r->header_count; ++i) {
-		if(strncmp(r->headers[i].key, k, key_sz) == 0) {
-			pos = i;
-			/* free old value before replacing it. */
-			if(r->headers[i].copy == HEADER_COPY_KEY) free(r->headers[i].key);
-			if(r->headers[i].copy == HEADER_COPY_VALUE) free(r->headers[i].val);
-			break;
+	if(copy & HEADER_CHECK_DUPE) {
+		for(i = 0; i < r->header_count; ++i) {
+			if(strncmp(r->headers[i].key, k, key_sz) == 0) {
+				pos = i;
+				/* free old value before replacing it. */
+				if(r->headers[i].copy & HEADER_COPY_KEY) free(r->headers[i].key);
+				if(r->headers[i].copy & HEADER_COPY_VALUE) free(r->headers[i].val);
+				break;
+			}
 		}
 	}
 
@@ -117,7 +119,7 @@ http_response_set_header(struct http_response *r, const char *k, const char *v, 
 	r->header_count++;
 
 	/* copy key if needed */
-	if(copy == HEADER_COPY_KEY) {
+	if(copy & HEADER_COPY_KEY) {
 		r->headers[pos].key = calloc(key_sz + 1, 1);
 		memcpy(r->headers[pos].key, k, key_sz);
 	} else {
@@ -126,7 +128,7 @@ http_response_set_header(struct http_response *r, const char *k, const char *v, 
 	r->headers[pos].key_sz = key_sz;
 
 	/* copy val */
-	if(copy == HEADER_COPY_VALUE) {
+	if(copy & HEADER_COPY_VALUE) {
 		r->headers[pos].val = calloc(val_sz + 1, 1);
 		memcpy(r->headers[pos].val, v, val_sz);
 	} else {
@@ -243,9 +245,9 @@ http_response_write(struct http_response *r, int fd) {
 		if(r->code == 200 && r->body) {
 			char content_length[22];
 			sprintf(content_length, "%zd", r->body_len);
-			http_response_set_header(r, "Content-Length", content_length, HEADER_COPY_VALUE);
+			http_response_set_header(r, "Content-Length", content_length, HEADER_COPY_VALUE | HEADER_CHECK_DUPE);
 		} else {
-			http_response_set_header(r, "Content-Length", "0", HEADER_COPY_NONE);
+			http_response_set_header(r, "Content-Length", "0", HEADER_COPY_NONE | HEADER_CHECK_DUPE);
 		}
 	}
 
