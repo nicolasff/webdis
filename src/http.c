@@ -11,6 +11,14 @@
 
 /* HTTP Response */
 
+#define DEFAULT_HEADERS_ARRAY_SIZE 9
+
+static void
+http_response_allocate_headers(struct http_response *r) {
+	r->headers_array_size = DEFAULT_HEADERS_ARRAY_SIZE;
+	r->headers = calloc(r->headers_array_size, sizeof(struct http_header));
+}
+
 struct http_response *
 http_response_init(struct worker *w, int code, const char *msg) {
 
@@ -26,23 +34,31 @@ http_response_init(struct worker *w, int code, const char *msg) {
 	r->w = w;
 	r->keep_alive = 0; /* default */
 
-	http_response_set_header(r, "Server", "Webdis");
+	/* pre-allocate array for headers */
+	http_response_allocate_headers(r);
+	if(!r->headers) {
+		if(w && w->s) slog(w->s, WEBDIS_ERROR, "Failed to allocate http_response headers", 0);
+		free(r);
+		return NULL;
+	}
+
+	http_response_set_header(r, "Server", "Webdis", HEADER_COPY_NONE);
 
 	/* Cross-Origin Resource Sharing, CORS. */
-	http_response_set_header(r, "Allow", "GET,POST,PUT,OPTIONS");
+	http_response_set_header(r, "Allow", "GET,POST,PUT,OPTIONS", HEADER_COPY_NONE);
 	/*
 	Chrome doesn't support Allow and requires 
 	Access-Control-Allow-Methods
 	*/
-	http_response_set_header(r, "Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS");
-	http_response_set_header(r, "Access-Control-Allow-Origin", "*");
+	http_response_set_header(r, "Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS", HEADER_COPY_NONE);
+	http_response_set_header(r, "Access-Control-Allow-Origin", "*", HEADER_COPY_NONE);
 	/* 
 	According to 
 	http://www.w3.org/TR/cors/#access-control-allow-headers-response-header
 	Access-Control-Allow-Headers cannot be a wildcard and must be set
 	with explicit names
 	*/
-	http_response_set_header(r, "Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization");
+	http_response_set_header(r, "Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization", HEADER_COPY_NONE);
 
 	return r;
 }
@@ -57,6 +73,14 @@ http_response_init_with_buffer(struct worker *w, char *data, size_t data_sz, int
 	}
 	r->w = w;
 
+	/* pre-allocate array for headers */
+	http_response_allocate_headers(r);
+	if(!r->headers) {
+		if(w && w->s) slog(w->s, WEBDIS_ERROR, "Failed to allocate http_response headers", 0);
+		free(r);
+		return NULL;
+	}
+
 	/* provide buffer directly */
 	r->out = data;
 	r->out_sz = data_sz;
@@ -67,38 +91,53 @@ http_response_init_with_buffer(struct worker *w, char *data, size_t data_sz, int
 
 
 void
-http_response_set_header(struct http_response *r, const char *k, const char *v) {
+http_response_set_header(struct http_response *r, const char *k, const char *v, header_copy copy) {
 
 	int i, pos = r->header_count;
 	size_t key_sz = strlen(k);
 	size_t val_sz = strlen(v);
 
-	for(i = 0; i < r->header_count; ++i) {
-		if(strncmp(r->headers[i].key, k, key_sz) == 0) {
-			pos = i;
-			/* free old value before replacing it. */
-			free(r->headers[i].key);
-			free(r->headers[i].val);
-			break;
+	if(copy & HEADER_CHECK_DUPE) {
+		for(i = 0; i < r->header_count; ++i) {
+			if(strncmp(r->headers[i].key, k, key_sz) == 0) {
+				pos = i;
+				/* free old value before replacing it. */
+				if(r->headers[i].copy & HEADER_COPY_KEY) free(r->headers[i].key);
+				if(r->headers[i].copy & HEADER_COPY_VALUE) free(r->headers[i].val);
+				break;
+			}
 		}
 	}
 
 	/* extend array */
-	if(pos == r->header_count) {
+	if(pos == r->headers_array_size) {
+		/* FIXME: allocation could fail */
 		r->headers = realloc(r->headers,
-				sizeof(struct http_header)*(r->header_count + 1));
-		r->header_count++;
+				sizeof(struct http_header)*(r->headers_array_size + 1));
+		r->headers_array_size++;
 	}
+	r->header_count++;
 
-	/* copy key */
-	r->headers[pos].key = calloc(key_sz + 1, 1);
-	memcpy(r->headers[pos].key, k, key_sz);
+	/* copy key if needed */
+	if(copy & HEADER_COPY_KEY) {
+		r->headers[pos].key = calloc(key_sz + 1, 1);
+		memcpy(r->headers[pos].key, k, key_sz);
+	} else {
+		r->headers[pos].key = (char *)k;
+	}
 	r->headers[pos].key_sz = key_sz;
 
 	/* copy val */
-	r->headers[pos].val = calloc(val_sz + 1, 1);
-	memcpy(r->headers[pos].val, v, val_sz);
+	if(copy & HEADER_COPY_VALUE) {
+		r->headers[pos].val = calloc(val_sz + 1, 1);
+		memcpy(r->headers[pos].val, v, val_sz);
+	} else {
+		r->headers[pos].val = (char *)v;
+	}
 	r->headers[pos].val_sz = val_sz;
+
+	/* track what was copied */
+	r->headers[pos].copy = copy;
 
 	if(!r->chunked && !strcmp(k, "Transfer-Encoding") && !strcmp(v, "chunked")) {
 		r->chunked = 1;
@@ -126,8 +165,8 @@ http_response_cleanup(struct http_response *r, int fd, int success) {
 
 	/* cleanup response object */
 	for(i = 0; i < r->header_count; ++i) {
-		free(r->headers[i].key);
-		free(r->headers[i].val);
+		if(r->headers[i].copy & HEADER_COPY_KEY) free(r->headers[i].key);
+		if(r->headers[i].copy & HEADER_COPY_VALUE) free(r->headers[i].val);
 	}
 	free(r->headers);
 
@@ -206,9 +245,9 @@ http_response_write(struct http_response *r, int fd) {
 		if(r->code == 200 && r->body) {
 			char content_length[22];
 			sprintf(content_length, "%zd", r->body_len);
-			http_response_set_header(r, "Content-Length", content_length);
+			http_response_set_header(r, "Content-Length", content_length, HEADER_COPY_VALUE | HEADER_CHECK_DUPE);
 		} else {
-			http_response_set_header(r, "Content-Length", "0");
+			http_response_set_header(r, "Content-Length", "0", HEADER_COPY_NONE | HEADER_CHECK_DUPE);
 		}
 	}
 
@@ -290,7 +329,7 @@ http_crossdomain(struct http_client *c) {
 
 	resp->http_version = c->http_version;
 	http_response_set_connection_header(c, resp);
-	http_response_set_header(resp, "Content-Type", "application/xml");
+	http_response_set_header(resp, "Content-Type", "application/xml", HEADER_COPY_NONE);
 	http_response_set_body(resp, out, sizeof(out)-1);
 
 	http_response_write(resp, c->fd);
@@ -317,9 +356,9 @@ void
 http_response_set_keep_alive(struct http_response *r, int enabled) {
 	r->keep_alive = enabled;
 	if(enabled) {
-		http_response_set_header(r, "Connection", "Keep-Alive");
+		http_response_set_header(r, "Connection", "Keep-Alive", HEADER_COPY_NONE);
 	} else {
-		http_response_set_header(r, "Connection", "Close");
+		http_response_set_header(r, "Connection", "Close", HEADER_COPY_NONE);
 	}
 }
 
@@ -331,8 +370,8 @@ http_send_options(struct http_client *c) {
 	resp->http_version = c->http_version;
 	http_response_set_connection_header(c, resp);
 
-	http_response_set_header(resp, "Content-Type", "text/html");
-	http_response_set_header(resp, "Content-Length", "0");
+	http_response_set_header(resp, "Content-Type", "text/html", HEADER_COPY_NONE);
+	http_response_set_header(resp, "Content-Length", "0", HEADER_COPY_NONE);
 
 	http_response_write(resp, c->fd);
 	http_client_reset(c);
