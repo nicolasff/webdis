@@ -579,10 +579,8 @@ ws_can_read(int fd, short event, void *p) {
 	ws->scheduled_read = 0;
 	ret = evbuffer_read(ws->rbuf, fd, 4096);
 
-	if(ret <= 0) {
-		ws_client_free(ws); /* will close the socket */
-	} else if(ws->close_after_events) {
-		ws_close_if_able(ws);
+	if(ret <= 0 || ws->close_after_events) {
+		ws_close_if_able(ws); /* will close the socket once all events have triggered */
 	} else {
 		enum ws_state state = ws_process_read_data(ws, NULL);
 		if(state == WS_READING) { /* need more data, schedule new read */
@@ -607,7 +605,7 @@ ws_can_write(int fd, short event, void *p) {
 	ret = evbuffer_write_atmost(ws->wbuf, fd, 4096);
 
 	if(ret <= 0) {
-		ws_client_free(ws); /* will close the socket */
+		ws_close_if_able(ws); /* will close the socket once all events have triggered */
 	} else {
 		if(evbuffer_get_length(ws->wbuf) > 0) { /* more data to send */
 			ws_schedule_write(ws);
