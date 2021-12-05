@@ -113,7 +113,7 @@ ws_client_new(struct http_client *http_client) {
 	return ws;
 }
 
-void
+static void
 ws_client_free(struct ws_client *ws) {
 
 	/* mark WS client as closing to skip the Redis callback */
@@ -558,7 +558,7 @@ ws_frame_and_send_response(struct ws_client *ws, enum ws_frame_type frame_type, 
 	return ws_schedule_write(ws);
 }
 
-static void
+void
 ws_close_if_able(struct ws_client *ws) {
 
 	ws->close_after_events = 1; /* note that we're closing */

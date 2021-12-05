@@ -79,7 +79,7 @@ worker_can_read(int fd, short event, void *p) {
 				int reply_ret = ws_handshake_reply(c->ws);
 				if(reply_ret < 0) {
 					c->ws->http_client = NULL; /* detach to prevent double free */
-					ws_client_free(c->ws);
+					ws_close_if_able(c->ws);
 					c->broken = 1;
 				} else {
 					unsigned int processed = 0;

@@ -46,9 +46,6 @@ struct ws_client {
 struct ws_client *
 ws_client_new(struct http_client *http_client);
 
-void
-ws_client_free(struct ws_client *ws);
-
 int
 ws_handshake_reply(struct ws_client *ws);
 
@@ -60,5 +57,8 @@ ws_process_read_data(struct ws_client *ws, unsigned int *out_processed);
 
 int
 ws_frame_and_send_response(struct ws_client *ws, enum ws_frame_type type, const char *p, size_t sz);
+
+void
+ws_close_if_able(struct ws_client *ws);
 
 #endif
