@@ -47,35 +47,37 @@ Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/web
 ### Docker Hub
 
 ```sh
-$ docker pull nicolas/webdis:0.1.18
+$ docker pull nicolas/webdis:0.1.19
 $ docker pull nicolas/webdis:latest
 ```
 Starting from release `0.1.12` and including `latest`, Docker Hub images are signed ([download public key](nicolasff.pub)). You should see the following key ID if you verify the trust:
 
 ```
-$ docker trust inspect nicolas/webdis:0.1.18 --pretty
+$ docker trust inspect nicolas/webdis:0.1.19 --pretty
 
-Signatures for nicolas/webdis:0.1.18
+Signatures for nicolas/webdis:0.1.19
 
 SIGNED TAG   DIGEST                                                             SIGNERS
-0.1.18       6def97f1299c4de2046b1ae77427a7fa41552c91d3ae02059f79dbcb0650fe9e   nicolasff
+0.1.19       5de58646bae3ee52e05a65672532120b094682b79823291031ccb41533c21667   (Repo Admin)
 
-List of signers and their keys for nicolas/webdis:0.1.18
+List of signers and their keys for nicolas/webdis:0.1.19
 
 SIGNER      KEYS
 nicolasff   dd0768b9d35d
 
-Administrative keys for nicolas/webdis:0.1.18
+Administrative keys for nicolas/webdis:0.1.19
 
   Repository Key:	fed0b56b8a8fd4d156fb2f47c2e8bd3eb61948b72a787c18e2fa3ea3233bba1a
   Root Key:	40be21f47831d593892370a8e3fc5bfffb16887c707bd81a6aed2088dc8f4bef
 ```
 
+The signing keys are listed on [this documentation page](https://github.com/nicolasff/webdis/discussions/211#:~:text=%F0%9F%94%91-,Key%20IDs,-The%20SIGNER%20field); please make sure they match what you see.
+
 
 ### Amazon Elastic Container Registry (ECR)
 
 ```sh
-$ docker pull public.ecr.aws/nicolas/webdis:0.1.18
+$ docker pull public.ecr.aws/nicolas/webdis:0.1.19
 $ docker pull public.ecr.aws/nicolas/webdis:latest
 ```
 
@@ -85,27 +87,22 @@ The consequence is that [Webdis images on ECR](https://gallery.ecr.aws/nicolas/w
 
 They can still be verified, since the images uploaded there use the exact same hash as the ones on Docker Hub, which _are_ signed. This means that you can verify the signature using the `docker trust inspect` command described above, as long as you **also** make sure that the image hash associated with the image on ECR matches the one shown on Docker Hub.
 
-**Example: validating the signature of ECR images via Docker Hub**
+For more details about Content Trust validation with ECR images, refer to the article titled [Webdis and Docker Content Trust](https://github.com/nicolasff/webdis/discussions/211) in the Discussion section.
 
-First, find the image hash from Docker Hub:
-```
-$ docker inspect nicolas/webdis:0.1.18 | grep -w Id
-        "Id": "sha256:ecadadde26d4b78216b1b19e903a116ebcd824ae7f27963c5e3518ab1a58d859",
-```
-Then, verify that it matches the image hash on ECR _for the same Webdis version_:
-```
-$ docker inspect public.ecr.aws/nicolas/webdis:0.1.18 | grep -w Id
-        "Id": "sha256:ecadadde26d4b78216b1b19e903a116ebcd824ae7f27963c5e3518ab1a58d859",
-```
-The hashes are the same, so this is the exact same image.
-Finally, validate the signature on the Docker Hub image:
-```
-$ docker trust inspect nicolas/webdis:0.1.18 --pretty
+## Multi-architecture images
 
-Signatures for nicolas/webdis:0.1.18.
-[...]
+Starting with [release 0.1.19](https://github.com/nicolasff/webdis/releases/tag/0.1.19), Docker images for Webdis are published as [manifest lists](https://docs.docker.com/registry/spec/manifest-v2-2/#media-types) supporting [multiple architectures](https://docs.docker.com/desktop/multi-arch/). Each release points to an x86-64 image and an ARM64v8 image:
+
 ```
-This seems to be the only workaround available until AWS starts supporting content trust on ECR.
+$ docker manifest inspect nicolas/webdis:0.1.19 | jq -r '.manifests | .[] | .platform.architecture + " -> " + .digest'
+amd64 -> sha256:2ced2d99146e1bcaf10541d17dbac573cffd02237c3b268875be1868138d3b54
+arm64 -> sha256:d026c5675552947b6a755439dfd58360e44a8860436f4eddfe9b26d050801248
+```
+
+By default `docker pull` will download only the relevant image for your architecture, but you can [specify the platform](https://docs.docker.com/engine/reference/commandline/pull/) to download the image for a specific architecture, e.g.
+```
+$ docker pull nicolas/webdis:0.1.19 --platform linux/arm64/v8
+```
 
 # Build and run a Docker image locally
 
@@ -114,13 +111,15 @@ Clone the repository and open a terminal in the webdis directory, then run:
 $ docker build -t webdis:custom .
 [...]
 
-$ docker run --name webdis-test --rm -d -p 7379:7379 webdis:custom
+$ docker run --name webdis-test --rm -d -p 127.0.0.1:7379:7379 webdis:custom
 f0a2763fd456ac1f7ebff80eeafd6a5cd0fc7f06c69d0f7717fb2bdcec65926e
 
 $ curl http://127.0.0.1:7379/PING
 {"PING":[true,"PONG"]}
+```
 
-# To stop it:
+To stop it:
+```
 $ docker stop webdis-test
 f0a2763fd456
 ```
