@@ -9,7 +9,7 @@ Webdis depends on libevent-dev. You can install it on Ubuntu by typing `sudo apt
 
 To build Webdis with support for encrypted connections to Redis, see [Building Webdis with SSL support](#building-webdis-with-ssl-support).
 
-# Build and run from sources
+# Build and run from source
 
 ```sh
 $ make clean all
