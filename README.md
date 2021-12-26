@@ -71,7 +71,7 @@ Administrative keys for nicolas/webdis:0.1.19
   Root Key:	40be21f47831d593892370a8e3fc5bfffb16887c707bd81a6aed2088dc8f4bef
 ```
 
-The signing keys are listed on [this documentation page](https://github.com/nicolasff/webdis/discussions/211#:~:text=%F0%9F%94%91-,Key%20IDs,-The%20SIGNER%20field); please make sure they match what you see.
+The signing keys are listed on [this documentation page](docs/webdis-docker-content-trust.md#-key-ids); please make sure they match what you see.
 
 
 ### Amazon Elastic Container Registry (ECR)
@@ -87,7 +87,7 @@ The consequence is that [Webdis images on ECR](https://gallery.ecr.aws/nicolas/w
 
 They can still be verified, since the images uploaded there use the exact same hash as the ones on Docker Hub, which _are_ signed. This means that you can verify the signature using the `docker trust inspect` command described above, as long as you **also** make sure that the image hash associated with the image on ECR matches the one shown on Docker Hub.
 
-For more details about Content Trust validation with ECR images, refer to the article titled [Webdis and Docker Content Trust](https://github.com/nicolasff/webdis/discussions/211) in the Discussion section.
+For more details about Content Trust validation with ECR images, refer to the article titled [Webdis and Docker Content Trust](docs/webdis-docker-content-trust.md#webdis-and-docker-content-trust) in the [Webdis documentation](docs/README.md#webdis-documentation).
 
 ## Multi-architecture images
 
@@ -176,7 +176,7 @@ See also the [Hiredis docs](https://github.com/redis/hiredis/blob/v1.0.2/README.
 
 ### Running Redis and Webdis with SSL in Docker Compose
 
-For a full tutorial showing how to configure and run Redis and Webdis under Docker Compose with SSL connections between the two services, head to the Discussions tab at the top of this page and open [Running Webdis & Redis in Docker Compose with SSL connections](https://github.com/nicolasff/webdis/discussions/203).
+For a full tutorial showing how to configure and run Redis and Webdis under Docker Compose with SSL connections between the two services, head to the `docs` folder and open [Running Webdis & Redis in Docker Compose with SSL connections](docs/webdis-redis-docker-compose-ssl.md).
 
 ## SSL troubleshooting
 
