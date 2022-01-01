@@ -20,6 +20,8 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	char *jstr;
 	(void)c;
 
+	if (c->c.flags & REDIS_DISCONNECTING) return; /* closing connection */
+
 	if(cmd == NULL) {
 		/* broken connection */
 		return;
