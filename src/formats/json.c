@@ -20,8 +20,6 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 	char *jstr;
 	(void)c;
 
-	if (c->c.flags & REDIS_DISCONNECTING) return; /* closing connection */
-
 	if(cmd == NULL) {
 		/* broken connection */
 		return;
@@ -31,6 +29,11 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 		format_send_error(cmd, 503, "Service Unavailable");
 		return;
 	}
+
+	if(c->c.flags & REDIS_DISCONNECTING) {
+		/* closing connection */
+		return;
+        }
 
 	/* encode redis reply as JSON */
 	j = json_wrap_redis_reply(cmd, r);
