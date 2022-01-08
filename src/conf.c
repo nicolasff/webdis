@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <grp.h>
+#include <errno.h>
 
 #include <jansson.h>
 #include <evhttp.h>

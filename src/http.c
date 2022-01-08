@@ -158,7 +158,7 @@ http_response_cleanup(struct http_response *r, int fd, int success) {
 
 	/* cleanup buffer */
 	free(r->out);
-	if(!r->keep_alive || !success) {
+	if((!r->keep_alive || !success) && fd > 0) {
 		/* Close fd is client doesn't support Keep-Alive. */
 		close(fd);
 	}
@@ -233,6 +233,11 @@ http_response_write(struct http_response *r, int fd) {
 
 	char *p;
 	int i, ret;
+
+	if(fd < 0) { /* http_client was freed, which set the inflight cmd's fd to -1 */
+		http_response_cleanup(r, fd, 0); /* we would have done this after the write */
+		return;
+	}
 
 	r->out_sz = sizeof("HTTP/1.x xxx ")-1 + strlen(r->msg) + 2;
 	r->out = calloc(r->out_sz + 1, 1);

@@ -62,6 +62,7 @@ struct http_client {
 	char *filename; /* content-disposition */
 
 	struct cmd *reused_cmd;
+	struct cmd *last_cmd; /* last command executed, might be in flight */
 
 	struct ws_client *ws; /* websocket client */
 };
