@@ -297,7 +297,13 @@ http_client_read(struct http_client *c) {
 			c->reused_cmd = NULL;
 
 			/* delete command object */
-			cmd_free(cmd);
+			cmd_free(cmd); /* this will also set c->last_cmd to null so we won't enter the `if` below */
+		}
+
+		if(c->last_cmd) { /* avoid fd reuse */
+			c->last_cmd->fd = -1;
+			c->last_cmd->http_client = NULL;
+			c->last_cmd = NULL;
 		}
 
 		close(c->fd);

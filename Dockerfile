@@ -11,7 +11,7 @@ RUN sed -i -e 's/"daemonize":.*true,/"daemonize": false,/g' /etc/webdis.prod.jso
 # main image
 FROM alpine:3.14.3
 # Required dependencies, with versions fixing known security vulnerabilities
-RUN apk update && apk add libevent msgpack-c 'redis>6.2.6' openssl libssl1.1 libcrypto1.1
+RUN apk update && apk add libevent msgpack-c 'redis>6.2.6' openssl libssl1.1 libcrypto1.1 && rm -f /var/cache/apk/* /usr/bin/redis-benchmark /usr/bin/redis-cli
 COPY --from=stage /usr/local/bin/webdis /usr/local/bin/webdis-ssl /usr/local/bin/
 COPY --from=stage /etc/webdis.prod.json /etc/webdis.prod.json
 RUN echo "daemonize yes" >> /etc/redis.conf

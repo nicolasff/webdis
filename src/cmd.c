@@ -28,6 +28,12 @@ cmd_new(struct http_client *client, int count) {
 	c->count = count;
 	c->http_client = client;
 
+	/* attach to client so that the cmd's fd can be unset
+	   when the client is freed and its fd is closed */
+	if(client) {
+		client->last_cmd = c;
+	}
+
 	c->argv = calloc(count, sizeof(char*));
 	c->argv_len = calloc(count, sizeof(size_t));
 
@@ -55,6 +61,11 @@ cmd_free(struct cmd *c) {
 	free(c->separator);
 	free(c->if_none_match);
 	if(c->mime_free) free(c->mime);
+
+	/* detach last_cmd from http_client since the cmd is being freed */
+	if(c->http_client && c->http_client->last_cmd == c) {
+		c->http_client->last_cmd = NULL;
+	}
 
 	if (c->ac && /* we have a connection */
 		(c->database != c->w->s->cfg->database /* custom DB */
