@@ -379,7 +379,7 @@ ws_peek_data(struct ws_client *ws, struct ws_msg **out_msg) {
 
 	/* parse frame and extract contents */
 	size_t sz = evbuffer_get_length(ws->rbuf);
-	if(sz < 8) {
+	if(sz < 2) {
 		return WS_READING; /* need more data */
 	}
 	/* copy into "frame" to process it */
@@ -387,7 +387,7 @@ ws_peek_data(struct ws_client *ws, struct ws_msg **out_msg) {
 	if(!frame) {
 		return WS_ERROR;
 	}
-	int rem_ret = evbuffer_remove(ws->rbuf, frame, sz);
+	int rem_ret = evbuffer_copyout(ws->rbuf, frame, sz); /* copy into frame but keep in rbuf */
 	if(rem_ret < 0) {
 		free(frame);
 		return WS_ERROR;
@@ -397,32 +397,54 @@ ws_peek_data(struct ws_client *ws, struct ws_msg **out_msg) {
 	frame_type = frame[0] & 0x0F;	/* lower 4 bits of first byte */
 	has_mask = frame[1] & 0x80 ? 1:0;
 
+	if(!has_mask) {
+		/* a client MUST mask all frames that it sends to the server (RFC6455, 5.1. Overview) */
+		ws->close_after_events = 1;
+		const char close_code_reason[] = "\x03\xeaReceived a frame without a mask from the client (violates RFC6455, 5.1. Overview)."; /* 0x03,0xEA = 1002 - protocol error */
+		ws_frame_and_send_response(ws, WS_CONNECTION_CLOSE, close_code_reason, sizeof(close_code_reason)-1);
+		free(frame);
+		return WS_ERROR;
+	}
+
 	/* get payload length */
 	len = frame[1] & 0x7f;	/* remove leftmost bit */
+
+	/* checking that the copyout frame contains the minimum data needed to determine the true length and mask in next step */
+	size_t min_sz = 6; /* 2 bytes for flags and opcode + 4 bytes for mask */
+	if(len == 126) {
+		min_sz += sizeof(uint16_t);
+	} else if(len == 127) {
+		min_sz += sizeof(uint64_t);
+	}
+	if(sz < min_sz) { /* not enough data */
+		free(frame);
+		return WS_READING;
+	}
+
+	/* determine payload size (RFC 6455, section 5.2) */
 	if(len <= 125) { /* data starts right after the mask */
-		p = frame + 2 + (has_mask ? 4 : 0);
-		if(has_mask) memcpy(&mask, frame + 2, sizeof(mask));
-	} else if(len == 126) {
+		p = frame + 6;
+		memcpy(&mask, frame + 2, sizeof(mask));
+	} else if(len == 126) { /* size is stored in 16 bits after mask */
 		uint16_t sz16;
 		memcpy(&sz16, frame + 2, sizeof(uint16_t));
 		len = ntohs(sz16);
-		p = frame + 4 + (has_mask ? 4 : 0);
-		if(has_mask) memcpy(&mask, frame + 4, sizeof(mask));
-	} else if(len == 127) {
+		p = frame + 6 + sizeof(uint16_t);
+		memcpy(&mask, frame + 4, sizeof(mask));
+	} else if(len == 127) { /* size is stored in 64 bits after mask */
 		uint64_t sz64 = *((uint64_t*)(frame+2));
 		len = webdis_ntohll(sz64);
-		p = frame + 10 + (has_mask ? 4 : 0);
-		if(has_mask) memcpy(&mask, frame + 10, sizeof(mask));
+		p = frame + 6 + sizeof(uint64_t);
+		memcpy(&mask, frame + 10, sizeof(mask));
 	} else {
 		free(frame);
 		return WS_ERROR;
 	}
 
-	/* we now have the (possibly masked) data starting in p, and its length.  */
+	/* we now have the masked data starting in p, and its length.  */
 	if(len > sz - (p - frame)) { /* not enough data */
-		int add_ret = evbuffer_prepend(ws->rbuf, frame, sz); /* put the whole frame back */
 		free(frame);
-		return add_ret < 0 ? WS_ERROR : WS_READING;
+		return WS_READING;
 	}
 
 	int ev_copy = 0;
@@ -435,18 +457,15 @@ ws_peek_data(struct ws_client *ws, struct ws_msg **out_msg) {
 		*out_msg = msg; /* attach for it to be freed by caller */
 
 		/* create new ws_msg object holding what we read */
-		int add_ret = ws_msg_add(msg, p, len, has_mask ? mask : NULL);
-		if(!add_ret) {
+		int add_ret = ws_msg_add(msg, p, len, mask);
+		if(add_ret < 0) {
 			free(frame);
 			return WS_ERROR;
 		}
 
 		size_t processed_sz = len + (p - frame); /* length of data + header bytes between frame start and payload */
 		msg->total_sz += processed_sz;
-
-		ev_copy = evbuffer_prepend(ws->rbuf, frame + len, sz - processed_sz); /* remove processed data */
-	} else { /* we're just peeking */
-		ev_copy = evbuffer_prepend(ws->rbuf, frame, sz); /* put the whole frame back */
+		ev_copy = evbuffer_drain(ws->rbuf, processed_sz); /* remove processed data from evbuffer */
 	}
 	free(frame);
 
