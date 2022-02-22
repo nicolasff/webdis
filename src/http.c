@@ -94,6 +94,7 @@ void
 http_response_set_header(struct http_response *r, const char *k, const char *v, header_copy copy) {
 
 	int i, pos = r->header_count;
+	int replaced = 0; /* whether we overwrote a previous value */
 	size_t key_sz = strlen(k);
 	size_t val_sz = strlen(v);
 
@@ -104,6 +105,7 @@ http_response_set_header(struct http_response *r, const char *k, const char *v, 
 				/* free old value before replacing it. */
 				if(r->headers[i].copy & HEADER_COPY_KEY) free(r->headers[i].key);
 				if(r->headers[i].copy & HEADER_COPY_VALUE) free(r->headers[i].val);
+				replaced = 1;
 				break;
 			}
 		}
@@ -116,7 +118,9 @@ http_response_set_header(struct http_response *r, const char *k, const char *v, 
 				sizeof(struct http_header)*(r->headers_array_size + 1));
 		r->headers_array_size++;
 	}
-	r->header_count++;
+	if(!replaced) {
+		r->header_count++;
+	}
 
 	/* copy key if needed */
 	if(copy & HEADER_COPY_KEY) {

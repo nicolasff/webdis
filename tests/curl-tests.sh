@@ -25,4 +25,18 @@ function test_large_put_upload() {
     fi
 }
 
+# GitHub issue #217 (empty header ":" returned for OPTIONS)
+function test_options_headers() {
+    echo -n 'Sending an OPTIONS request... '
+    empty_header_present=$(curl -v -X OPTIONS "http://127.0.0.1:7379/" 2>&1 | grep -cE '^< : ' || true) # || true to avoid false-positive exit code from grep
+
+    if [[ $empty_header_present != 0 ]]; then
+        echo "failed! Found an empty header entry"
+        exit 1
+    else
+        echo 'OK'
+    fi
+}
+
 test_large_put_upload
+test_options_headers
