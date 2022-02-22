@@ -47,25 +47,25 @@ Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/web
 ### Docker Hub
 
 ```sh
-$ docker pull nicolas/webdis:0.1.19
+$ docker pull nicolas/webdis:0.1.20
 $ docker pull nicolas/webdis:latest
 ```
 Starting from release `0.1.12` and including `latest`, Docker Hub images are signed ([download public key](nicolasff.pub)). You should see the following key ID if you verify the trust:
 
 ```
-$ docker trust inspect nicolas/webdis:0.1.19 --pretty
+$ docker trust inspect nicolas/webdis:0.1.20 --pretty
 
-Signatures for nicolas/webdis:0.1.19
+Signatures for nicolas/webdis:0.1.20
 
 SIGNED TAG   DIGEST                                                             SIGNERS
-0.1.19       5de58646bae3ee52e05a65672532120b094682b79823291031ccb41533c21667   (Repo Admin)
+0.1.20       e61e962a55efab0a44a4b0de7017fdc614edadb19482f20f9e32b27f15878707   (Repo Admin)
 
-List of signers and their keys for nicolas/webdis:0.1.19
+List of signers and their keys for nicolas/webdis:0.1.20
 
 SIGNER      KEYS
 nicolasff   dd0768b9d35d
 
-Administrative keys for nicolas/webdis:0.1.19
+Administrative keys for nicolas/webdis:0.1.20
 
   Repository Key:	fed0b56b8a8fd4d156fb2f47c2e8bd3eb61948b72a787c18e2fa3ea3233bba1a
   Root Key:	40be21f47831d593892370a8e3fc5bfffb16887c707bd81a6aed2088dc8f4bef
@@ -77,7 +77,7 @@ The signing keys are listed on [this documentation page](docs/webdis-docker-cont
 ### Amazon Elastic Container Registry (ECR)
 
 ```sh
-$ docker pull public.ecr.aws/nicolas/webdis:0.1.19
+$ docker pull public.ecr.aws/nicolas/webdis:0.1.20
 $ docker pull public.ecr.aws/nicolas/webdis:latest
 ```
 
