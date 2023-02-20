@@ -9,7 +9,7 @@ CFLAGS ?= -Wall -Wextra -Isrc -Isrc/jansson/src -Isrc/http-parser -MD
 LDFLAGS ?= -levent -pthread
 
 # Pass preprocessor macros to the compile invocation
-CFLAGS += $(CPPFLAGS)
+CFLAGS += $(CPPFLAGS) -std=gnu99
 
 # check for MessagePack
 MSGPACK_LIB=$(shell ls /usr/lib/libmsgpack.so 2>/dev/null)
