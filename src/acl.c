@@ -5,6 +5,7 @@
 #include "client.h"
 
 #include <string.h>
+#include <strings.h>
 #include <evhttp.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

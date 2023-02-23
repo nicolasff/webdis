@@ -200,7 +200,7 @@ server_daemonize(struct server *s, const char *pidfile) {
 
 	/* write pidfile */
 	if(pidfile) {
-		int pid_fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0600);
+		int pid_fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 		if(pid_fd > 0) {
 			char pid_buffer[(CHAR_BIT * sizeof(int) / 3) + 3]; /* max length for int */
 			int pid_sz = snprintf(pid_buffer, sizeof(pid_buffer), "%d\n", (int)getpid());
