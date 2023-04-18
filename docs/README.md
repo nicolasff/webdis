@@ -1,5 +1,7 @@
 # Webdis Documentation
 
+[**Running Webdis in Docker with an external Redis instance:**](webdis-docker-external-redis.md#running-webdis-in-docker-with-an-external-redis-instance) How to run Webdis as the front-end for an existing Redis instance, rather than for its own internal Redis instance running in the same container.
+
 [**Webdis and Docker Content Trust:**](webdis-docker-content-trust.md#webdis-and-docker-content-trust) How to validate the authenticity of Webdis Docker images with cryptographic signatures using Docker Content Trust.
 
 [**Running Webdis & Redis in Docker Compose:**](webdis-redis-docker-compose.md#running-webdis--redis-in-docker-compose) How to run Webdis in one container, Redis in another, with the two configured as part of a single Docker Compose stack.
