@@ -52,6 +52,11 @@ struct conf {
 		int period_millis; /* only used with LOG_FSYNC_MILLIS */
 	} log_fsync;
 
+	/* HiRedis options */
+	struct {
+		int keep_alive_sec; /* passed to redisEnableKeepAliveWithInterval, > 0 to enable */
+	} hiredis_opts;
+
 #ifdef HAVE_SSL
 	/* SSL */
 	struct {
