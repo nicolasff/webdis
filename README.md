@@ -87,7 +87,7 @@ The consequence is that [Webdis images on ECR](https://gallery.ecr.aws/nicolas/w
 
 They can still be verified, since the images uploaded there use the exact same hash as the ones on Docker Hub, which _are_ signed. This means that you can verify the signature using the `docker trust inspect` command described above, as long as you **also** make sure that the image hash associated with the image on ECR matches the one shown on Docker Hub.
 
-For more details about Content Trust validation with ECR images, refer to the article titled [Webdis and Docker Content Trust](docs/webdis-docker-content-trust.md#webdis-and-docker-content-trust) in the [Webdis documentation](docs/README.md#webdis-documentation).
+For more details about Content Trust validation with ECR images, refer to the article titled [Webdis and Docker Content Trust](docs/webdis-docker-content-trust.md) in the [Webdis documentation](docs/README.md).
 
 ## Multi-architecture images
 
@@ -123,6 +123,18 @@ To stop it:
 $ docker stop webdis-test
 f0a2763fd456
 ```
+
+## Docker images and embedded Redis
+
+:information_source: The Docker images [provided on Docker Hub](https://hub.docker.com/r/nicolas/webdis) under `nicolas/webdis` contain both Webdis and an embedded Redis server. They were built this way to make it easy to [try Webdis](#try-in-docker) without having to configure a Docker deployment with two containers, but this is likely not the best way to run Webdis in production.
+
+The following documentation pages cover various such use cases:
+- [Running Webdis in Docker with an external Redis instance](docs/webdis-docker-external-redis.md)
+- [Running Webdis and Redis in Docker Compose](docs/webdis-redis-docker-compose.md)
+- [Running Webdis and Redis in Docker Compose with SSL connections](docs/webdis-redis-docker-compose-ssl.md)
+
+More articles are available in the [Webdis documentation](docs/README.md).
+
 
 # Building Webdis with SSL support
 

@@ -1,4 +1,4 @@
-# Running Webdis & Redis in Docker Compose
+# Running Webdis and Redis in Docker Compose
 
 This page describes how to start Redis and Webdis in [Docker Compose](https://docs.docker.com/compose/). A different page describes a variant of this model, where connections from Webdis to Redis are encrypted: see "[Running Webdis & Redis in Docker Compose with SSL connections](webdis-redis-docker-compose-ssl.md#running-webdis--redis-in-docker-compose-with-ssl-connections)".
 
