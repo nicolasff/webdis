@@ -8,7 +8,7 @@
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 
-static char *
+char *
 raw_wrap(const redisReply *r, size_t *sz);
 
 void
@@ -150,7 +150,7 @@ raw_array(const redisReply *r, size_t *sz) {
 	return ret;
 }
 
-static char *
+char *
 raw_wrap(const redisReply *r, size_t *sz) {
 
 	char *ret, *p;

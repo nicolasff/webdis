@@ -3,6 +3,10 @@
 #include "cmd.h"
 #include "http.h"
 #include "client.h"
+#include "slog.h"
+#include "worker.h"
+
+#include "formats/raw.h"
 
 #include <string.h>
 #include <strings.h>
@@ -30,6 +34,20 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 		format_send_error(cmd, 503, "Service Unavailable");
 		return;
 	}
+
+	char *raw_out;
+	size_t raw_sz;
+	raw_out = raw_wrap(r, &raw_sz);
+	char log_msg[40];
+	int log_msg_len = sprintf(log_msg, "cmd=%p resp_raw_sz=%zd", cmd, raw_sz);
+	slog(cmd->w->s, WEBDIS_TRACE, log_msg, log_msg_len);
+	char *raw_log_msg = calloc(raw_sz + 40, 1);
+	int raw_log_msg_len = sprintf(raw_log_msg, "  response(raw) sz=%zd val=[%.*s]",
+			raw_sz, (int)raw_sz, raw_out);
+	slog(cmd->w->s, WEBDIS_TRACE, raw_log_msg, raw_log_msg_len);
+	free(raw_out);
+	free(raw_log_msg);
+
 
 	/* encode redis reply as JSON */
 	j = json_wrap_redis_reply(cmd, r);

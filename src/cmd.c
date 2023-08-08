@@ -285,6 +285,16 @@ cmd_run(struct worker *w, struct http_client *client,
 		memcpy(cmd->argv[cur_param], body, body_len);
 		cmd->argv_len[cur_param] = body_len;
 	}
+	char log_msg[40];
+	int log_msg_len = sprintf(log_msg, "cmd=%p argc=%d", cmd, cmd->count);
+	slog(w->s, WEBDIS_TRACE, log_msg, log_msg_len);
+	for (int i = 0; i < cmd->count; i++) {
+		char *arg_msg = calloc(cmd->argv_len[i] + 40, sizeof(char));
+		int arg_msg_len = sprintf(arg_msg, "  cmd argv[%d] (sz=%zd): val=[%.*s]",
+					i, cmd->argv_len[i], (int)cmd->argv_len[i], cmd->argv[i]);
+		slog(w->s, WEBDIS_TRACE, arg_msg, arg_msg_len);
+		free(arg_msg);
+	}
 
 	/* send it off! */
 	if(cmd->ac) {

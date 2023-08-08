@@ -13,4 +13,7 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata);
 struct cmd *
 raw_ws_extract(struct http_client *c, const char *p, size_t sz);
 
+char *
+raw_wrap(const redisReply *r, size_t *sz);
+
 #endif
