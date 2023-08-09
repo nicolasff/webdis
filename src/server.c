@@ -124,6 +124,9 @@ server_new(const char *cfg_file) {
 	s->log.fd = -1;
 	s->cfg = conf_read(cfg_file);
 
+	/* initialize logging as soon as we've read the config file */
+	slog_init(s);
+
 #ifdef HAVE_SSL
 	if(s->cfg->ssl.enabled) {
 		server_init_ssl(s);
@@ -261,9 +264,6 @@ server_start(struct server *s) {
 
 	/* initialize libevent */
 	s->base = event_base_new();
-
-	/* initialize logging before forking */
-	slog_init(s);
 
 	if(s->cfg->daemonize) {
 		server_daemonize(s, s->cfg->pidfile);

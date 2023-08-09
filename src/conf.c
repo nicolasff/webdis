@@ -31,6 +31,9 @@ conf_auth_legacy(char *password);
 static struct auth *
 conf_auth_username_password(json_t *jarray);
 
+static void
+conf_parse_hiredis(struct conf *conf, json_t *jhiredis);
+
 int
 conf_str_allcaps(const char *s, const size_t sz) {
 	size_t i;
@@ -211,6 +214,8 @@ conf_read(const char *filename) {
 		} else if(strcmp(json_object_iter_key(kv), "ssl") == 0 && json_typeof(jtmp) == JSON_OBJECT) {
 			conf_parse_ssl(conf, jtmp, filename);
 #endif
+		} else if(strcmp(json_object_iter_key(kv), "hiredis") == 0 && json_typeof(jtmp) == JSON_OBJECT) {
+			conf_parse_hiredis(conf, jtmp);
 		} else {
 			fprintf(stderr, "Warning! Unexpected key or incorrect value in %s: '%s'\n", filename, json_object_iter_key(kv));
 		}
@@ -419,4 +424,17 @@ conf_auth_username_password(json_t *jarray) {
 	ret->username = username;
 	ret->password = password;
 	return ret;
+}
+
+static void
+conf_parse_hiredis(struct conf *conf, json_t *jhiredis) {
+	for(void *kv = json_object_iter(jhiredis); kv; kv = json_object_iter_next(jhiredis, kv)) {
+		json_t *jtmp = json_object_iter_value(kv);
+		const char *key = json_object_iter_key(kv);
+		if(strcmp(key, "keep_alive_sec") == 0 && json_typeof(jtmp) == JSON_INTEGER) {
+			conf->hiredis_opts.keep_alive_sec = (int)json_integer_value(jtmp);
+		} else {
+			fprintf(stderr, "Config error under 'hiredis': unknown key '%s'.", key);
+		}
+	}
 }
