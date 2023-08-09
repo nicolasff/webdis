@@ -216,6 +216,7 @@ Follow this table to diagnose issues with SSL connections to Redis.
 * [WebSocket support](#websockets) (Currently using the specification from [RFC 6455](https://datatracker.ietf.org/doc/html/rfc6455)).
 * Connects to Redis using a TCP or UNIX socket.
 * Support for [secure connections to Redis](#configuring-webdis-with-ssl) (requires [Redis 6 or newer](https://redis.io/topics/encryption)).
+* Support for "Keep-Alive" connections to Redis: add `"hiredis": { "keep_alive_sec": 15 }` to `webdis.json` to enable it with the default value. See the [Hiredis documentation](https://github.com/redis/hiredis#other-configuration-using-socket-options) for details, the value configured in `webdis.json` is the `interval` passed to `redisEnableKeepAliveWithInterval`. Important: note how it is used to set the value for `TCP_KEEPALIVE` (the same value) _and_ to compute the value for `TCP_KEEPINTVL` (integer, set to 1/3 × `interval`).
 * Restricted commands by IP range (CIDR subnet + mask) or HTTP Basic Auth, returning 403 errors.
 * Support for Redis authentication in the config file: set `redis_auth` to a single string to use a password value, or to an array of two strings to use username+password auth ([new in Redis 6.0](https://redis.io/commands/auth)).
 * Environment variables can be used as values in the config file, starting with `$` and in all caps (e.g. `$REDIS_HOST`).

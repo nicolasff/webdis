@@ -22,6 +22,9 @@
 			"enabled":		["DEBUG"]
 		}
 	],
+	"hiredis": {
+		"keep_alive_sec": 15
+	},
 
 	"verbosity": 3,
 	"logfile": "/var/log/webdis.log"
