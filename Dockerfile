@@ -1,8 +1,8 @@
 FROM alpine:3.17.1 AS stage
 LABEL maintainer="Nicolas Favre-Felix <n.favrefelix@gmail.com>"
 
-RUN apk update && apk add wget make gcc libevent-dev msgpack-c-dev musl-dev openssl-dev bsd-compat-headers jq
-RUN wget -q https://api.github.com/repos/nicolasff/webdis/tags -O /dev/stdout | jq '.[] | .name' | head -1  | sed 's/"//g' > latest
+RUN apk add --no-cache wget make gcc libevent-dev msgpack-c-dev musl-dev openssl-dev bsd-compat-headers jq
+RUN wget -q https://api.github.com/repos/nicolasff/webdis/tags -O /dev/stdout | jq -r '.[] | .name' | head -1  > latest
 RUN wget https://github.com/nicolasff/webdis/archive/$(cat latest).tar.gz -O webdis-latest.tar.gz
 RUN tar -xvzf webdis-latest.tar.gz
 RUN cd webdis-$(cat latest) && make && make install && make clean && make SSL=1 && cp webdis /usr/local/bin/webdis-ssl && cd ..
