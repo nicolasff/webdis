@@ -23,6 +23,6 @@
 		}
 	],
 
-        "verbosity": 3,
-        "logfile": "/var/log/webdis.log"
+	"verbosity": 3,
+	"logfile": "/var/log/webdis.log"
 }
