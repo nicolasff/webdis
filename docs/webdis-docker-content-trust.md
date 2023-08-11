@@ -134,7 +134,7 @@ Multi-architecture images are built using a _manifest list_, which is a small fi
  │ │   variant: v8       │  │                                     │    - 7379/TCP       │
  │ └─────────────────────┘  │                                     │ Layers: [...]       │
  └──────────────────────────┘                                     └─────────────────────┘
- ```
+```
 
 With these images, it's the _manifest hash_ that is signed. By validating a signature on the manifest hash, you can guarantee that the contents of the manifest have not been altered which means you can trust the images that it points to.
 
