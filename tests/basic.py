@@ -195,6 +195,12 @@ class TestMsgPack(TestWebdis):
 
 class TestETag(TestWebdis):
 
+	def test_etag_header(self):
+		self.query('SET/hello/world')
+		h = hashlib.md5("world".encode()).hexdigest()	# compute expected Etag
+		r = self.query('GET/hello.txt')
+		self.assertEqual(r.getheader('ETag'), '"'+ h +'"')
+
 	def test_etag_match(self):
 		self.query('SET/hello/world')
 		h = hashlib.md5("world".encode()).hexdigest()	# match Etag
