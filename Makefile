@@ -58,17 +58,56 @@ endif
 
 CFLAGS += $(DEBUG_FLAGS)
 
-# if `make` is run with SSL=1, include hiredis SSL support
-ifeq ($(SSL),1)
+# if `make` is run with SSL=1 or SSL=libressl or SSL=openssl, include hiredis SSL support and link against libssl and libcrypto
+ifneq ($(SSL),)
+ifeq ($(filter $(SSL),1 libressl openssl),$(SSL))
 	HIREDIS_OBJ += src/hiredis/ssl.o
 	CFLAGS += -DHAVE_SSL=1
-	LDFLAGS +=  -lssl -lcrypto
-	ifneq (, $(shell which brew)) # Homebrew
-		CFLAGS += -I$(shell brew --prefix)/opt/openssl/include
-		LDFLAGS += -L$(shell brew --prefix)/opt/openssl/lib
+	LDFLAGS += -lssl -lcrypto
+	ifneq (, $(shell which brew)) # check for Homebrew
+$(info Using Homebrew to find SSL dependencies...)
+		HAS_LIBRESSL := $(shell brew list libressl > /dev/null 2>&1 && echo yes || echo no)
+$(info Found LibreSSL: $(HAS_LIBRESSL))
+		HAS_OPENSSL := $(shell brew list openssl > /dev/null 2>&1 && echo yes || echo no)
+$(info Found OpenSSL: $(HAS_OPENSSL))
+		BREW_SSL_PKG := none
+
+		ifeq ($(SSL),1)	# enabled without preference
+			ifeq ($(HAS_LIBRESSL),yes)	# prefer LibreSSL over OpenSSL
+				BREW_SSL_PKG := libressl
+$(info Using LibreSSL from Homebrew.)
+			else ifeq ($(HAS_OPENSSL),yes)
+				BREW_SSL_PKG := openssl
+$(info Using OpenSSL from Homebrew.)
+			else
+$(error Neither libressl nor openssl found. Please install one of them using Homebrew.)
+			endif
+		endif
+
+		ifeq ($(SSL),openssl) # OpenSSL explicitly requested
+			ifeq ($(HAS_OPENSSL),yes)
+				BREW_SSL_PKG := openssl
+$(info Using OpenSSL from Homebrew (explicitly set).)
+			else
+$(error OpenSSL requested but not found. Please install it using Homebrew.)
+			endif
+		endif
+
+		ifeq ($(SSL),libressl) # LibreSSL explicitly requested
+			ifeq ($(HAS_LIBRESSL),yes)
+				BREW_SSL_PKG := libressl
+$(info Using LibreSSL from Homebrew (explicitly set).)
+			else
+$(error LibreSSL requested but not found. Please install it using Homebrew.)
+			endif
+		endif
+
+		CFLAGS += -I$(shell brew --prefix $(BREW_SSL_PKG))/include
+		LDFLAGS += -L$(shell brew --prefix $(BREW_SSL_PKG))/lib
 	endif
-	# On Ubuntu and Alpine, LDFLAGS are enough since the SSL headers are under /usr/include/openssl
-endif
+# On Ubuntu and Alpine, LDFLAGS are enough since the SSL headers are under /usr/include/openssl
+endif # filter on SSL value
+endif # SSL set
 
 OBJS_DEPS=$(wildcard *.d)
 DEPS=$(FORMAT_OBJS) $(HIREDIS_OBJ) $(JANSSON_OBJ) $(HTTP_PARSER_OBJS) $(B64_OBJS)

@@ -138,17 +138,45 @@ More articles are available in the [Webdis documentation](docs/README.md).
 
 # Building Webdis with SSL support
 
-Webdis needs libraries that provide TLS support to encrypt its connections to Redis:
+Webdis needs libraries that provide TLS support to encrypt its connections to Redis.
+You can use either [OpenSSL](https://www.openssl.org/) or [LibreSSL](https://www.libressl.org/) since the two libraries are compatible.
+
+## Installing LibreSSL
+
+* On Alpine Linux, install `libressl-dev` with `apk-add libressl-dev`.
+* On macOS with HomeBrew, install OpenSSL with `brew install libressl`.`
+
+## Installing OpenSSL
 
 * On Alpine Linux, install `openssl-dev` with `apk-add openssl-dev`.
 * On Ubuntu, install `libssl-dev` with `apt-get install libssl-dev`.
 * On macOS with HomeBrew, install OpenSSL with `brew install openssl@1.1`.
 
-Then, build Webdis with SSL support enabled:
+## Building Webdis with SSL on Linux
+
+On Linux, whether Webdis uses LibreSSL or OpenSSL depends on which libraries are installed as `/usr/lib/libssl.so` and `/usr/lib/libcrypto.so`.
+
+As long as both are present, you can build Webdis with SSL support by passing `SSL=1` to `make`:
 
 ```sh
 $ make SSL=1
 ```
+
+## Building Webdis with SSL on macOS
+
+On macOS, it is possible to have both LibreSSL and OpenSSL installed at the same time; they just need to be referenced explicitly when building Webdis. By default the same `SSL=1` parameter will enable SSL support, and will look for LibreSSL first and OpenSSL second – using whichever it finds first.
+
+You can also explicitly request that Webdis uses LibreSSL or OpenSSL by passing `SSL=libressl` or `SSL=openssl` to `make`:
+
+```sh
+$ make SSL=libressl
+```
+or
+```sh
+$ make SSL=openssl
+```
+
+The `Makefile` uses `brew --prefix` to look for OpenSSL and LibreSSL.
 
 # Configuring Webdis with SSL
 
