@@ -107,8 +107,8 @@ Let's start with the config files needed by Redis and Webdis; we'll keep them al
 ```shell
 mkdir config
 cp ca.crt redis.key redis.crt ./config
-curl -sL -o ./config/webdis.json https://github.com/nicolasff/webdis/raw/0.1.18/webdis.json
-curl -sL -o ./config/redis.conf https://github.com/redis/redis/raw/6.2.6/redis.conf
+curl -sL -o ./config/webdis.json https://github.com/nicolasff/webdis/raw/0.1.22/webdis.json
+curl -sL -o ./config/redis.conf https://github.com/redis/redis/raw/7.0.10/redis.conf
 ```
 
 If you don't have `curl`, use the two URLs above to fetch `webdis.json` and `redis.conf` and move them to the `config` directory under `playground`.
@@ -184,14 +184,21 @@ jq empty ./config/webdis.json && echo 'VALID' || echo 'INVALID'
 
 ### Redis
 
-Then, edit `./config/redis.conf` and uncomment the following lines and set their values as listed:
+Then, edit `./config/redis.conf` and uncomment the following configuration options and set their values as listed:
 
-- `tls-port 6380` (on line 145, this should initially say `# tls-port 6379`, make sure to change the port number)
-- `tls-cert-file /config/redis.crt` (on line 151)
-- `tls-key-file /config/redis.key` (on line 152)
-- `tls-ca-cert-file /config/ca.crt` (on line 184)
+- `tls-port 6380` (this should initially say `# tls-port 6379`, make sure to change the port number)
+- `tls-cert-file /config/redis.crt`
+- `tls-key-file /config/redis.key`
+- `tls-ca-cert-file /config/ca.crt`
+- `protected-mode no`
 
-Then change line 75 which starts with `bind`, so that it looks like this:
+Again, make sure to remove any leading `#` and spaces from these lines. For example, `tls-port` is originally commented out in `redis.conf` and looks like this:
+
+```
+# tls-port 6379
+```
+
+Finally, change the line which starts with `bind` to:
 
 ```
 bind 0.0.0.0
@@ -206,7 +213,7 @@ Create a new file named `docker-compose.yml` in your `playground` directory, wit
 ```yaml
 services:
   webdis:
-    image: nicolas/webdis:0.1.18
+    image: nicolas/webdis:latest
     command: /usr/local/bin/webdis-ssl /config/webdis.json
     volumes:  # mount volume containing the config files
       - ./config:/config
@@ -218,7 +225,7 @@ services:
       - "127.0.0.1:7379:7379"
 
   redis:
-    image: redis:6.2.6
+    image: redis:7.0.10
     command: /usr/local/bin/redis-server /config/redis.conf
     volumes:  # mount volume containing the config files
       - ./config:/config
@@ -248,25 +255,25 @@ You should see both services logging to the console in different colors, with an
 Creating playground_redis_1 ... done
 Creating playground_webdis_1 ... done
 Attaching to playground_redis_1, playground_webdis_1
-redis_1   | 1:C 23 Oct 2021 01:42:49.704 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
-redis_1   | 1:C 23 Oct 2021 01:42:49.705 # Redis version=6.2.6, bits=64, commit=00000000, modified=0, pid=1, just started
-redis_1   | 1:C 23 Oct 2021 01:42:49.705 # Configuration loaded
-redis_1   | 1:M 23 Oct 2021 01:42:49.716 * monotonic clock: POSIX clock_gettime
-webdis_1  | [1] 23 Oct 01:42:51 I Webdis listening on port 7379
-webdis_1  | [1] 23 Oct 01:42:51 I Webdis 0.1.18 up and running
-redis_1   | 1:M 23 Oct 2021 01:42:49.717 * Running mode=standalone, port=6379.
-redis_1   | 1:M 23 Oct 2021 01:42:49.717 # Server initialized
-redis_1   | 1:M 23 Oct 2021 01:42:49.718 * Ready to accept connections
+redis_1   | 1:C 21 Aug 2023 01:42:49.704 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+redis_1   | 1:C 21 Aug 2023 01:42:49.705 # Redis version=7.0.10, bits=64, commit=00000000, modified=0, pid=1, just started
+redis_1   | 1:C 21 Aug 2023 01:42:49.705 # Configuration loaded
+redis_1   | 1:M 21 Aug 2023 01:42:49.716 * monotonic clock: POSIX clock_gettime
+webdis_1  | [1] 21 Aug 01:42:51 I Webdis listening on port 7379
+webdis_1  | [1] 21 Aug 01:42:51 I Webdis 0.1.22 up and running
+redis_1   | 1:M 21 Aug 2023 01:42:49.717 * Running mode=standalone, port=6379.
+redis_1   | 1:M 21 Aug 2023 01:42:49.717 # Server initialized
+redis_1   | 1:M 21 Aug 2023 01:42:49.718 * Ready to accept connections
 ```
 
 You can now run commands against Webdis by connecting to port 7379 on `localhost`, e.g.
 
 ```sh
-$ curl -s 'http://localhost:7379/ping'
+$ curl -s http://localhost:7379/ping
 {"ping":[true,"PONG"]}
 
-$ curl -s 'http://localhost:7379/info' | jq -r .info.uptime_in_seconds
-27
+$ curl -s http://localhost:7379/info.txt | grep uptime.in.seconds
+uptime_in_seconds:27
 ```
 
 ## Clean-up
