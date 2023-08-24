@@ -5,7 +5,7 @@
 
 #include <hiredis.h>
 #include <async.h>
-#include <adapters/libuv.h>
+#include <adapters/redismoduleapi.h>
 
 void debugCallback(redisAsyncContext *c, void *r, void *privdata) {
     (void)privdata; //unused
@@ -22,10 +22,12 @@ void debugCallback(redisAsyncContext *c, void *r, void *privdata) {
 void getCallback(redisAsyncContext *c, void *r, void *privdata) {
     redisReply *reply = r;
     if (reply == NULL) {
-        printf("`GET key` error: %s\n", c->errstr ? c->errstr : "unknown error");
+        if (c->errstr) {
+            printf("errstr: %s\n", c->errstr);
+        }
         return;
     }
-    printf("`GET key` result: argv[%s]: %s\n", (char*)privdata, reply->str);
+    printf("argv[%s]: %s\n", (char*)privdata, reply->str);
 
     /* start another request that demonstrate timeout */
     redisAsyncCommand(c, debugCallback, NULL, "DEBUG SLEEP %f", 1.5);
@@ -33,7 +35,7 @@ void getCallback(redisAsyncContext *c, void *r, void *privdata) {
 
 void connectCallback(const redisAsyncContext *c, int status) {
     if (status != REDIS_OK) {
-        printf("connect error: %s\n", c->errstr);
+        printf("Error: %s\n", c->errstr);
         return;
     }
     printf("Connected...\n");
@@ -41,18 +43,34 @@ void connectCallback(const redisAsyncContext *c, int status) {
 
 void disconnectCallback(const redisAsyncContext *c, int status) {
     if (status != REDIS_OK) {
-        printf("disconnect because of error: %s\n", c->errstr);
+        printf("Error: %s\n", c->errstr);
         return;
     }
     printf("Disconnected...\n");
 }
 
-int main (int argc, char **argv) {
-#ifndef _WIN32
-    signal(SIGPIPE, SIG_IGN);
-#endif
+/*
+ * This example requires Redis 7.0 or above.
+ *
+ * 1- Compile this file as a shared library. Directory of "redismodule.h" must
+ *    be in the include path.
+ *       gcc -fPIC -shared -I../../redis/src/ -I.. example-redismoduleapi.c -o example-redismoduleapi.so
+ *
+ * 2- Load module:
+ *       redis-server --loadmodule ./example-redismoduleapi.so value
+ */
+int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
-    uv_loop_t* loop = uv_default_loop();
+    int ret = RedisModule_Init(ctx, "example-redismoduleapi", 1, REDISMODULE_APIVER_1);
+    if (ret != REDISMODULE_OK) {
+        printf("error module init \n");
+        return REDISMODULE_ERR;
+    }
+
+    if (redisModuleCompatibilityCheck() != REDIS_OK) {
+        printf("Redis 7.0 or above is required! \n");
+        return REDISMODULE_ERR;
+    }
 
     redisAsyncContext *c = redisAsyncConnect("127.0.0.1", 6379);
     if (c->err) {
@@ -61,21 +79,23 @@ int main (int argc, char **argv) {
         return 1;
     }
 
-    redisLibuvAttach(c,loop);
+    size_t len;
+    const char *val = RedisModule_StringPtrLen(argv[argc-1], &len);
+
+    RedisModuleCtx *module_ctx = RedisModule_GetDetachedThreadSafeContext(ctx);
+    redisModuleAttach(c, module_ctx);
     redisAsyncSetConnectCallback(c,connectCallback);
     redisAsyncSetDisconnectCallback(c,disconnectCallback);
     redisAsyncSetTimeout(c, (struct timeval){ .tv_sec = 1, .tv_usec = 0});
 
     /*
-    In this demo, we first `set key`, then `get key` to demonstrate the basic usage of libuv adapter.
+    In this demo, we first `set key`, then `get key` to demonstrate the basic usage of the adapter.
     Then in `getCallback`, we start a `debug sleep` command to create 1.5 second long request.
     Because we have set a 1 second timeout to the connection, the command will always fail with a
     timeout error, which is shown in the `debugCallback`.
     */
 
-    redisAsyncCommand(c, NULL, NULL, "SET key %b", argv[argc-1], strlen(argv[argc-1]));
+    redisAsyncCommand(c, NULL, NULL, "SET key %b", val, len);
     redisAsyncCommand(c, getCallback, (char*)"end-1", "GET key");
-
-    uv_run(loop, UV_RUN_DEFAULT);
     return 0;
 }
