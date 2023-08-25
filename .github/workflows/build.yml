@@ -10,16 +10,27 @@ jobs:
 
     services:
       redis:
-        image: redis:6.2.1-alpine  # Docker Hub image used as a sidecar
+        image: redis:7.0.12-alpine  # Docker Hub image used as a sidecar
 
     steps:
     - uses: actions/checkout@v2
     - name: Install dependencies
       run: |
         apt-get -y update
-        apt-get -y --force-yes install make gcc libevent-dev libmsgpack-dev python3 curl
+
+        apt-get -y --allow-unauthenticated --allow-downgrades --allow-remove-essential --allow-change-held-packages \
+           install make gcc libevent-dev libmsgpack-dev python3 curl
+    - name: Build and install LibreSSL
+      run: |
+        cd /tmp
+        curl http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.7.3.tar.gz | tar -xzv
+        cd libressl-3.7.3
+        ./configure --libdir=/lib/x86_64-linux-gnu
+        make -j
+        make check
+        make -j install
     - name: Build
-      run: make
+      run: make SSL=1
     - name: Run Webdis and test
       run: |
         ./webdis .github/workflows/webdis-ci.json
