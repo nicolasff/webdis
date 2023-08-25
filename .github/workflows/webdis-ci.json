@@ -9,7 +9,7 @@
   "pool_size": 20,
 
   "daemonize": true,
-  "websockets": false,
+  "websockets": true,
 
   "database": 0,
   "acl": [
