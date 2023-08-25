@@ -239,16 +239,16 @@ Follow this table to diagnose issues with SSL connections to Redis.
 
 # Ideas, TODO…
 * Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands?
-	* This could be done using a “strict mode” with a table of commands and the verbs that can/must be used with each command. Strict mode would be optional, configurable. How would webdis know of new commands remains to be determined.
+    * This could be done using a “strict mode” with a table of commands and the verbs that can/must be used with each command. Strict mode would be optional, configurable. How would webdis know of new commands remains to be determined.
 * MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
 * Support POST of raw Redis protocol data, and execute the whole thing. This could be useful for MULTI/EXEC transactions.
 * Enrich config file:
-	* Provide timeout (maybe for some commands only?). What should the response be? 504 Gateway Timeout? 503 Service Unavailable?
+    * Provide timeout (maybe for some commands only?). What should the response be? 504 Gateway Timeout? 503 Service Unavailable?
 * Multi-server support, using consistent hashing.
 * SSL/TLS?
-	* It makes more sense to terminate SSL with nginx used as a reverse-proxy.
+    * It makes more sense to terminate SSL with nginx used as a reverse-proxy.
 * SPDY?
-	* SPDY is mostly useful for parallel fetches. Not sure if it would make sense for Webdis.
+    * SPDY is mostly useful for parallel fetches. Not sure if it would make sense for Webdis.
 * Send your ideas using the github tracker, on twitter [@yowgi](https://twitter.com/yowgi) or by e-mail to n.favrefelix@gmail.com.
 
 # HTTP error codes
@@ -256,9 +256,9 @@ Follow this table to diagnose issues with SSL connections to Redis.
 * Redis is unreachable: 503 Service Unavailable.
 * Matching ETag sent using `If-None-Match`: 304 Not Modified.
 * Could also be used:
-	* Timeout on the redis side: 503 Service Unavailable.
-	* Missing key: 404 Not Found.
-	* Unauthorized command (disabled in config file): 403 Forbidden.
+    * Timeout on the redis side: 503 Service Unavailable.
+    * Missing key: 404 Not Found.
+    * Unauthorized command (disabled in config file): 403 Forbidden.
 
 # Command format
 The URI `/COMMAND/arg0/arg1/.../argN.ext` executes the command on Redis and returns the response to the client. GET, POST, and PUT are supported:
@@ -276,11 +276,11 @@ Special characters: `/` and `.` have special meanings, `/` separates arguments a
 Webdis can connect to a Redis server that requires credentials.
 For Redis versions before 6.0, provide the password as a single string in `webdis.json` using the key `"redis_auth"`. For example:
 ```json
-	"redis_auth": "enter-password-here"
+    "redis_auth": "enter-password-here"
 ```
 Redis 6.0 introduces a more granular [access control system](https://redis.io/topics/acl) and switches from a single password to a pair of username and password. To use these two values with Webdis, set `"redis_auth"` to an array containing the two strings, e.g.
 ```json
-	"redis_auth": ["my-username", "my-password"]
+    "redis_auth": ["my-username", "my-password"]
 ```
 This new authentication system is only supported in Webdis 0.1.13 and above.
 
@@ -295,24 +295,24 @@ Each ACL contains two lists of commands, `enabled` and `disabled`. All commands 
 Examples:
 ```json
 {
-	"disabled": ["DEBUG", "FLUSHDB", "FLUSHALL"],
+    "disabled": ["DEBUG", "FLUSHDB", "FLUSHALL"],
 },
 
 {
-	"http_basic_auth": "user:password",
-	"disabled":        ["DEBUG", "FLUSHDB", "FLUSHALL"],
-	"enabled":         ["SET"]
+    "http_basic_auth": "user:password",
+    "disabled":        ["DEBUG", "FLUSHDB", "FLUSHALL"],
+    "enabled":         ["SET"]
 },
 
 {
-	"ip":      "192.168.10.0/24",
-	"enabled": ["SET"]
+    "ip":      "192.168.10.0/24",
+    "enabled": ["SET"]
 },
 
 {
-	"http_basic_auth": "user:password",
-	"ip":              "192.168.10.0/24",
-	"enabled":         ["SET", "DEL"]
+    "http_basic_auth": "user:password",
+    "ip":              "192.168.10.0/24",
+    "enabled":         ["SET", "DEL"]
 }
 ```
 ACLs are interpreted in order, later authorizations superseding earlier ones if a client matches several. The special value "*" matches all commands.
@@ -324,8 +324,8 @@ For this, the value must be a string starting with a dollar symbol and written i
 
 ```json
 {
-	"redis_host": "$REDIS_HOST",
-	"redis_port": "$REDIS_PORT",
+    "redis_host": "$REDIS_HOST",
+    "redis_port": "$REDIS_PORT",
 }
 ```
 
@@ -532,7 +532,7 @@ $ cd ~/src/webdis
 $ make
 $ vim webdis.json      # (edit the file to add "websockets": true)
 $ grep websockets webdis.json
-    "websockets":	true,
+    "websockets": true,
 $ ./webdis
 ```
 
@@ -550,11 +550,11 @@ xhr.onreadystatechange = checkData;
 xhr.send(null);
 
 function checkData() {
-	if(xhr.readyState == 3)  {
-    	response = xhr.responseText;
-    	chunk = response.slice(previous_response_length);
-    	previous_response_length = response.length;
-    	console.log(chunk);
+    if(xhr.readyState == 3)  {
+        response = xhr.responseText;
+        chunk = response.slice(previous_response_length);
+        previous_response_length = response.length;
+        console.log(chunk);
     }
 };
 ```
