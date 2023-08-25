@@ -3,7 +3,9 @@
 
 #ifndef _AIX
 #define _XOPEN_SOURCE 600
+#ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200112L
+#endif
 #endif
 
 #if defined(__APPLE__) && defined(__MACH__)
