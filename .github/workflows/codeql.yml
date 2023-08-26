@@ -15,25 +15,27 @@ on:
 
 jobs:
   CodeQL-Build:
-    runs-on: ubuntu-latest    # GitHub Runner
+    runs-on: ubuntu-20.04     # GitHub Runner
+    container: ubuntu:20.04   # Docker Hub container
 
     steps:
     - name: Check out repository
       uses: actions/checkout@v2
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v1
+      uses: github/codeql-action/init@v2
       with:
         languages: cpp
         queries: +security-and-quality
 
     - name: Install dependencies
       run: |
-        sudo apt-get -y update
-        sudo apt-get -y --force-yes install make gcc libevent-dev libmsgpack-dev python3
+        apt-get -y update
+        apt-get -y --allow-unauthenticated --allow-downgrades --allow-remove-essential --allow-change-held-packages \
+          install make gcc libevent-dev libmsgpack-dev
 
     - name: Autobuild
-      uses: github/codeql-action/autobuild@v1
+      uses: github/codeql-action/autobuild@v2
 
     - name: CodeQL Analysis
-      uses: github/codeql-action/analyze@v1
+      uses: github/codeql-action/analyze@v2
