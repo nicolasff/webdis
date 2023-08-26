@@ -13,7 +13,7 @@ jobs:
         image: redis:7.0.12-alpine  # Docker Hub image used as a sidecar
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install dependencies
       run: |
         apt-get -y update
