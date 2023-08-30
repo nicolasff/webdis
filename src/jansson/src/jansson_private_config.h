@@ -2,7 +2,12 @@
 /* jansson_private_config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to 1 if gcc's __atomic builtins are available */
-#define HAVE_ATOMIC_BUILTINS 1
+#if defined(__has_include) && __has_include(<stdatomic.h>)
+#  include <stdatomic.h>
+#  define HAVE_ATOMIC_BUILTINS 1
+#else
+#  define HAVE_ATOMIC_BUILTINS 0
+#endif
 
 /* Define to 1 if you have the `close' function. */
 #define HAVE_CLOSE 1
@@ -10,8 +15,18 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
-/* Define to 1 if you have the <endian.h> header file. */
+/* Locate the <endian.h> header file. */
+#if defined(__has_include) && __has_include(<endian.h>)
 #define HAVE_ENDIAN_H 1
+#else
+#define HAVE_ENDIAN_H 0
+#endif
+#if defined(__has_include) && __has_include(<machine/endian.h>)
+#define HAVE_MACHINE_ENDIAN_H 1
+#else
+#define HAVE_MACHINE_ENDIAN_H 0
+#endif
+
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
@@ -65,7 +80,11 @@
 #define HAVE_STRTOLL 1
 
 /* Define to 1 if gcc's __sync builtins are available */
+#ifdef __GNUC__
 #define HAVE_SYNC_BUILTINS 1
+#else
+#define HAVE_SYNC_BUILTINS 0
+#endif
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 #define HAVE_SYS_PARAM_H 1
