@@ -17,8 +17,8 @@ jobs:
     - name: Install dependencies
       run: |
         apt-get -y update
-        apt-get -y --allow-unauthenticated --allow-downgrades --allow-remove-essential --allow-change-held-packages \
-          install make gcc libevent-dev libmsgpack-dev python3.8 python3-pip curl
+        DEBIAN_FRONTEND=noninteractive apt-get -y --allow-unauthenticated --allow-downgrades --allow-remove-essential --allow-change-held-packages \
+          install make gcc libevent-dev libmsgpack-dev python3.8 python3-pip curl nodejs
         update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
     - name: Build
       run: make
@@ -31,7 +31,7 @@ jobs:
         pip3 --no-cache-dir install -r tests/requirements.txt
         ./tests/ws-tests.py
     - name: Archive logs
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: webdis.log
         path: webdis.log
