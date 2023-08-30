@@ -1,4 +1,7 @@
-include_HEADERS = jansson.h jansson_config.h
+EXTRA_DIST = jansson.def
+
+include_HEADERS = jansson.h
+nodist_include_HEADERS = jansson_config.h
 
 lib_LTLIBRARIES = libjansson.la
 libjansson_la_SOURCES = \
@@ -6,19 +9,22 @@ libjansson_la_SOURCES = \
 	error.c \
 	hashtable.c \
 	hashtable.h \
+	hashtable_seed.c \
 	jansson_private.h \
 	load.c \
+	lookup3.h \
+	memory.c \
+	pack_unpack.c \
 	strbuffer.c \
 	strbuffer.h \
+	strconv.c \
 	utf.c \
 	utf.h \
 	value.c \
-	variadic.c
+	version.c
 libjansson_la_LDFLAGS = \
-	-export-symbols-regex '^json_' \
-	-version-info 3:0:3
-
-if GCC
-# These flags are gcc specific
-AM_CFLAGS = -Wall -Wextra -Werror
-endif
+	-no-undefined \
+	-export-symbols-regex '^json_|^jansson_' \
+	-version-info 18:0:14 \
+	@JSON_SYMVER_LDFLAGS@ \
+	@JSON_BSYMBOLIC_LDFLAGS@
