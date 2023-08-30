@@ -1,4 +1,19 @@
 #!/bin/bash
+
+# check if ab and curl are installed
+deps_ok=1
+if [[ ! $(which ab) ]]; then
+	>&2 echo "ApacheBench (ab) is needed to run this benchmark."
+	deps_ok=0
+fi
+if [[ ! $(which curl) ]]; then
+	>&2 echo "curl is needed to run this benchmark."
+	deps_ok=0
+fi
+if [[ $deps_ok -eq 0 ]]; then
+	exit 1
+fi
+
 CLIENTS=100
 REQUESTS=100000
 
@@ -9,7 +24,7 @@ PORT=$WEBDIS_PORT
 [ -n $PORT ] && PORT=7379
 
 info() {
-	echo "Testing on $HOST:$PORT with $CLIENTS clients in parallel, for a total of $REQUESTS requests per benchmark."
+	echo "Testing on $HOST:$PORT with $CLIENTS clients in parallel, for a total of $(printf "%'d" $REQUESTS) requests per benchmark."
 }
 
 once() {
@@ -17,7 +32,7 @@ once() {
 }
 
 bench() {
-	NUM=`ab -k -c $CLIENTS -n $REQUESTS http://$HOST:$PORT/$1 2>/dev/null | grep "#/sec" | sed -e "s/[^0-9.]//g"`
+	NUM=$(ab -k -c $CLIENTS -n $REQUESTS http://$HOST:$PORT/$1 2>/dev/null | grep "#/sec" | sed -e "s/[^0-9.]//g")
 	echo -ne $NUM
 }
 
