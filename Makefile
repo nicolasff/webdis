@@ -1,6 +1,6 @@
 OUT=webdis
 HIREDIS_OBJ?=src/hiredis/hiredis.o src/hiredis/sds.o src/hiredis/net.o src/hiredis/async.o src/hiredis/read.o src/hiredis/dict.o src/hiredis/alloc.o src/hiredis/sockcompat.o
-JANSSON_OBJ?=src/jansson/src/dump.o src/jansson/src/error.o src/jansson/src/hashtable.o src/jansson/src/hashtable_seed.o src/jansson/src/load.o src/jansson/src/memory.o src/jansson/src/pack_unpack.o src/jansson/src/strbuffer.o src/jansson/src/strconv.o src/jansson/src/utf.o src/jansson/src/value.o src/jansson/src/version.o
+JANSSON_OBJ?=src/jansson/src/dump.o src/jansson/src/error.o src/jansson/src/hashtable.o src/jansson/src/hashtable_seed.o src/jansson/src/load.o src/jansson/src/memory.o src/jansson/src/pack_unpack.o src/jansson/src/strbuffer.o src/jansson/src/strconv.o src/jansson/src/utf.o src/jansson/src/value.o
 B64_OBJS?=src/b64/cencode.o
 FORMAT_OBJS?=src/formats/json.o src/formats/raw.o src/formats/common.o src/formats/custom-type.o
 HTTP_PARSER_OBJS?=src/http-parser/http_parser.o
