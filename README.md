@@ -3,13 +3,13 @@
 
 # About Webdis
 
-A very simple web server providing an HTTP interface to Redis. It uses [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson), [libevent](https://monkey.org/~provos/libevent/), and [http-parser](https://github.com/ry/http-parser/).
-
-Webdis depends on libevent-dev. You can install it on Ubuntu by typing `sudo apt-get install libevent-dev` or on macOS by typing `brew install libevent`.
-
-To build Webdis with support for encrypted connections to Redis, see [Building Webdis with SSL support](#building-webdis-with-ssl-support).
+A very simple web server providing an HTTP interface to Redis. It embeds [hiredis](https://github.com/antirez/hiredis), [jansson](https://github.com/akheron/jansson) (with some [local changes](./src/jansson/WEBDIS-CHANGES.md)), and [http-parser](https://github.com/ry/http-parser/). It also depends on [libevent](https://monkey.org/~provos/libevent/), to be installed separately.
 
 # Build and run from source
+
+Building Webdis requires the libevent development package. You can install it on Ubuntu by typing `sudo apt-get install libevent-dev` or on macOS by typing `brew install libevent`.
+
+To build Webdis with support for encrypted connections to Redis, see [Building Webdis with SSL support](#building-webdis-with-ssl-support).
 
 ```sh
 $ make clean all

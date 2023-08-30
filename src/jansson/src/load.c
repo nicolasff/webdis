@@ -5,6 +5,11 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+#endif
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -1104,3 +1109,7 @@ json_t *json_load_callback(json_load_callback_t callback, void *arg, size_t flag
     lex_close(&lex);
     return result;
 }
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif

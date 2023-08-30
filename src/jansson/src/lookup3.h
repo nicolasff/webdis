@@ -49,8 +49,14 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 #include <sys/param.h>  /* attempt to define endianness */
 #endif
 
-#ifdef HAVE_ENDIAN_H
+#if HAVE_ENDIAN_H
 # include <endian.h>    /* attempt to define endianness */
+#endif
+#if HAVE_MACHINE_ENDIAN_H
+# include <machine/endian.h>
+#endif
+#if (!HAVE_ENDIAN_H && !HAVE_MACHINE_ENDIAN_H && !defined(BYTE_ORDER))
+# error "Unable to determine endianness"
 #endif
 
 /*
