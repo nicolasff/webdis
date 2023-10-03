@@ -67,6 +67,11 @@ class TestJson(TestWebdis):
     def test_ping(self):
         self.assertEqual(self.exec('PING'), {'PING': [True, 'PONG']})
 
+    def test_acl(self):
+        key, value = self.clean_key(), str(uuid.uuid4())
+        self.assertEqual(self.exec('SET', key, value), {'SET': [True, 'OK']})
+        self.assertEqual(self.exec('DEBUG', 'OBJECT', key), {'error': True, 'message': 'Forbidden', 'http_status': 403})
+
     def test_multiple_messages(self):
         key = self.clean_key()
         n = 100
@@ -91,6 +96,11 @@ class TestRaw(TestWebdis):
 
     def test_ping(self):
         self.assertEqual(self.exec('PING'), "+PONG\r\n")
+
+    def test_acl(self):
+        key, value = self.clean_key(), str(uuid.uuid4())
+        self.assertEqual(self.exec('SET', key, value), "+OK\r\n")
+        self.assertEqual(self.exec('DEBUG', 'OBJECT', key), "-ERR Forbidden\r\n")
 
     def test_get_set(self):
         key = self.clean_key()

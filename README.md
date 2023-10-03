@@ -317,6 +317,21 @@ Examples:
 ```
 ACLs are interpreted in order, later authorizations superseding earlier ones if a client matches several. The special value "*" matches all commands.
 
+## ACLs and Websocket clients
+
+These rules apply to WebSocket connections as well, although without support for HTTP Basic Auth filtering. IP filtering is supported.
+
+For JSON-based WebSocket clients, a rejected command will return this object (sent as a string in a binary frame):
+```json
+{"message": "Forbidden", "error": true, "http_status": 403}
+```
+The `http_status` code is an indicator of how Webdis would have responded if the client had used HTTP instead of a WebSocket connection, since WebSocket messages do not inherently have a status code.
+
+For raw Redis protocol WebSocket clients, a rejected command will produce this error (sent as a string in a binary frame):
+```
+-ERR Forbidden\r\n
+```
+
 # Environment variables
 
 Environment variables can be used in `webdis.json` to read values from the environment instead of using constant values.

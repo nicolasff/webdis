@@ -1,5 +1,6 @@
 #include "sha1/sha1.h"
 #include <b64/cencode.h>
+#include "acl.h"
 #include "websocket.h"
 #include "client.h"
 #include "cmd.h"
@@ -255,6 +256,15 @@ ws_log_cmd(struct ws_client *ws, struct cmd *cmd) {
 	slog(ws->http_client->s, WEBDIS_DEBUG, log_msg, p - log_msg);
 }
 
+static void
+ws_log_unauthorized(struct ws_client *ws) {
+	if(!slog_enabled(ws->http_client->s, WEBDIS_DEBUG)) {
+		return;
+	}
+	const char msg[] = "WS: 403";
+	slog(ws->http_client->s, WEBDIS_DEBUG, msg, sizeof(msg)-1);
+}
+
 
 static int
 ws_execute(struct ws_client *ws, struct ws_msg *msg) {
@@ -262,14 +272,17 @@ ws_execute(struct ws_client *ws, struct ws_msg *msg) {
 	struct http_client *c = ws->http_client;
 	struct cmd*(*fun_extract)(struct http_client *, const char *, size_t) = NULL;
 	formatting_fun fun_reply = NULL;
+	ws_error_fun fun_error = NULL;
 
 	if((c->path_sz == 1 && strncmp(c->path, "/", 1) == 0) ||
 	   strncmp(c->path, "/.json", 6) == 0) {
 		fun_extract = json_ws_extract;
 		fun_reply = json_reply;
+		fun_error = json_ws_error;
 	} else if(strncmp(c->path, "/.raw", 5) == 0) {
 		fun_extract = raw_ws_extract;
 		fun_reply = raw_reply;
+		fun_error = raw_ws_error;
 	}
 
 	if(fun_extract) {
@@ -311,7 +324,17 @@ ws_execute(struct ws_client *ws, struct ws_msg *msg) {
 			int is_subscribe = cmd_is_subscribe_args(cmd);
 			int is_unsubscribe = cmd_is_unsubscribe_args(cmd);
 
-			if(ws->ran_subscribe && !is_subscribe && !is_unsubscribe) { /* disallow non-subscribe commands after a subscribe */
+			/* check that the client is able to run this command */
+			if(!acl_allow_command(cmd, c->s->cfg, c)) {
+				const char forbidden[] = "Forbidden";
+				size_t error_sz;
+				char *error = fun_error(403, forbidden, sizeof(forbidden)-1, &error_sz);
+				ws_frame_and_send_response(ws, WS_BINARY_FRAME, error, error_sz);
+				free(error);
+				/* similar to HTTP: log command first and then rejection, both with "WS: " prefix */
+				ws_log_cmd(ws, cmd);
+				ws_log_unauthorized(ws);
+			} else if(ws->ran_subscribe && !is_subscribe && !is_unsubscribe) { /* disallow non-subscribe commands after a subscribe */
 				char error_msg[] = "Command not allowed after subscribe";
 				ws_frame_and_send_response(ws, WS_BINARY_FRAME, error_msg, sizeof(error_msg)-1);
 			} else { /* log and execute */

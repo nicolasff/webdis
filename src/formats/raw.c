@@ -190,3 +190,22 @@ raw_wrap(const redisReply *r, size_t *sz) {
 	}
 }
 
+
+/* Formats a WebSocket error message */
+char* raw_ws_error(int http_status, const char *msg, size_t msg_sz, size_t *out_sz) {
+
+	(void)http_status; /* unused */
+	char *ret, *p;
+
+	/* e.g. "-ERR unknown command 'foo'\r\n" */
+	*out_sz = 5 + msg_sz + 2;
+	p = ret = malloc(*out_sz);
+
+	memcpy(p, "-ERR ", 5);
+	p += 5;
+	memcpy(p, msg, msg_sz);
+	p += msg_sz;
+	memcpy(p, "\r\n", 2);
+
+	return ret;
+}

@@ -14,6 +14,8 @@ struct worker;
 struct cmd;
 
 typedef void (*formatting_fun)(redisAsyncContext *, void *, void *);
+typedef char* (*ws_error_fun)(int http_status, const char *msg, size_t msg_sz, size_t *out_sz);
+
 typedef enum {CMD_SENT,
 	CMD_PARAM_ERROR,
 	CMD_ACL_FAIL,

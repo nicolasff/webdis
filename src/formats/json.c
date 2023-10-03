@@ -554,3 +554,23 @@ json_ws_extract(struct http_client *c, const char *p, size_t sz) {
 	json_decref(j);
 	return cmd;
 }
+
+/* Formats a WebSocket error message */
+char* json_ws_error(int http_status, const char *msg, size_t msg_sz, size_t *out_sz) {
+
+	(void)msg_sz; /* unused */
+	json_t *jroot = json_object();
+	char *jstr;
+
+	/* e.g. {"message": "Forbidden", "error": true, "http_status": 403} */
+	/* Note: this is only an equivalent HTTP status code, we're sending a WS message not an HTTP response */
+	json_object_set_new(jroot, "error", json_true());
+	json_object_set_new(jroot, "message", json_string(msg));
+	json_object_set_new(jroot, "http_status", json_integer(http_status));
+
+	jstr = json_string_output(jroot, NULL);
+	json_decref(jroot);
+
+	*out_sz = strlen(jstr);
+	return jstr;
+}
