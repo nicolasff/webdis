@@ -5,7 +5,12 @@ set -e
 
 # GitHub issue #194 (connection: close + HTTP 100)
 function test_large_put_upload() {
-    key=$(cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+    echo 'Testing large PUT upload: generating the key...'
+    if [[ $(command -v uuidgen) ]]; then # macOS
+        key=$(uuidgen)
+    else
+        key=$(cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+    fi
     echo -n 'Sending a PUT request with a large payload... '
     put_output=$(printf 'A%.0s' $(seq 1 10000) | curl -s -H 'Connection: close' -XPUT "http://127.0.0.1:7379/SET/${key}" -d @-)
     if [[ ${PIPESTATUS[1]} -ne 0 || "${put_output}" != '{"SET":[true,"OK"]}' ]]; then

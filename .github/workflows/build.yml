@@ -1,27 +1,63 @@
-name: Build
+name: Build and test (OS matrix)
 
 # trigger the workflow on push or pull requests
-on: [push, pull_request, workflow_dispatch]
+# on: [push, pull_request, workflow_dispatch]
+on: [workflow_dispatch]
 
 jobs:
-  build-and-run-tests:
-    runs-on: ubuntu-20.04     # this is a GitHub Runner, hosting the execution
-    container: ubuntu:20.04   # but this is a Docker Hub container, in which everything runs
+
+  build-and-test-ubuntu:
+    strategy:
+      fail-fast: false  # don't cancel other jobs in the matrix if one fails
+      matrix:
+        include:
+          - runner: ubuntu-20.04
+            container: ubuntu:18.04
+            os_name: ubuntu-18.04
+          - runner: ubuntu-20.04
+            container: ubuntu:20.04
+            os_name: ubuntu-20.04
+          - runner: ubuntu-20.04
+            container: ubuntu:22.04
+            os_name: ubuntu-22.04
+          - runner: ubuntu-20.04
+            container: ubuntu:23.04
+            os_name: ubuntu-23.04
+
+    runs-on: ${{ matrix.runner }}
 
     services:
       redis:
         image: redis:7.0.12-alpine  # Docker Hub image used as a sidecar
 
+    # run each job in the container specified (ignored for macOS runners that don't use containers)
+    container:
+      image: ${{ matrix.container }}
+
     steps:
     - uses: actions/checkout@v3
+
+    - name: Fetch package lists
+      run: apt-get -y update
+
     - name: Install dependencies
       run: |
-        apt-get -y update
         DEBIAN_FRONTEND=noninteractive apt-get -y --allow-unauthenticated --allow-downgrades --allow-remove-essential --allow-change-held-packages \
-          install make gcc libevent-dev libmsgpack-dev python3.8 python3-pip curl nodejs
+          install make gcc libevent-dev libmsgpack-dev curl nodejs python3 python3-pip
+
+    - name: Fix pip3 on Ubuntu 23.04
+      if: matrix.os_name == 'ubuntu-23.04'
+      run: rm -f /usr/lib/python$(python3 --version | cut -d ' ' -f 2 | cut -d '.' -f 1,2)/EXTERNALLY-MANAGED
+
+    - name: Update Python3 on Ubuntu 18.04
+      if: matrix.os_name == 'ubuntu-18.04'
+      run: |
+        DEBIAN_FRONTEND=noninteractive apt-get -y install python3.8
         update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
+
     - name: Build
       run: make
+
     - name: Run Webdis and test
       run: |
         ./webdis .github/workflows/webdis-ci.json
@@ -30,8 +66,54 @@ jobs:
         ./tests/curl-tests.sh
         pip3 --no-cache-dir install -r tests/requirements.txt
         ./tests/ws-tests.py
+
     - name: Archive logs
       uses: actions/upload-artifact@v3
       with:
-        name: webdis.log
+        name: webdis-${{ matrix.os_name }}.log
+        path: webdis.log
+
+
+
+  build-and-test-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-11
+            os_name: macos-11
+          - runner: macos-12
+            os_name: macos-12
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        brew install libevent msgpack-c curl node python@3.11 redis
+        brew link --overwrite python@3.11
+        pip3 install --upgrade pip
+
+    - name: Set up redis hostname
+      run: echo "127.0.0.1 redis" | sudo tee -a /etc/hosts
+
+    - name: Build
+      run: make
+
+    - name: Run Webdis and test
+      run: |
+        brew services start redis
+        ./webdis .github/workflows/webdis-ci.json
+        sleep 2
+        ./tests/basic.py
+        ./tests/curl-tests.sh
+        pip3 --no-cache-dir install -r tests/requirements.txt
+        ./tests/ws-tests.py
+
+    - name: Archive logs
+      uses: actions/upload-artifact@v3
+      with:
+        name: webdis-${{ matrix.os_name }}.log
         path: webdis.log
