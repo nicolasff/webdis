@@ -4,8 +4,7 @@ name: Build and test (OS matrix)
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
-
-  build-and-test-ubuntu:
+  validation-linux:
     strategy:
       fail-fast: false  # don't cancel other jobs in the matrix if one fails
       matrix:
@@ -22,6 +21,12 @@ jobs:
           - runner: ubuntu-20.04
             container: ubuntu:23.04
             os_name: ubuntu-23.04
+          - runner: ubuntu-20.04
+            container: redhat/ubi8:8.8
+            os_name: redhat-8.8
+          - runner: ubuntu-20.04
+            container: redhat/ubi9:9.2
+            os_name: redhat-9.2
 
     runs-on: ${{ matrix.runner }}
 
@@ -36,13 +41,32 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Fetch package lists
-      run: apt-get -y update
-
-    - name: Install dependencies
+    - name: Fetch package lists and install dependencies (Ubuntu)
+      if: contains(matrix.os_name, 'ubuntu-')
       run: |
+        apt-get -y update
         DEBIAN_FRONTEND=noninteractive apt-get -y --allow-unauthenticated --allow-downgrades --allow-remove-essential --allow-change-held-packages \
           install make gcc libevent-dev libmsgpack-dev curl uuid nodejs python3 python3-pip
+
+      # (using `rm` + `ln` since using `alternatives` doesn't work on both UBI 8 and UBI 9)
+    - name: Install dependencies (Red Hat)
+      if: contains(matrix.os_name, 'redhat-')
+      run: |
+          yum install -y --allowerasing make cmake gcc gcc-c++ libevent-devel git curl uuid nodejs python3.11 python3.11-pip
+          rm -f /usr/bin/python3 /usr/bin/pip3
+          ln -s $(which python3.11) /usr/bin/python3
+          ln -s $(which pip3.11) /usr/bin/pip3
+
+    - name: Install msgpack-c (Red Hat)
+      if: contains(matrix.os_name, 'redhat-')
+      run: |
+          cd /tmp
+          curl -sLO https://github.com/msgpack/msgpack-c/releases/download/c-6.0.0/msgpack-c-6.0.0.tar.gz
+          tar -xzf msgpack-c-6.0.0.tar.gz
+          cd msgpack-c-6.0.0
+          cmake -DMSGPACK_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib64 .
+          make
+          make install
 
     - name: Fix pip3 on Ubuntu 23.04
       if: matrix.os_name == 'ubuntu-23.04'
@@ -73,8 +97,7 @@ jobs:
         path: webdis.log
 
 
-
-  build-and-test-macos:
+  validation-macos:
     strategy:
       fail-fast: false
       matrix:

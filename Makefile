@@ -38,10 +38,18 @@ ifeq ($(strip $(MSGPACKC_LD)),0)
 	FORMAT_OBJS += src/formats/msgpack.o
 	CFLAGS += -DMSGPACK=1
 	LDFLAGS += -lmsgpackc
-endif
-endif
-endif
-endif
+else
+# check for MessagePack-C (note the dash)
+MSGPACK_C_LD=$(shell ld -lmsgpack-c >/dev/null 2>/dev/null; echo $$?)
+ifeq ($(strip $(MSGPACK_C_LD)),0)
+	FORMAT_OBJS += src/formats/msgpack.o
+	CFLAGS += -DMSGPACK=1
+	LDFLAGS += -lmsgpack-c
+endif # MSGPACK_C_LD
+endif # MSGPACKC_LD
+endif # MSGPACK_OSX_LIB
+endif # MSGPACKC_LIB
+endif # MSGPACK_LIB
 
 # if `make` is run with DEBUG=1, include debug symbols
 DEBUG_FLAGS=
