@@ -43,7 +43,7 @@ jobs:
     - name: Install dependencies
       run: |
         DEBIAN_FRONTEND=noninteractive apt-get -y --allow-unauthenticated --allow-downgrades --allow-remove-essential --allow-change-held-packages \
-          install make gcc libevent-dev libmsgpack-dev curl nodejs python3 python3-pip
+          install make gcc libevent-dev libmsgpack-dev curl uuid nodejs python3 python3-pip
 
     - name: Fix pip3 on Ubuntu 23.04
       if: matrix.os_name == 'ubuntu-23.04'
