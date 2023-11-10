@@ -31,6 +31,11 @@ json_reply(redisAsyncContext *c, void *r, void *privdata) {
 		return;
 	}
 
+	if(c->c.flags & REDIS_DISCONNECTING) {
+		/* closing connection */
+		return;
+        }
+
 	/* encode redis reply as JSON */
 	j = json_wrap_redis_reply(cmd, r);
 
