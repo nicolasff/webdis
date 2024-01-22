@@ -204,7 +204,7 @@ Finally, change the line which starts with `bind` to:
 bind 0.0.0.0
 ```
 
-You can also grab `redis.conf` from [this Gist](https://gist.github.com/nicolasff/513d3ebd9d6f4268d6deb1d979fa44b8) which contains a Redis 6.2.6 config file with the required changes.
+You can also grab `redis.conf` from [this Gist](https://gist.github.com/astrobrot/8f584eb4eed71822f9bb451a67dfd7ed) which contains a Redis 6.2.6 config file with the required changes.
 
 ## Docker Compose configuration
 
