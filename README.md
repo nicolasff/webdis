@@ -26,6 +26,19 @@ $ curl -d "GET/hello" http://127.0.0.1:7379/
 → {"GET":"world"}
 ```
 
+## Configuration
+
+Webdis is configured by a configuration file in JSON format, provided to the server as a command-line parameter:
+```sh
+./webdis /path/to/webdis.json
+```
+
+At start-up, Webdis will look for a file named `webdis.json` in the current directory if no file is specified on the command line.
+
+This repository comes with a sample configuration file named `webdis.json`, to be used for local evaluation. Another file, `webdis.prod.json`, is provided as a starting point to build a production configuration file. Do **not** use either of these files in production without reviewing them.
+
+The various features of Webdis are documented in this README.
+
 # Try in Docker
 
 ```sh
@@ -232,8 +245,8 @@ Follow this table to diagnose issues with SSL connections to Redis.
 * Cross-origin requests, usable with XMLHttpRequest2 (Cross-Origin Resource Sharing - CORS).
 * [File upload](#file-upload) with `PUT`.
 * With the JSON output, the return value of INFO is parsed and transformed into an object.
-* Optionally run as a daemon process: set `"daemonize": true` and `"pidfile": "/var/run/webdis.pid"` in webdis.json.
-* Default root object: Add `"default_root": "/GET/index.html"` in webdis.json to substitute the request to `/` with a Redis request.
+* Optionally run as a daemon process: set `"daemonize": true` and `"pidfile": "/var/run/webdis.pid"` in `webdis.json`.
+* Default root object: Add `"default_root": "/GET/index.html"` in `webdis.json` to substitute the request to `/` with a Redis request.
 * HTTP request limit with `http_max_request_size` (in bytes, set to 128 MB by default).
 * Database selection in the URL, using e.g. `/7/GET/key` to run the command on DB 7.
 
