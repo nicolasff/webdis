@@ -102,10 +102,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-11
-            os_name: macos-11
           - runner: macos-12
             os_name: macos-12
+          - runner: macos-13
+            os_name: macos-13
 
     runs-on: ${{ matrix.runner }}
 
