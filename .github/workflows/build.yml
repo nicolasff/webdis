@@ -4,7 +4,7 @@ name: Build and test (OS matrix)
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
-  validation-linux:
+  linux:  # (this is the job name)
     strategy:
       fail-fast: false  # don't cancel other jobs in the matrix if one fails
       matrix:
@@ -97,7 +97,7 @@ jobs:
         path: webdis.log
 
 
-  validation-macos:
+  macos: # (again, this is the job name)
     strategy:
       fail-fast: false
       matrix:
