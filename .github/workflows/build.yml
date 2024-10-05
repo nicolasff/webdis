@@ -10,9 +10,6 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-20.04
-            container: ubuntu:18.04
-            os_name: ubuntu-18.04
-          - runner: ubuntu-20.04
             container: ubuntu:20.04
             os_name: ubuntu-20.04
           - runner: ubuntu-20.04
@@ -39,20 +36,20 @@ jobs:
       image: ${{ matrix.container }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Fetch package lists and install dependencies (Ubuntu)
       if: contains(matrix.os_name, 'ubuntu-')
       run: |
         apt-get -y update
         DEBIAN_FRONTEND=noninteractive apt-get -y --allow-unauthenticated --allow-downgrades --allow-remove-essential --allow-change-held-packages \
-          install make gcc libevent-dev libmsgpack-dev curl uuid nodejs python3 python3-pip
+          install make gcc libevent-dev libmsgpack-dev curl uuid python3 python3-pip
 
       # (using `rm` + `ln` since using `alternatives` doesn't work on both UBI 8 and UBI 9)
     - name: Install dependencies (Red Hat)
       if: contains(matrix.os_name, 'redhat-')
       run: |
-          yum install -y --allowerasing make cmake gcc gcc-c++ libevent-devel git curl uuid nodejs python3.11 python3.11-pip
+          yum install -y --allowerasing make cmake gcc gcc-c++ libevent-devel git curl uuid python3.11 python3.11-pip
           rm -f /usr/bin/python3 /usr/bin/pip3
           ln -s $(which python3.11) /usr/bin/python3
           ln -s $(which pip3.11) /usr/bin/pip3
@@ -72,12 +69,6 @@ jobs:
       if: matrix.os_name == 'ubuntu-23.04'
       run: rm -f /usr/lib/python$(python3 --version | cut -d ' ' -f 2 | cut -d '.' -f 1,2)/EXTERNALLY-MANAGED
 
-    - name: Update Python3 on Ubuntu 18.04
-      if: matrix.os_name == 'ubuntu-18.04'
-      run: |
-        DEBIAN_FRONTEND=noninteractive apt-get -y install python3.8
-        update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
-
     - name: Build
       run: make
 
@@ -91,7 +82,7 @@ jobs:
         ./tests/ws-tests.py
 
     - name: Archive logs
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: webdis-${{ matrix.os_name }}.log
         path: webdis.log
@@ -110,11 +101,11 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
-        brew install libevent msgpack-c curl node python@3.11 redis
+        brew install libevent msgpack-c curl python@3.11 redis
         brew link --overwrite python@3.11
         pip3 install --upgrade pip
 
@@ -135,7 +126,7 @@ jobs:
         ./tests/ws-tests.py
 
     - name: Archive logs
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: webdis-${{ matrix.os_name }}.log
         path: webdis.log
