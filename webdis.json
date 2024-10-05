@@ -10,7 +10,7 @@
   "pool_size": 20,
 
   "daemonize": false,
-  "websockets": false,
+  "websockets": true,
 
   "database": 0,
 
