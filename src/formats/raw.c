@@ -25,6 +25,11 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 		return;
 	}
 
+	if(c->c.flags & REDIS_DISCONNECTING) {
+		/* closing connection */
+		return;
+        }
+
 	raw_out = raw_wrap(r, &sz);
 
 	/* send reply */
