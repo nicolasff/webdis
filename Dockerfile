@@ -1,5 +1,6 @@
 FROM alpine:3.20.3 AS stage
 LABEL maintainer="Nicolas Favre-Felix <n.favrefelix@gmail.com>"
+LABEL org.opencontainers.image.source=https://github.com/nicolasff/webdis
 
 RUN apk update && apk add wget make gcc libevent-dev msgpack-c-dev musl-dev openssl-dev bsd-compat-headers jq
 RUN wget -q https://api.github.com/repos/nicolasff/webdis/tags -O /dev/stdout | jq '.[] | .name' | head -1  | sed 's/"//g' > latest
