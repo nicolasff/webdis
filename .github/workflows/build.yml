@@ -16,8 +16,8 @@ jobs:
             container: ubuntu:22.04
             os_name: ubuntu-22.04
           - runner: ubuntu-20.04
-            container: ubuntu:23.04
-            os_name: ubuntu-23.04
+            container: ubuntu:24.04
+            os_name: ubuntu-24.04
           - runner: ubuntu-20.04
             container: redhat/ubi8:8.8
             os_name: redhat-8.8
@@ -65,8 +65,8 @@ jobs:
           make
           make install
 
-    - name: Fix pip3 on Ubuntu 23.04
-      if: matrix.os_name == 'ubuntu-23.04'
+    - name: Fix pip3 on Ubuntu 24.04
+      if: matrix.os_name == 'ubuntu-24.04'
       run: rm -f /usr/lib/python$(python3 --version | cut -d ' ' -f 2 | cut -d '.' -f 1,2)/EXTERNALLY-MANAGED
 
     - name: Build
@@ -93,10 +93,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-12
-            os_name: macos-12
           - runner: macos-13
             os_name: macos-13
+          - runner: macos-14
+            os_name: macos-14
 
     runs-on: ${{ matrix.runner }}
 
@@ -105,14 +105,29 @@ jobs:
 
     - name: Install dependencies
       run: |
-        brew install libevent msgpack-c curl python@3.11 redis
+        rm '/usr/local/bin/2to3-3.11'
+        brew reinstall libevent curl || true
+        brew install libevent curl msgpack-c python@3.11 redis || true
         brew link --overwrite python@3.11
-        pip3 install --upgrade pip
+
+    - name: Set up python venv
+      run: |
+        python3.11 -m venv venv
+        source venv/bin/activate
+        pip install --upgrade pip
 
     - name: Set up redis hostname
       run: echo "127.0.0.1 redis" | sudo tee -a /etc/hosts
 
-    - name: Build
+    - name: Build with explicit libevent path on macOS 14
+      if: matrix.os_name == 'macos-14'
+      run: |
+        export CPPFLAGS="-I$(brew --prefix libevent)/include"
+        export LDFLAGS="-L$(brew --prefix libevent)/lib -levent -lpthread"
+        make
+
+    - name: Regular build
+      if: matrix.os_name != 'macos-14'
       run: make
 
     - name: Run Webdis and test
@@ -122,6 +137,7 @@ jobs:
         sleep 2
         ./tests/basic.py
         ./tests/curl-tests.sh
+        python3.11 -m venv venv && source venv/bin/activate
         pip3 --no-cache-dir install -r tests/requirements.txt
         ./tests/ws-tests.py
 
