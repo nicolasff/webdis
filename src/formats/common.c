@@ -64,6 +64,7 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 
 	int free_cmd = 1;
 	const char *ct = cmd->mime?cmd->mime:content_type;
+	const char *ce = cmd->content_encoding;
 	struct http_response *resp;
 
 	if(cmd->is_websocket) {
@@ -88,6 +89,10 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 				http_response_set_header(resp, "Content-Disposition", cmd->filename, HEADER_COPY_VALUE);
 			}
 			http_response_set_header(resp, "Content-Type", ct, HEADER_COPY_VALUE);
+			// FIXME: Do we I this for streaming?
+			if(ce) {
+				http_response_set_header(resp, "Content-Encoding", ce, HEADER_COPY_VALUE);
+			}
 			http_response_set_keep_alive(resp, 1);
 			http_response_set_header(resp, "Transfer-Encoding", "chunked", HEADER_COPY_NONE);
 			http_response_set_body(resp, p, sz);
@@ -113,6 +118,9 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 				}
 				http_response_set_header(resp, "Content-Type", ct, HEADER_COPY_VALUE);
 				http_response_set_header(resp, "ETag", etag, HEADER_COPY_VALUE);
+				if(ce) {
+					http_response_set_header(resp, "Content-Encoding", ce, HEADER_COPY_VALUE);
+				}
 				http_response_set_body(resp, p, sz);
 			}
 			resp->http_version = cmd->http_version;

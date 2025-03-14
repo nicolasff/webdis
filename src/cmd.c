@@ -321,27 +321,31 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 		size_t sz;
 		formatting_fun f;
 		const char *ct;
+		const char *ce;
 	};
 	struct reply_format funs[] = {
-		{.s = "json", .sz = 4, .f = json_reply, .ct = "application/json"},
-		{.s = "raw", .sz = 3, .f = raw_reply, .ct = "binary/octet-stream"},
+		{.s = "json", .sz = 4, .f = json_reply, .ct = "application/json", .ce = NULL},
+		{.s = "raw", .sz = 3, .f = raw_reply, .ct = "binary/octet-stream", .ce = NULL},
 
 #ifdef MSGPACK
-		{.s = "msg", .sz = 3, .f = msgpack_reply, .ct = "application/x-msgpack"},
+		{.s = "msg", .sz = 3, .f = msgpack_reply, .ct = "application/x-msgpack", .ce = NULL},
 #endif
 
-		{.s = "bin", .sz = 3, .f = custom_type_reply, .ct = "binary/octet-stream"},
-		{.s = "txt", .sz = 3, .f = custom_type_reply, .ct = "text/plain"},
-		{.s = "html", .sz = 4, .f = custom_type_reply, .ct = "text/html"},
-		{.s = "xhtml", .sz = 5, .f = custom_type_reply, .ct = "application/xhtml+xml"},
-		{.s = "xml", .sz = 3, .f = custom_type_reply, .ct = "text/xml"},
+		{.s = "bin", .sz = 3, .f = custom_type_reply, .ct = "binary/octet-stream", .ce = NULL},
+		{.s = "txt", .sz = 3, .f = custom_type_reply, .ct = "text/plain", .ce = NULL},
+		{.s = "html", .sz = 4, .f = custom_type_reply, .ct = "text/html", .ce = NULL},
+		{.s = "xhtml", .sz = 5, .f = custom_type_reply, .ct = "application/xhtml+xml", .ce = NULL},
+		{.s = "xml", .sz = 3, .f = custom_type_reply, .ct = "text/xml", .ce = NULL},
 
-		{.s = "png", .sz = 3, .f = custom_type_reply, .ct = "image/png"},
-		{.s = "jpg", .sz = 3, .f = custom_type_reply, .ct = "image/jpeg"},
-		{.s = "jpeg", .sz = 4, .f = custom_type_reply, .ct = "image/jpeg"},
+		{.s = "png", .sz = 3, .f = custom_type_reply, .ct = "image/png", .ce = NULL},
+		{.s = "jpg", .sz = 3, .f = custom_type_reply, .ct = "image/jpeg", .ce = NULL},
+		{.s = "jpeg", .sz = 4, .f = custom_type_reply, .ct = "image/jpeg", .ce = NULL},
 
-		{.s = "js", .sz = 2, .f = json_reply, .ct = "application/javascript"},
-		{.s = "css", .sz = 3, .f = custom_type_reply, .ct = "text/css"},
+		{.s = "js", .sz = 2, .f = json_reply, .ct = "application/javascript", .ce = NULL},
+		{.s = "css", .sz = 3, .f = custom_type_reply, .ct = "text/css", .ce = NULL},
+		// TODO: find an elegant way to support Content-Encoding header
+		// Maybe support .json.gzip, .json.br etc
+		{.s = "json_gzip", .sz = 9, .f = custom_type_reply, .ct = "application/json", .ce = "gzip"}
 	};
 
 	/* default */
@@ -364,6 +368,7 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 			if(cmd->mime_free) free(cmd->mime);
 			cmd->mime = (char*)funs[i].ct;
 			cmd->mime_free = 0;
+			cmd->content_encoding = (char *)funs[i].ce;
 
 			*f_format = funs[i].f;
 			found = 1;
