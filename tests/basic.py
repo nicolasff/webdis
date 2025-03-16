@@ -84,7 +84,7 @@ class TestJSON(TestWebdis):
 		f = self.query('GET/world.json.gzip')
 		self.assertTrue(f.getheader('Content-Type') == 'application/json')
 		self.assertTrue(f.getheader('Content-Encoding') == 'gzip')
-		self.assertTrue(f.getheader('ETag') == '"fcb2917ae14a62e911fbfb2b8ea66800"')
+		self.assertTrue(f.getheader('ETag') == '"8c50e25769b3ee8892d466d536a6ce2f"')
 		self.assertTrue(gzip.decompress(f.read()) == b'{"user_id": 1234}')
 
 	def test_error(self):
