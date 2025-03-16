@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import urllib.request, urllib.error, urllib.parse, unittest, json, hashlib, threading, uuid, time
+import urllib.request, urllib.error, urllib.parse, unittest, json, hashlib, threading, uuid, time, gzip
 from functools import wraps
 try:
 	import msgpack
@@ -17,6 +17,10 @@ class TestWebdis(unittest.TestCase):
 
 	def query(self, url, data = None, headers={}):
 		r = urllib.request.Request(self.wrap(url), data, headers)
+		return urllib.request.urlopen(r)
+
+	def put(self, url, data):
+		r = urllib.request.Request(self.wrap(url), data=data, method='PUT')
 		return urllib.request.urlopen(r)
 
 class TestBasics(TestWebdis):
@@ -71,6 +75,17 @@ class TestJSON(TestWebdis):
 		self.assertTrue(f.getheader('Content-Type') == 'application/json')
 		self.assertTrue(f.getheader('ETag') == '"622e51f547a480bef7cf5452fb7782db"')
 		self.assertTrue(f.read() == b'{"LRANGE":["abc","def"]}')
+
+	def test_encoding(self):
+		"success type (+OK)"
+		self.query('DEL/world')
+		data = gzip.compress(('{"user_id": 1234}').encode('utf-8'), mtime=0)
+		self.put('SET/world', data)
+		f = self.query('GET/world.json.gzip')
+		self.assertTrue(f.getheader('Content-Type') == 'application/json')
+		self.assertTrue(f.getheader('Content-Encoding') == 'gzip')
+		self.assertTrue(f.getheader('ETag') == '"fcb2917ae14a62e911fbfb2b8ea66800"')
+		self.assertTrue(gzip.decompress(f.read()) == b'{"user_id": 1234}')
 
 	def test_error(self):
 		"error return type"
