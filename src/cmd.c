@@ -312,10 +312,9 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 
 	const char *ext;
 	const char *suffix;
-	const char *temp;
 	int ext_len = 0;
 	int suffix_len = 0;
-	int temp_len = 0;
+	int parsed_uri_len = uri_len;
 	unsigned int i;
 	int found = 0; /* did we match the extension and/or the suffix to a predefined format? */
 
@@ -366,28 +365,29 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 	/* find extension and/or suffix */
 	for(ext = uri + uri_len - 1; ext != uri && *ext != '/'; --ext) {
 		if(*ext == '.') {
-			for(suffix = ext - 1; suffix != uri && *suffix != '/'; --suffix) {
-				if(*suffix == '.') {
-					suffix++;
-					suffix_len = ext - suffix;
+			suffix = ext + 1;
+			suffix_len = uri + uri_len - suffix;
+
+			for(ext = ext - 1; ext != uri && *ext != '/'; --ext) {
+				if(*ext == '.') {
+					ext++;
+					ext_len = suffix - ext - 1;
 					break;
 				}
 
 			}
-			ext++;
-			ext_len = uri + uri_len - ext;
 			break;
 		}
 	}
-	if(!ext_len) return uri_len; /* nothing found */
-	if(suffix_len) { /* suffix found */
-		temp = ext;
-		ext = suffix;
-		suffix = temp;
+	if(!suffix_len) return uri_len; /* nothing found */
 
-		temp_len = ext_len;
+	if(ext_len) { /* both extension and suffix are found, as in 'key.ext.suffix' */
+		parsed_uri_len = uri_len - ext_len - 1 - suffix_len - 1;
+	} else {
+		ext = suffix;
 		ext_len = suffix_len;
-		suffix_len = temp_len;
+
+		parsed_uri_len = uri_len - ext_len - 1;
 	}
 
 	/* find function for the given extension */
@@ -408,19 +408,17 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 		/* /!\ we don't copy cmd->mime, this is done soon after in cmd_setup */
 	}
 
-	/* override function if suffix found */
-	if(suffix_len) {
-		for(i = 0; i < sizeof(sfxs)/sizeof(sfxs[0]); ++i) {
-			if(suffix_len == (int)sfxs[i].sz && strncmp(suffix, sfxs[i].s, suffix_len) == 0) {
-				cmd->content_encoding = (char *)sfxs[i].s;
-				*f_format = sfxs[i].f;
-				found = 1;
-			}
+	/* override function if suffix matches a known content-encoding */
+	for(i = 0; i < sizeof(sfxs)/sizeof(sfxs[0]); ++i) {
+		if(suffix_len == (int)sfxs[i].sz && strncmp(suffix, sfxs[i].s, suffix_len) == 0) {
+			cmd->content_encoding = (char *)sfxs[i].s;
+			*f_format = sfxs[i].f;
+			found = 1;
 		}
 	}
 
 	if(found) {
-		return uri_len - ext_len - 1 - (suffix_len ? suffix_len + 1 : 0);
+		return parsed_uri_len;
 	} else {
 		/* no matching format, use default output with the full argument, extension included. */
 		return uri_len;

@@ -76,13 +76,24 @@ class TestJSON(TestWebdis):
 		self.assertTrue(f.getheader('ETag') == '"622e51f547a480bef7cf5452fb7782db"')
 		self.assertTrue(f.read() == b'{"LRANGE":["abc","def"]}')
 
-	def test_encoding(self):
+	def test_encoding_with_extension_and_suffix(self):
 		"success type (+OK)"
 		self.query('DEL/world')
 		data = gzip.compress(('{"user_id": 1234}').encode('utf-8'), mtime=0)
 		self.put('SET/world', data)
 		f = self.query('GET/world.json.gzip')
 		self.assertTrue(f.getheader('Content-Type') == 'application/json')
+		self.assertTrue(f.getheader('Content-Encoding') == 'gzip')
+		self.assertTrue(f.getheader('ETag') == '"8c50e25769b3ee8892d466d536a6ce2f"')
+		self.assertTrue(gzip.decompress(f.read()) == b'{"user_id": 1234}')
+
+	def test_encoding_with_suffix(self):
+		"success type (+OK)"
+		self.query('DEL/world')
+		data = gzip.compress(('{"user_id": 1234}').encode('utf-8'), mtime=0)
+		self.put('SET/world', data)
+		f = self.query('GET/world.gzip?type=text/plain')
+		self.assertTrue(f.getheader('Content-Type') == 'text/plain')
 		self.assertTrue(f.getheader('Content-Encoding') == 'gzip')
 		self.assertTrue(f.getheader('ETag') == '"8c50e25769b3ee8892d466d536a6ce2f"')
 		self.assertTrue(gzip.decompress(f.read()) == b'{"user_id": 1234}')
