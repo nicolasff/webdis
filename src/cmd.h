@@ -32,6 +32,8 @@ struct cmd {
 	char *mime; /* forced output content-type */
 	int mime_free; /* need to free mime buffer */
 
+	char *content_encoding; /* forced output content-encoding */
+
 	char *filename; /* content-disposition attachment */
 
 	char *if_none_match; /* used with ETags */

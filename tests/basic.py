@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import urllib.request, urllib.error, urllib.parse, unittest, json, hashlib, threading, uuid, time
+import urllib.request, urllib.error, urllib.parse, unittest, json, hashlib, threading, uuid, time, gzip
 from functools import wraps
 try:
 	import msgpack
@@ -17,6 +17,10 @@ class TestWebdis(unittest.TestCase):
 
 	def query(self, url, data = None, headers={}):
 		r = urllib.request.Request(self.wrap(url), data, headers)
+		return urllib.request.urlopen(r)
+
+	def put(self, url, data):
+		r = urllib.request.Request(self.wrap(url), data=data, method='PUT')
 		return urllib.request.urlopen(r)
 
 class TestBasics(TestWebdis):
@@ -71,6 +75,30 @@ class TestJSON(TestWebdis):
 		self.assertTrue(f.getheader('Content-Type') == 'application/json')
 		self.assertTrue(f.getheader('ETag') == '"622e51f547a480bef7cf5452fb7782db"')
 		self.assertTrue(f.read() == b'{"LRANGE":["abc","def"]}')
+
+	def test_encoding_with_extension_and_suffix(self):
+		"success type (+OK)"
+		self.query('DEL/world')
+		# NOTE: the gzip implementation in python generates OS dependent headers.
+		# > gzip.compress(('{"user_id": 1234}').encode('utf-8'), mtime=0)
+		gzipped_data = b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\xff\xabV*-N-\x8a\xcfLQ\xb2R0426\xa9\x05\x00\x07\xb91\xf2\x11\x00\x00\x00'
+		self.put('SET/world', gzipped_data)
+		f = self.query('GET/world.json.gzip')
+		self.assertTrue(f.getheader('Content-Type') == 'application/json')
+		self.assertTrue(f.getheader('Content-Encoding') == 'gzip')
+		self.assertTrue(f.getheader('ETag') == '"8c50e25769b3ee8892d466d536a6ce2f"')
+		self.assertTrue(gzip.decompress(f.read()) == b'{"user_id": 1234}')
+
+	def test_encoding_with_suffix(self):
+		"success type (+OK)"
+		self.query('DEL/world')
+		gzipped_data = b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\xff\xabV*-N-\x8a\xcfLQ\xb2R0426\xa9\x05\x00\x07\xb91\xf2\x11\x00\x00\x00'
+		self.put('SET/world', gzipped_data)
+		f = self.query('GET/world.gzip?type=text/plain')
+		self.assertTrue(f.getheader('Content-Type') == 'text/plain')
+		self.assertTrue(f.getheader('Content-Encoding') == 'gzip')
+		self.assertTrue(f.getheader('ETag') == '"8c50e25769b3ee8892d466d536a6ce2f"')
+		self.assertTrue(gzip.decompress(f.read()) == b'{"user_id": 1234}')
 
 	def test_error(self):
 		"error return type"
