@@ -79,8 +79,10 @@ class TestJSON(TestWebdis):
 	def test_encoding_with_extension_and_suffix(self):
 		"success type (+OK)"
 		self.query('DEL/world')
-		data = gzip.compress(('{"user_id": 1234}').encode('utf-8'), mtime=0)
-		self.put('SET/world', data)
+		# NOTE: the gzip implementation in python generates OS dependent headers.
+		# > gzip.compress(('{"user_id": 1234}').encode('utf-8'), mtime=0)
+		gzipped_data = b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\xff\xabV*-N-\x8a\xcfLQ\xb2R0426\xa9\x05\x00\x07\xb91\xf2\x11\x00\x00\x00'
+		self.put('SET/world', gzipped_data)
 		f = self.query('GET/world.json.gzip')
 		self.assertTrue(f.getheader('Content-Type') == 'application/json')
 		self.assertTrue(f.getheader('Content-Encoding') == 'gzip')
@@ -90,8 +92,8 @@ class TestJSON(TestWebdis):
 	def test_encoding_with_suffix(self):
 		"success type (+OK)"
 		self.query('DEL/world')
-		data = gzip.compress(('{"user_id": 1234}').encode('utf-8'), mtime=0)
-		self.put('SET/world', data)
+		gzipped_data = b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\xff\xabV*-N-\x8a\xcfLQ\xb2R0426\xa9\x05\x00\x07\xb91\xf2\x11\x00\x00\x00'
+		self.put('SET/world', gzipped_data)
 		f = self.query('GET/world.gzip?type=text/plain')
 		self.assertTrue(f.getheader('Content-Type') == 'text/plain')
 		self.assertTrue(f.getheader('Content-Encoding') == 'gzip')
