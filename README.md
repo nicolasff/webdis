@@ -253,16 +253,14 @@ Follow this table to diagnose issues with SSL connections to Redis.
 # Ideas, TODO…
 * Add better support for PUT, DELETE, HEAD, OPTIONS? How? For which commands?
     * This could be done using a “strict mode” with a table of commands and the verbs that can/must be used with each command. Strict mode would be optional, configurable. How would webdis know of new commands remains to be determined.
-* MULTI/EXEC/DISCARD/WATCH are disabled at the moment; find a way to use them.
-* Support POST of raw Redis protocol data, and execute the whole thing. This could be useful for MULTI/EXEC transactions.
 * Enrich config file:
     * Provide timeout (maybe for some commands only?). What should the response be? 504 Gateway Timeout? 503 Service Unavailable?
 * Multi-server support, using consistent hashing.
-* SSL/TLS?
-    * It makes more sense to terminate SSL with nginx used as a reverse-proxy.
-* SPDY?
-    * SPDY is mostly useful for parallel fetches. Not sure if it would make sense for Webdis.
-* Send your ideas using the github tracker, on twitter [@yowgi](https://twitter.com/yowgi) or by e-mail to n.favrefelix@gmail.com.
+* Please send your ideas as GitHub issues.
+
+# Past considerations
+* `MULTI`/`EXEC`: the same benefits are available with more flexibility using the `EVAL`/`EVALSHA` commands. See [this comment](https://github.com/nicolasff/webdis/issues/263#issuecomment-3949305136) for more details.
+* Support for SSL/TLS in Webdis: other servers such as nginx or haproxy are better suited to terminate SSL/TLS. It is easy to find documentation and examples online. The goal of Webdis is not to attempt to replace nginx while providing fewer features and worse performance.
 
 # HTTP error codes
 * Unknown HTTP verb: 405 Method Not Allowed.
