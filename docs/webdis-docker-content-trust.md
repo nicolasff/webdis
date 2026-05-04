@@ -1,5 +1,9 @@
 # Webdis and Docker Content Trust
 
+> ⚠️ **Deprecated as of release `0.1.24`.**
+>
+> Webdis no longer uses Docker Content Trust (Notary v1), since it has now been [abandoned by Docker](https://www.docker.com/blog/retiring-docker-content-trust/). Releases `0.1.24` and later are signed with [cosign](https://docs.sigstore.dev/cosign/); see the [README](../README.md#docker-repositories-and-image-signatures) for the current verification process. The instructions on this page apply only to releases `0.1.12` through `0.1.23`.
+
 Docker images for Webdis are signed using [Docker Content Trust (DCT)](https://docs.docker.com/engine/security/trust/). This means that you can verify that a Docker image you pulled for Webdis is legitimate and was built by the author of Webdis, rather than by an unknown third-party.
 
 Docker images for Webdis are published on Docker Hub and Amazon Elastic Container Registry (ECR):

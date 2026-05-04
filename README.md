@@ -53,54 +53,47 @@ $ docker stop webdis-test
 0d2ce311a483
 ```
 
-## Docker repositories and Docker Content Trust
+## Docker repositories and image signatures
 
-Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/webdis) and [Amazon ECR](https://gallery.ecr.aws/nicolas/webdis).
+Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/webdis) and [Amazon ECR](https://gallery.ecr.aws/nicolas/webdis). Starting with release `0.1.24`, images (including `latest`) are signed with [cosign](https://docs.sigstore.dev/cosign/) using the public key [`webdis.pub`](webdis.pub) at the root of this repository. For the public-key fingerprint, multi-architecture verification, and the chain of trust, see [Image signing with cosign](docs/webdis-cosign-signatures.md). Releases `0.1.12` through `0.1.23` were signed with [Docker Content Trust](docs/webdis-docker-content-trust.md), which has since been deprecated.
 
 ### Docker Hub
 
 ```sh
-$ docker pull nicolas/webdis:0.1.22
+$ docker pull nicolas/webdis:0.1.24
 $ docker pull nicolas/webdis:latest
 ```
-Starting from release `0.1.12` and including `latest`, Docker Hub images are signed ([download public key](nicolasff.pub)). You should see the following key ID if you verify the trust:
 
-```
-$ docker trust inspect nicolas/webdis:0.1.22 --pretty
+Verify the signature with cosign:
 
-Signatures for nicolas/webdis:0.1.22
-
-SIGNED TAG   DIGEST                                                             SIGNERS
-0.1.22       5a7d342e3a9e5667fe05f045beae4b5042681d1d737f60843b7dfd11f96ab72f   (Repo Admin)
-
-List of signers and their keys for nicolas/webdis:0.1.22
-
-SIGNER      KEYS
-nicolasff   dd0768b9d35d
-
-Administrative keys for nicolas/webdis:0.1.22
-
-  Repository Key:	fed0b56b8a8fd4d156fb2f47c2e8bd3eb61948b72a787c18e2fa3ea3233bba1a
-  Root Key:	40be21f47831d593892370a8e3fc5bfffb16887c707bd81a6aed2088dc8f4bef
+```sh
+$ cosign verify --key webdis.pub nicolas/webdis:0.1.24
 ```
 
-The signing keys are listed on [this documentation page](docs/webdis-docker-content-trust.md#-key-ids); please make sure they match what you see.
-The same documentation page details how to [verify the signatures of multi-architecture images](docs/webdis-docker-content-trust.md), and the tree of manifests used to build them.
+When this verification is successful, you should see a message like this:
+
+```none
+Verification for public.ecr.aws/nicolas/webdis:0.1.24 --
+The following checks were performed on each of these signatures:
+  - The cosign claims were validated
+  - Existence of the claims in the transparency log was verified offline
+  - The signatures were verified against the specified public key
+```
+
+The image is signed recursively, so verification covers the multi-arch index and each per-architecture manifest under it.
 
 ### Amazon Elastic Container Registry (ECR)
 
 ```sh
-$ docker pull public.ecr.aws/nicolas/webdis:0.1.22
+$ docker pull public.ecr.aws/nicolas/webdis:0.1.24
 $ docker pull public.ecr.aws/nicolas/webdis:latest
 ```
 
-**A note on ECR and trust:** [AWS does not support Notary v2](https://github.com/aws/containers-roadmap/issues/43) at the time of this writing, although [a security talk from 2020](https://d2908q01vomqb2.cloudfront.net/fe2ef495a1152561572949784c16bf23abb28057/2020/08/21/C3-ECR-Security-Best-Practices_072020_v3-no-notes.pdf#page=19) mentions that the feature could be available in 2021.
+ECR images share the same digests as their Docker Hub counterparts, and the cosign signatures are mirrored alongside them. The same `cosign verify` command works against ECR:
 
-The consequence is that [Webdis images on ECR](https://gallery.ecr.aws/nicolas/webdis) are not signed at this time.
-
-They can still be verified, since the images uploaded there use the exact same hash as the ones on Docker Hub, which _are_ signed. This means that you can verify the signature using the `docker trust inspect` command described above, as long as you **also** make sure that the image hash associated with the image on ECR matches the one shown on Docker Hub.
-
-For more details about Content Trust validation with ECR images, refer to the article titled [Webdis and Docker Content Trust](docs/webdis-docker-content-trust.md) in the [Webdis documentation](docs/README.md).
+```sh
+$ cosign verify --key webdis.pub public.ecr.aws/nicolas/webdis:0.1.24
+```
 
 ## Multi-architecture images
 
@@ -589,5 +582,5 @@ Publish messages to redis to see output similar to the following:
 ```json
 {"SUBSCRIBE":["subscribe","hello",1]}
 {"SUBSCRIBE":["message","hello","some message"]}
-{"SUBSCRIBE":["message","hello","some other message"]} 
+{"SUBSCRIBE":["message","hello","some other message"]}
 ```
