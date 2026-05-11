@@ -11,45 +11,30 @@ LDFLAGS ?= -levent -pthread
 # Pass preprocessor macros to the compile invocation
 CFLAGS += $(CPPFLAGS)
 
-# check for MessagePack
-MSGPACK_LIB=$(shell ls /usr/lib/libmsgpack.so 2>/dev/null)
-ifneq ($(strip $(MSGPACK_LIB)),)
+# check for MessagePack via pkg-config (msgpack-c on newer releases, msgpack on older)
+PKG_CONFIG ?= pkg-config
+ifneq ($(MSGPACK),0)
+MSGPACK_PC := $(shell command -v $(PKG_CONFIG) >/dev/null 2>&1 && \
+	(($(PKG_CONFIG) --exists msgpack-c 2>/dev/null && echo msgpack-c) || \
+	(($(PKG_CONFIG) --exists msgpack 2>/dev/null && echo msgpack))))
+ifneq ($(strip $(MSGPACK_PC)),)
+	MSGPACK_DETECTED_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(MSGPACK_PC))
+	MSGPACK_DETECTED_LIBS := $(shell $(PKG_CONFIG) --libs $(MSGPACK_PC))
+	MSGPACK_ENABLED := 1
+endif
+endif
+ifeq ($(MSGPACK),1)
+ifeq ($(strip $(MSGPACK_PC)$(MSGPACK_LIBS)),)
+$(error MSGPACK=1 requires msgpack to be found by pkg-config, or MSGPACK_LIBS to be set)
+endif
+	MSGPACK_ENABLED := 1
+endif
+
+ifeq ($(MSGPACK_ENABLED),1)
 	FORMAT_OBJS += src/formats/msgpack.o
-	CFLAGS += -DMSGPACK=1
-	LDFLAGS += -lmsgpack
-else
-# check for MessagePackC
-MSGPACKC_LIB=$(shell ls /usr/lib/libmsgpackc.so 2>/dev/null)
-ifneq ($(strip $(MSGPACKC_LIB)),)
-	FORMAT_OBJS += src/formats/msgpack.o
-	CFLAGS += -DMSGPACK=1
-	LDFLAGS += -lmsgpackc
-else
-# check for MessagePack on macOS
-MSGPACK_OSX_LIB=$(shell ls /usr/local/lib/libmsgpackc.dylib 2>/dev/null)
-ifneq ($(strip $(MSGPACK_OSX_LIB)),)
-	FORMAT_OBJS += src/formats/msgpack.o
-	CFLAGS += -DMSGPACK=1
-	LDFLAGS += -lmsgpackc
-else
-# check for MessagePackC using ld (returns 1 in both cases on macOS)
-MSGPACKC_LD=$(shell ld -lmsgpackc >/dev/null 2>/dev/null; echo $$?)
-ifeq ($(strip $(MSGPACKC_LD)),0)
-	FORMAT_OBJS += src/formats/msgpack.o
-	CFLAGS += -DMSGPACK=1
-	LDFLAGS += -lmsgpackc
-else
-# check for MessagePack-C (note the dash)
-MSGPACK_C_LD=$(shell ld -lmsgpack-c >/dev/null 2>/dev/null; echo $$?)
-ifeq ($(strip $(MSGPACK_C_LD)),0)
-	FORMAT_OBJS += src/formats/msgpack.o
-	CFLAGS += -DMSGPACK=1
-	LDFLAGS += -lmsgpack-c
-endif # MSGPACK_C_LD
-endif # MSGPACKC_LD
-endif # MSGPACK_OSX_LIB
-endif # MSGPACKC_LIB
-endif # MSGPACK_LIB
+	CFLAGS  += -DMSGPACK=1 $(MSGPACK_DETECTED_CFLAGS) $(MSGPACK_CFLAGS)
+	LDFLAGS += $(MSGPACK_DETECTED_LIBS) $(MSGPACK_LIBS)
+endif
 
 # if `make` is run with DEBUG=1, include debug symbols
 DEBUG_FLAGS=
