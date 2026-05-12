@@ -107,6 +107,11 @@ class TestCustom(TestWebdis):
 
 class TestRaw(TestWebdis):
 
+	def assert_raw_body(self, url, expected):
+		f = self.query(url)
+		self.assertTrue(f.getheader('Content-Length') == str(len(expected)))
+		self.assertTrue(f.read() == expected)
+
 	def test_set(self):
 		"success type (+OK)"
 		self.query('DEL/hello')
@@ -125,6 +130,28 @@ class TestRaw(TestWebdis):
 		self.query('DEL/hello')
 		f = self.query('INCR/hello.raw')
 		self.assertTrue(f.read() == b':1\r\n')
+
+	def test_large_integer(self):
+		"large integer type"
+		self.query('DEL/raw-large-integer')
+		self.query('SET/raw-large-integer/0')
+		self.assert_raw_body('INCRBY/raw-large-integer/4294967296.raw',
+			b':4294967296\r\n')
+
+		self.query('SET/raw-large-integer/-9223372036854775808')
+		self.assert_raw_body('INCRBY/raw-large-integer/0.raw',
+			b':-9223372036854775808\r\n')
+
+	def test_integer_array(self):
+		"array with integer elements"
+		self.query('DEL/raw-integer-array')
+		f = self.query('BITFIELD/raw-integer-array/INCRBY/i64/0/4294967296.raw')
+		expected = b'*1\r\n$10\r\n4294967296\r\n'
+		body = f.read()
+		if body.startswith(b'-ERR unknown command'):
+			self.skipTest('BITFIELD is not supported by this Redis server')
+		self.assertTrue(f.getheader('Content-Length') == str(len(expected)))
+		self.assertTrue(body == expected)
 
 	def test_list(self):
 		"list type"
