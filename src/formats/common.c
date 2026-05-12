@@ -130,18 +130,18 @@ format_send_reply(struct cmd *cmd, const char *p, size_t sz, const char *content
 	}
 }
 
+/* Length of the string representation of an integer. */
 int
 integer_length(long long int i) {
-	int sz = 0;
-	int ci = llabs(i);
-	while (ci > 0) {
-		ci = (ci/10);
-		sz += 1;
-	}
-	if(i == 0) { /* log 0 doesn't make sense. */
-		sz = 1;
-	} else if(i < 0) { /* allow for neg sign as well. */
+	int sz = (i < 0) ? 1 : 0; /* negative sign */
+	unsigned long long u = (i < 0)
+		? (unsigned long long)-(i + 1) + 1ULL
+		: (unsigned long long)i;
+
+	do {
+		u /= 10;
 		sz++;
-	}
+	} while(u > 0);
+
 	return sz;
 }

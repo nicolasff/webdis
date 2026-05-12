@@ -5,11 +5,19 @@
 #include "cmd.h"
 
 #include <string.h>
+#include <stdio.h>
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
 
 static char *
 raw_wrap(const redisReply *r, size_t *sz);
+
+/* Compute the length of a Redis integer written in the RESP format
+ * e.g. `$3\r\n345\r\n` is 9 bytes total. */
+static size_t
+raw_integer_length_resp(int i) {
+	return 1 + integer_length(i) + 2 + i + 2;
+}
 
 void
 raw_reply(redisAsyncContext *c, void *r, void *privdata) {
@@ -26,6 +34,10 @@ raw_reply(redisAsyncContext *c, void *r, void *privdata) {
 	}
 
 	raw_out = raw_wrap(r, &sz);
+	if(!raw_out) {
+		format_send_error(cmd, 503, "Service Unavailable");
+		return;
+	}
 
 	/* send reply */
 	format_send_reply(cmd, raw_out, sz, "binary/octet-stream");
@@ -77,7 +89,12 @@ raw_ws_extract(struct http_client *c, const char *p, size_t sz) {
 			case REDIS_REPLY_INTEGER:
 				cmd->argv_len[i] = integer_length(ri->integer);
 				cmd->argv[i] = calloc(cmd->argv_len[i] + 1, 1);
-				sprintf(cmd->argv[i], "%lld", ri->integer);
+				if(snprintf(cmd->argv[i], cmd->argv_len[i] + 1,
+					"%lld", ri->integer) != (int)cmd->argv_len[i]) {
+					cmd_free(cmd);
+					cmd = NULL;
+					goto end;
+				}
 				break;
 
 			default:
@@ -116,8 +133,10 @@ raw_array(const redisReply *r, size_t *sz) {
 					+ e->len + 2;
 				break;
 			case REDIS_REPLY_INTEGER:
-				*sz += 1 + integer_length(integer_length(e->integer)) + 2
-					+ integer_length(e->integer) + 2;
+				{
+					int len = integer_length(e->integer);
+					*sz += raw_integer_length_resp(len);
+				}
 				break;
 
 		}
@@ -141,8 +160,18 @@ raw_array(const redisReply *r, size_t *sz) {
 				p++;
 				break;
 			case REDIS_REPLY_INTEGER:
-				p += sprintf(p, "$%d\r\n%lld\r\n",
-					integer_length(e->integer), e->integer);
+				{
+					int len = integer_length(e->integer);
+					size_t expected = raw_integer_length_resp(len);
+					size_t remaining = ret + *sz + 1 - p;
+					int n = snprintf(p, remaining, "$%d\r\n%lld\r\n",
+						len, e->integer);
+					if(n < 0 || (size_t)n != expected || (size_t)n >= remaining) {
+						free(ret);
+						return NULL;
+					}
+					p += n;
+				}
 				break;
 		}
 	}
@@ -175,8 +204,11 @@ raw_wrap(const redisReply *r, size_t *sz) {
 
 		case REDIS_REPLY_INTEGER:
 			*sz = 3 + integer_length(r->integer);
-			ret = malloc(4+*sz);
-			sprintf(ret, ":%lld\r\n", r->integer);
+			ret = malloc(*sz + 1);
+			if(snprintf(ret, *sz + 1, ":%lld\r\n", r->integer) != (int)*sz) {
+				free(ret);
+				return NULL;
+			}
 			return ret;
 
 		case REDIS_REPLY_ARRAY:
