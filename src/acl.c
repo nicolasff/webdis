@@ -37,10 +37,18 @@ acl_match_client(struct acl *a, struct http_client *client, in_addr_t *ip) {
 	return 0;
 }
 
+static int
+acl_rule_matches(const char *rule, const char *cmd_name, size_t cmd_len) {
+	if(rule[0] == '*' && rule[1] == '\0') {
+		return 1;
+	}
+	return strlen(rule) == cmd_len && strncasecmp(rule, cmd_name, cmd_len) == 0;
+}
+
 int
 acl_allow_command(struct cmd *cmd, struct conf *cfg, struct http_client *client) {
 
-	char *always_off[] = {"MULTI", "EXEC", "WATCH", "DISCARD", "SELECT"};
+	const char *always_off[] = {"MULTI", "EXEC", "WATCH", "DISCARD", "SELECT"};
 
 	unsigned int i;
 	int authorized = 1;
@@ -60,7 +68,7 @@ acl_allow_command(struct cmd *cmd, struct conf *cfg, struct http_client *client)
 
 	/* some commands are always disabled, regardless of the config file. */
 	for(i = 0; i < sizeof(always_off) / sizeof(always_off[0]); ++i) {
-		if(strncasecmp(always_off[i], cmd_name, cmd_len) == 0) {
+		if(acl_rule_matches(always_off[i], cmd_name, cmd_len)) {
 			return 0;
 		}
 	}
@@ -75,20 +83,14 @@ acl_allow_command(struct cmd *cmd, struct conf *cfg, struct http_client *client)
 
 		/* go through authorized commands */
 		for(i = 0; i < a->enabled.count; ++i) {
-			if(strncasecmp(a->enabled.commands[i], cmd_name, cmd_len) == 0) {
-				authorized = 1;
-			}
-			if(strncasecmp(a->enabled.commands[i], "*", 1) == 0) {
+			if(acl_rule_matches(a->enabled.commands[i], cmd_name, cmd_len)) {
 				authorized = 1;
 			}
 		}
 
 		/* go through unauthorized commands */
 		for(i = 0; i < a->disabled.count; ++i) {
-			if(strncasecmp(a->disabled.commands[i], cmd_name, cmd_len) == 0) {
-				authorized = 0;
-			}
-			if(strncasecmp(a->disabled.commands[i], "*", 1) == 0) {
+			if(acl_rule_matches(a->disabled.commands[i], cmd_name, cmd_len)) {
 				authorized = 0;
 			}
 		}
