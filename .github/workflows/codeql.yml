@@ -12,6 +12,8 @@ on:
     - 'src/**'
     - '.github/workflows/codeql.yml'
     - 'Makefile'
+  schedule:
+    - cron: '0 6 * * 1'
 
 jobs:
   CodeQL-Build:
@@ -26,7 +28,7 @@ jobs:
       uses: github/codeql-action/init@v4
       with:
         languages: cpp
-        queries: +security-and-quality
+        queries: security-and-quality
 
     - name: Install dependencies
       run: |
