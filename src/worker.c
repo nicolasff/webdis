@@ -55,51 +55,60 @@ worker_can_read(int fd, short event, void *p) {
 	}
 
 	if(!c->is_websocket) {
-		/* run parser */
-		nparsed = http_client_execute(c);
+		/* Enforce request size cap before running the parser: otherwise
+		 * on_message_complete would dispatch a Redis command for the
+		 * already-oversized request before this check runs. */
+		if(c->request_sz > c->s->cfg->http_max_request_size) {
+			slog(c->w->s, WEBDIS_DEBUG, "413", 3);
+			/* Parser is mid-request — pipeline state is no longer trustworthy.
+			 * Force Connection: Close so http_response_cleanup closes the fd
+			 * and http_client_reset (inside http_send_error) sets c->broken. */
+			c->keep_alive = 0;
+			http_send_error(c, 413, "Request Entity Too Large");
+		} else {
+			/* run parser */
+			nparsed = http_client_execute(c);
 
-		if(c->failed_alloc) {
-			slog(c->w->s, WEBDIS_DEBUG, "503", 3);
-			http_send_error(c, 503, "Service Unavailable");
-		} else if (c->parser.flags & F_CONNECTION_CLOSE && c->fully_read) {
-			/* only close if requested *and* we've already read the request in full */
-			c->broken = 1;
-		} else if(c->is_websocket) {
-
-			/* Got websocket data */
-			c->ws = ws_client_new(c);
-			if(!c->ws) {
+			if(c->failed_alloc) {
+				slog(c->w->s, WEBDIS_DEBUG, "503", 3);
+				http_send_error(c, 503, "Service Unavailable");
+			} else if (c->parser.flags & F_CONNECTION_CLOSE && c->fully_read) {
+				/* only close if requested *and* we've already read the request in full */
 				c->broken = 1;
-			} else {
+			} else if(c->is_websocket) {
+
+				/* Got websocket data */
+				c->ws = ws_client_new(c);
+				if(!c->ws) {
+					c->broken = 1;
+				} else {
+					free(c->buffer);
+					c->buffer = NULL;
+					c->sz = 0;
+
+					/* send response, and start managing fd from websocket.c */
+					int reply_ret = ws_handshake_reply(c->ws);
+					if(reply_ret < 0) {
+						c->ws->http_client = NULL; /* detach to prevent double free */
+						ws_close_if_able(c->ws);
+						c->broken = 1;
+					} else {
+						unsigned int processed = 0;
+						int process_ret = ws_process_read_data(c->ws, &processed);
+						if(process_ret == WS_ERROR) {
+							c->broken = 1; /* likely connection was closed */
+						}
+					}
+				}
+
+				/* clean up what remains in HTTP client */
 				free(c->buffer);
 				c->buffer = NULL;
 				c->sz = 0;
-
-				/* send response, and start managing fd from websocket.c */
-				int reply_ret = ws_handshake_reply(c->ws);
-				if(reply_ret < 0) {
-					c->ws->http_client = NULL; /* detach to prevent double free */
-					ws_close_if_able(c->ws);
-					c->broken = 1;
-				} else {
-					unsigned int processed = 0;
-					int process_ret = ws_process_read_data(c->ws, &processed);
-					if(process_ret == WS_ERROR) {
-						c->broken = 1; /* likely connection was closed */
-					}
-				}
+			} else if(nparsed != ret) {
+				slog(c->w->s, WEBDIS_DEBUG, "400", 3);
+				http_send_error(c, 400, "Bad Request");
 			}
-
-			/* clean up what remains in HTTP client */
-			free(c->buffer);
-			c->buffer = NULL;
-			c->sz = 0;
-		} else if(nparsed != ret) {
-			slog(c->w->s, WEBDIS_DEBUG, "400", 3);
-			http_send_error(c, 400, "Bad Request");
-		} else if(c->request_sz > c->s->cfg->http_max_request_size) {
-			slog(c->w->s, WEBDIS_DEBUG, "413", 3);
-			http_send_error(c, 413, "Request Entity Too Large");
 		}
 	}
 

@@ -12,7 +12,7 @@ class BlockingSocket:
 		self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.s.setblocking(True)
 		self.s.connect((HOST, PORT))
-	
+
 	def __del__(self):
 		self.s.close()
 
@@ -89,20 +89,37 @@ class TestHugeUrl(TestSocket):
 		self.assertTrue(ok)
 		self.assertTrue(b"400 Bad Request" in out)
 
-	def test_huge_upload(self):
-		n = 1024*1024*1024	# upload 1GB
+	UPLOAD_SIZE = 1024*1024*1024	# 1GB - well above default 128MiB cap
 
+	def _send_large_body_assert_413(self, ok):
+		fail = self.s.send(LargeString(b"A", self.UPLOAD_SIZE))
+		out = self.s.recv()
+		self.assertTrue(ok)
+		self.assertFalse(fail)
+		self.assertTrue(b"413 Request Entity Too Large" in out)
+		return out
+
+	def test_huge_upload(self):
 		start = b"PUT /SET/x HTTP/1.0\r\n"\
-		+ ("Content-Length: %d\r\n" % (n)).encode('utf-8')\
+		+ ("Content-Length: %d\r\n" % (self.UPLOAD_SIZE)).encode('utf-8')\
 		+ b"Expect: 100-continue\r\n\r\n"
 
 		ok = self.s.send(start)
 		cont = self.s.recv_until(b"\r\n")
-		fail = self.s.send(LargeString(b"A", n))
-
-		self.assertTrue(ok)
 		self.assertTrue(b"HTTP/1.1 100 Continue" in cont)
-		self.assertFalse(fail)
+		self._send_large_body_assert_413(ok)
+
+	def test_huge_upload_keepalive(self):
+		# HTTP/1.1 keep-alive variant: exercises the worker.c branch that
+		# forces c->keep_alive=0 so http_response_cleanup closes the fd.
+		start = b"PUT /SET/x HTTP/1.1\r\n"\
+		+ b"Host: localhost\r\n"\
+		+ ("Content-Length: %d\r\n" % (self.UPLOAD_SIZE)).encode('utf-8')\
+		+ b"\r\n"
+
+		ok = self.s.send(start)
+		out = self._send_large_body_assert_413(ok)
+		self.assertTrue(b"Connection: Close" in out)
 
 if __name__ == '__main__':
 	unittest.main(verbosity=5)
