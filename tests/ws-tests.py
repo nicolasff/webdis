@@ -293,6 +293,22 @@ class TestMinimalPingPong(TestRawConnection):
             self.assertEqual(out[0], 0b1000_1010) # FIN=true, opcode=pong(0xA)
             self.assertEqual(out[1], 0x00) # mask=false, payload_length=0
 
+class TestOversizedFrame(TestRawConnection):
+    """Test that we reject frames announcing a payload larger than http_max_request_size"""
+
+    def test_oversized_extended_length(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            self.connect_and_handshake(sock)
+
+            # FIN=true, opcode=binary, mask=true, len=127 (extended 64-bit length follows)
+            header = bytes([0b10000010, 0b11111111])
+            extended_length = struct.pack('>Q', 2 ** 48) # absurd payload size
+            mask = os.urandom(4)
+            sock.send(header + extended_length + mask)
+
+            # server should drop the connection without buffering the announced payload
+            self.assertEqual(sock.recv(1), b'')
+
 class TestUnmaskedDataFrame(TestRawConnection):
     """Test that we reject unmasked frames"""
 

@@ -455,10 +455,17 @@ ws_peek_data(struct ws_client *ws, struct ws_msg **out_msg) {
 		p = frame + 6 + sizeof(uint16_t);
 		memcpy(&mask, frame + 4, sizeof(mask));
 	} else if(len == 127) { /* size is stored in 64 bits after mask */
-		uint64_t sz64 = *((uint64_t*)(frame+2));
+		uint64_t sz64;
+		memcpy(&sz64, frame + 2, sizeof(sz64));
 		len = webdis_ntohll(sz64);
 		p = frame + 6 + sizeof(uint64_t);
 		memcpy(&mask, frame + 10, sizeof(mask));
+		if(len > ws->http_client->s->cfg->http_max_request_size) {
+			free(frame);
+			slog(ws->http_client->s, WEBDIS_WARNING, "Oversized websocket frame", 0);
+			ws->close_after_events = 1;
+			return WS_ERROR;
+		}
 	} else {
 		free(frame);
 		return WS_ERROR;
