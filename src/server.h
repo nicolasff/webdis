@@ -13,11 +13,19 @@
 struct worker;
 struct conf;
 
+/* signal events handled by the event loop */
+struct signal_events {
+	struct event *sig_hup;
+	struct event *sig_term;
+	struct event *sig_int;
+};
+
 struct server {
 
 	int fd;
 	struct event ev;
 	struct event_base *base;
+	struct signal_events sig_events;
 
 	struct conf *cfg;
 

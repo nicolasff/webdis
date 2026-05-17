@@ -225,22 +225,19 @@ server_daemonize(struct server *s, const char *pidfile) {
 	}
 }
 
-/* global pointer to the server object, used in signal handlers */
-static struct server *__server;
-
 static void
-server_handle_signal(int id) {
+server_handle_signal(evutil_socket_t id, short event, void *arg) {
+	struct server *s = arg;
+	(void)event;
 
-	int ret;
 	switch(id) {
 		case SIGHUP:
-			slog_init(__server);
+			slog_init(s);
 			break;
 		case SIGTERM:
 		case SIGINT:
-			slog(__server, WEBDIS_INFO, "Webdis terminating", 0);
-			ret = fsync(__server->log.fd);
-			(void)ret;
+			slog(s, WEBDIS_INFO, "Webdis terminating", 0);
+			(void)fsync(s->log.fd);
 			exit(0);
 			break;
 		default:
@@ -250,11 +247,13 @@ server_handle_signal(int id) {
 
 static void
 server_install_signal_handlers(struct server *s) {
-	__server = s;
+	s->sig_events.sig_hup  = evsignal_new(s->base, SIGHUP,  server_handle_signal, s);
+	s->sig_events.sig_term = evsignal_new(s->base, SIGTERM, server_handle_signal, s);
+	s->sig_events.sig_int  = evsignal_new(s->base, SIGINT,  server_handle_signal, s);
 
-	signal(SIGHUP,  server_handle_signal);
-	signal(SIGTERM, server_handle_signal);
-	signal(SIGINT,  server_handle_signal);
+	event_add(s->sig_events.sig_hup,  NULL);
+	event_add(s->sig_events.sig_term, NULL);
+	event_add(s->sig_events.sig_int,  NULL);
 }
 
 int

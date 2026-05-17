@@ -235,6 +235,7 @@ Follow this table to diagnose issues with SSL connections to Redis.
     * Set `"log_fsync": "auto"` (default) to let the file system handle file persistence on its own.
     * Set `"log_fsync": N` where `N` is a number to call `fsync` every `N` milliseconds.
     * Set `"log_fsync": "all"` (very slow) to persist the log file to its storage device on each log message.
+* Reload the config file on SIGHUP, for compatibility with logrotate, systemd, etc.
 * Cross-origin requests, usable with XMLHttpRequest2 (Cross-Origin Resource Sharing - CORS).
 * [File upload](#file-upload) with `PUT`.
 * With the JSON output, the return value of INFO is parsed and transformed into an object.
