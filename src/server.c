@@ -55,7 +55,7 @@ socket_setup(struct server *s, const char *ip, int port) {
 	}
 
 	/* set socket as non-blocking. */
-	ret = fcntl(fd, F_SETFD, O_NONBLOCK);
+	ret = fcntl(fd, F_SETFL, O_NONBLOCK);
 	if (0 != ret) {
 		slog(s, WEBDIS_ERROR, strerror(errno), 0);
 		return -1;
