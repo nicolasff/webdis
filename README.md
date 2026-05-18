@@ -50,7 +50,7 @@ $ curl http://127.0.0.1:7379/PING
 
 # To stop it:
 $ docker stop webdis-test
-0d2ce311a483
+webdis-test
 ```
 
 ## Docker repositories and image signatures
@@ -60,20 +60,20 @@ Webdis images are published on [Docker Hub](https://hub.docker.com/r/nicolas/web
 ### Docker Hub
 
 ```sh
-$ docker pull nicolas/webdis:0.1.24
+$ docker pull nicolas/webdis:0.1.25
 $ docker pull nicolas/webdis:latest
 ```
 
 Verify the signature with cosign:
 
 ```sh
-$ cosign verify --key webdis.pub nicolas/webdis:0.1.24
+$ cosign verify --key webdis.pub nicolas/webdis:0.1.25
 ```
 
 When this verification is successful, you should see a message like this:
 
 ```none
-Verification for public.ecr.aws/nicolas/webdis:0.1.24 --
+Verification for public.ecr.aws/nicolas/webdis:0.1.25 --
 The following checks were performed on each of these signatures:
   - The cosign claims were validated
   - Existence of the claims in the transparency log was verified offline
@@ -85,14 +85,14 @@ The image is signed recursively, so verification covers the multi-arch index and
 ### Amazon Elastic Container Registry (ECR)
 
 ```sh
-$ docker pull public.ecr.aws/nicolas/webdis:0.1.24
+$ docker pull public.ecr.aws/nicolas/webdis:0.1.25
 $ docker pull public.ecr.aws/nicolas/webdis:latest
 ```
 
 ECR images share the same digests as their Docker Hub counterparts, and the cosign signatures are mirrored alongside them. The same `cosign verify` command works against ECR:
 
 ```sh
-$ cosign verify --key webdis.pub public.ecr.aws/nicolas/webdis:0.1.24
+$ cosign verify --key webdis.pub public.ecr.aws/nicolas/webdis:0.1.25
 ```
 
 ## Multi-architecture images
@@ -127,7 +127,7 @@ $ curl http://127.0.0.1:7379/PING
 To stop it:
 ```
 $ docker stop webdis-test
-f0a2763fd456
+webdis-test
 ```
 
 ## Docker images and embedded Redis
