@@ -1,10 +1,9 @@
 FROM dhi.io/alpine-base:3.23-dev AS stage
 
-RUN apk update && apk add wget make gcc libevent-dev msgpack-c-dev musl-dev openssl-dev bsd-compat-headers jq redis
-RUN wget -q https://api.github.com/repos/nicolasff/webdis/tags -O /dev/stdout | jq '.[] | .name' | head -1  | sed 's/"//g' > latest
-RUN wget https://github.com/nicolasff/webdis/archive/$(cat latest).tar.gz -O webdis-latest.tar.gz
-RUN tar -xvzf webdis-latest.tar.gz
-RUN cd webdis-$(cat latest) && make && make install && make clean && make SSL=1 && cp webdis /usr/local/bin/webdis-ssl && cd ..
+RUN apk update && apk add curl make gcc libevent-dev msgpack-c-dev musl-dev openssl-dev bsd-compat-headers jq redis
+RUN curl -fsSL https://api.github.com/repos/nicolasff/webdis/tags | jq -r '.[0].name' > latest \
+    && curl -fsSL "https://github.com/nicolasff/webdis/archive/$(cat latest).tar.gz" | tar -xzf -
+RUN cd "webdis-$(cat latest)" && make && make install && make clean && make SSL=1 && cp webdis /usr/local/bin/webdis-ssl && cd ..
 
 # update Webdis config
 RUN mv /etc/webdis.prod.json /tmp/ && \
