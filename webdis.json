@@ -10,7 +10,7 @@
   "pool_size": 20,
 
   "daemonize": false,
-  "websockets": true,
+  "websockets": false,
 
   "database": 0,
 
@@ -28,6 +28,6 @@
     "keep_alive_sec": 15
   },
 
-  "verbosity": 8,
-  "logfile": "/dev/stdout"
+  "verbosity": 4,
+  "logfile": "webdis.log"
 }
