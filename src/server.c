@@ -79,8 +79,9 @@ socket_setup(struct server *s, const char *ip, int port) {
 		const char* comment = "Webdis listening on port %d";
 		int port_num = ntohs(addr.sin_port);
 
-		char* buffer = malloc(strlen(comment) -2 + strlen("65535") + 1);
-		sprintf(buffer, comment, port_num);
+		size_t buf_len = strlen(comment) - 2 + strlen("65535") + 1;
+		char* buffer = malloc(buf_len);
+		snprintf(buffer, buf_len, comment, port_num);
 
 		slog(s, WEBDIS_INFO, buffer , 0);
 
