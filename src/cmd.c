@@ -311,19 +311,22 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 		const char *uri, size_t uri_len, formatting_fun *f_format) {
 
 	const char *ext;
-	int ext_len = -1;
+	const char *suffix;
+	int ext_len = 0;
+	int suffix_len = 0;
+	int parsed_uri_len = uri_len;
 	unsigned int i;
-	int found = 0; /* did we match it to a predefined format? */
+	int found = 0; /* did we match the extension and/or the suffix to a predefined format? */
 
-	/* those are the available reply formats */
-	struct reply_format {
+	/* those are the available content-type formats */
+	struct content_type_format {
 		const char *s;
 		size_t sz;
 		formatting_fun f;
 		const char *ct;
 	};
-	struct reply_format funs[] = {
-		{.s = "json", .sz = 4, .f = json_reply, .ct = "application/json"},
+	struct content_type_format funs[] = {
+		{.s = "json", .sz = 4, . f = json_reply, .ct = "application/json"},
 		{.s = "raw", .sz = 3, .f = raw_reply, .ct = "binary/octet-stream"},
 
 #ifdef MSGPACK
@@ -341,26 +344,55 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 		{.s = "jpeg", .sz = 4, .f = custom_type_reply, .ct = "image/jpeg"},
 
 		{.s = "js", .sz = 2, .f = json_reply, .ct = "application/javascript"},
-		{.s = "css", .sz = 3, .f = custom_type_reply, .ct = "text/css"},
+		{.s = "css", .sz = 3, .f = custom_type_reply, .ct = "text/css"}
+	};
+
+	/* those are the available content-encoding formats */
+	struct content_encoding_format {
+		const char *s;
+		size_t sz;
+		formatting_fun f;
+	};
+	struct content_encoding_format sfxs[] = {
+		{.s = "gzip", .sz = 4, . f = custom_type_reply},
+		{.s = "br", .sz = 2, . f = custom_type_reply},
+		{.s = "zstd", .sz = 4, . f = custom_type_reply}
 	};
 
 	/* default */
 	*f_format = json_reply;
 
-	/* find extension */
+	/* find extension and/or suffix */
 	for(ext = uri + uri_len - 1; ext != uri && *ext != '/'; --ext) {
 		if(*ext == '.') {
-			ext++;
-			ext_len = uri + uri_len - ext;
+			suffix = ext + 1;
+			suffix_len = uri + uri_len - suffix;
+
+			for(ext = ext - 1; ext != uri && *ext != '/'; --ext) {
+				if(*ext == '.') {
+					ext++;
+					ext_len = suffix - ext - 1;
+					break;
+				}
+
+			}
 			break;
 		}
 	}
-	if(!ext_len) return uri_len; /* nothing found */
+	if(!suffix_len) return uri_len; /* nothing found */
+
+	if(ext_len) { /* both extension and suffix are found, as in 'key.ext.suffix' */
+		parsed_uri_len = uri_len - ext_len - 1 - suffix_len - 1;
+	} else {
+		ext = suffix;
+		ext_len = suffix_len;
+
+		parsed_uri_len = uri_len - ext_len - 1;
+	}
 
 	/* find function for the given extension */
 	for(i = 0; i < sizeof(funs)/sizeof(funs[0]); ++i) {
 		if(ext_len == (int)funs[i].sz && strncmp(ext, funs[i].s, ext_len) == 0) {
-
 			if(cmd->mime_free) free(cmd->mime);
 			cmd->mime = (char*)funs[i].ct;
 			cmd->mime_free = 0;
@@ -376,8 +408,17 @@ cmd_select_format(struct http_client *client, struct cmd *cmd,
 		/* /!\ we don't copy cmd->mime, this is done soon after in cmd_setup */
 	}
 
+	/* override function if suffix matches a known content-encoding */
+	for(i = 0; i < sizeof(sfxs)/sizeof(sfxs[0]); ++i) {
+		if(suffix_len == (int)sfxs[i].sz && strncmp(suffix, sfxs[i].s, suffix_len) == 0) {
+			cmd->content_encoding = (char *)sfxs[i].s;
+			*f_format = sfxs[i].f;
+			found = 1;
+		}
+	}
+
 	if(found) {
-		return uri_len - ext_len - 1;
+		return parsed_uri_len;
 	} else {
 		/* no matching format, use default output with the full argument, extension included. */
 		return uri_len;
