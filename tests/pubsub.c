@@ -82,6 +82,23 @@ reader_http_request(struct cx *c, const char* buffer, const char *limit) {
 	}
 }
 
+/*
+ * prepare an event structure(s)
+ */
+void
+cx_init(struct cx* c)
+{
+	if(c->read_fun) {
+		event_set(&c->evr, c->fd, EV_READ, c->read_fun, c);
+		event_base_set(c->base, &c->evr);
+	}
+
+	if(c->write_fun) {
+		event_set(&c->evw, c->fd, EV_WRITE, c->write_fun, c);
+		event_base_set(c->base, &c->evw);
+	}
+}
+
 /**
  * (re)install connection in the event loop.
  */
@@ -89,16 +106,11 @@ void
 cx_install(struct cx *c) {
 
 	if(c->read_fun) { /* attach callback for read. */
-		event_set(&c->evr, c->fd, EV_READ, c->read_fun, c);
-		event_base_set(c->base, &c->evr);
 		event_add(&c->evr, NULL);
 	}
 	if(c->write_fun) { /* attach callback for write. */
-		event_set(&c->evw, c->fd, EV_WRITE, c->write_fun, c);
-		event_base_set(c->base, &c->evw);
 		event_add(&c->evw, NULL);
 	}
-
 }
 
 /**
@@ -160,6 +172,7 @@ reader_new(struct event_base *base, const char *host, short port, int total, int
 	reader_http_request(c, c->http_request, "{\"SUBSCRIBE\":[\"subscribe\"");
 
 	/* add to the event loop. */
+	cx_init(c);
 	cx_install(c);
 }
 
@@ -209,6 +222,7 @@ writer_new(struct event_base *base, const char *host, short port, int chan) {
 	sprintf(c->http_request, "GET /PUBLISH/chan:%d/hi HTTP/1.1\r\n\r\n", chan);
 	reader_http_request(c, c->http_request, "{\"PUBLISH\":");
 
+	cx_init(c);
 	cx_install(c);
 }
 
