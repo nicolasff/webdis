@@ -119,7 +119,10 @@ ws_client_free(struct ws_client *ws) {
 
 	/* mark WS client as closing to skip the Redis callback */
 	ws->close_after_events = 1;
-	pool_free_context(ws->ac); /* could trigger a cb via format_send_error */
+	/* free the context now rather than disconnecting: hiredis defers the
+	   disconnect until pending replies arrive, and a blocking command would
+	   then invoke its callback with the cmd we free below. */
+	if(ws->ac) redisAsyncFree(ws->ac); /* runs pending callbacks with a NULL reply */
 
 	struct http_client *c = ws->http_client;
 	if(c) {
